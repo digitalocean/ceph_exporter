@@ -35,10 +35,10 @@ type PoolUsageCollector struct {
 	Objects *prometheus.GaugeVec
 
 	// ReadIO tracks the read IO calls made for the images within each pool.
-	ReadIO *prometheus.GaugeVec
+	ReadIO *prometheus.CounterVec
 
 	// WriteIO tracks the write IO calls made for the images within each pool.
-	WriteIO *prometheus.GaugeVec
+	WriteIO *prometheus.CounterVec
 }
 
 // NewPoolUsageCollector creates a new instance of PoolUsageCollector and returns
@@ -63,18 +63,18 @@ func NewPoolUsageCollector(conn Conn) *PoolUsageCollector {
 			},
 			[]string{"pool"},
 		),
-		ReadIO: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
+		ReadIO: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
 				Namespace: cephNamespace,
-				Name:      "pool_read_io_total",
+				Name:      "pool_read_total",
 				Help:      "Total read i/o calls the pool has been subject to",
 			},
 			[]string{"pool"},
 		),
-		WriteIO: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
+		WriteIO: prometheus.NewCounterVec(
+			prometheus.CounterOpts{
 				Namespace: cephNamespace,
-				Name:      "pool_write_io_total",
+				Name:      "pool_write_total",
 				Help:      "Total write i/o calls the pool has been subject to",
 			},
 			[]string{"pool"},

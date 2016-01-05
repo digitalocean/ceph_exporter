@@ -32,45 +32,37 @@ func TestClusterHealthCollector(t *testing.T) {
 		{
 			`{"summary": [{"severity": "HEALTH_WARN", "summary": "5 pgs degraded"}]}`,
 			[]*regexp.Regexp{
-				regexp.MustCompile(`degraded_pgs_count 5`),
+				regexp.MustCompile(`degraded_pgs 5`),
 			},
 		},
 		{
 			`{"summary": [{"severity": "HEALTH_WARN", "summary": "6 pgs stuck unclean"}]}`,
 			[]*regexp.Regexp{
-				regexp.MustCompile(`unclean_pgs_count 6`),
+				regexp.MustCompile(`unclean_pgs 6`),
 			},
 		},
 		{
 			`{"summary": [{"severity": "HEALTH_WARN", "summary": "7 pgs undersized"}]}`,
 			[]*regexp.Regexp{
-				regexp.MustCompile(`undersized_pgs_count 7`),
+				regexp.MustCompile(`undersized_pgs 7`),
 			},
 		},
 		{
 			`{"summary": [{"severity": "HEALTH_WARN", "summary": "8 pgs stale"}]}`,
 			[]*regexp.Regexp{
-				regexp.MustCompile(`stale_pgs_count 8`),
+				regexp.MustCompile(`stale_pgs 8`),
 			},
 		},
 		{
-			`{"summary": [{"severity": "HEALTH_WARN", "summary": "recovery 10/20 objects degraded (50%)"}]}`,
+			`{"summary": [{"severity": "HEALTH_WARN", "summary": "recovery 10/20 objects degraded"}]}`,
 			[]*regexp.Regexp{
-				regexp.MustCompile(`degraded_objects_count 10`),
-				regexp.MustCompile(`degraded_objects_percent 50`),
-			},
-		},
-		{
-			`{"summary": [{"severity": "HEALTH_WARN", "summary": "recovery 20/40 objects degraded (50.1%)"}]}`,
-			[]*regexp.Regexp{
-				regexp.MustCompile(`degraded_objects_count 20`),
-				regexp.MustCompile(`degraded_objects_percent 50`),
+				regexp.MustCompile(`degraded_objects 10`),
 			},
 		},
 		{
 			`{"summary": [{"severity": "HEALTH_WARN", "summary": "3/20 in osds are down"}]}`,
 			[]*regexp.Regexp{
-				regexp.MustCompile(`osds_down_count 3`),
+				regexp.MustCompile(`osds_down 3`),
 			},
 		},
 	} {

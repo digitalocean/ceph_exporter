@@ -37,8 +37,8 @@ func TestPoolUsageCollector(t *testing.T) {
 			[]*regexp.Regexp{
 				regexp.MustCompile(`pool_used_bytes{pool="rbd"} 20`),
 				regexp.MustCompile(`pool_objects_total{pool="rbd"} 5`),
-				regexp.MustCompile(`pool_read_io_total{pool="rbd"} 4`),
-				regexp.MustCompile(`pool_write_io_total{pool="rbd"} 6`),
+				regexp.MustCompile(`pool_read_total{pool="rbd"} 4`),
+				regexp.MustCompile(`pool_write_total{pool="rbd"} 6`),
 			},
 		},
 	} {

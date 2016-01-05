@@ -55,7 +55,7 @@ func NewClusterUsageCollector(conn Conn) *ClusterUsageCollector {
 
 		GlobalCapacity: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: cephNamespace,
-			Name:      "cluster_bytes_total",
+			Name:      "cluster_capacity_bytes",
 			Help:      "Total capacity of the cluster",
 		}),
 		UsedCapacity: prometheus.NewGauge(prometheus.GaugeOpts{
@@ -70,7 +70,7 @@ func NewClusterUsageCollector(conn Conn) *ClusterUsageCollector {
 		}),
 		Objects: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: cephNamespace,
-			Name:      "objects_total",
+			Name:      "cluster_objects",
 			Help:      "No. of rados objects within the cluster",
 		}),
 	}

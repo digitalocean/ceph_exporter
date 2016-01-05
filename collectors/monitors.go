@@ -84,7 +84,7 @@ func NewMonitorCollector(conn Conn) *MonitorCollector {
 		TotalKBs: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "monitor_total_kbs",
+				Name:      "monitor_capacity_bytes",
 				Help:      "Total storage capacity of the monitor node",
 			},
 			[]string{"monitor"},
@@ -92,7 +92,7 @@ func NewMonitorCollector(conn Conn) *MonitorCollector {
 		UsedKBs: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "monitor_used_kbs",
+				Name:      "monitor_used_bytes",
 				Help:      "Storage of the monitor node that is currently allocated for use",
 			},
 			[]string{"monitor"},
@@ -100,7 +100,7 @@ func NewMonitorCollector(conn Conn) *MonitorCollector {
 		AvailKBs: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "monitor_avail_kbs",
+				Name:      "monitor_avail_bytes",
 				Help:      "Total unused storage capacity that the monitor node has left",
 			},
 			[]string{"monitor"},
@@ -117,7 +117,7 @@ func NewMonitorCollector(conn Conn) *MonitorCollector {
 			TotalBytes: prometheus.NewGaugeVec(
 				prometheus.GaugeOpts{
 					Namespace: cephNamespace,
-					Name:      "monitor_store_total_bytes",
+					Name:      "monitor_store_capacity_bytes",
 					Help:      "Total capacity of the FileStore backing the monitor daemon",
 				},
 				[]string{"monitor"},
@@ -150,7 +150,7 @@ func NewMonitorCollector(conn Conn) *MonitorCollector {
 		ClockSkew: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "monitor_clock_skew",
+				Name:      "monitor_clock_skew_seconds",
 				Help:      "Clock skew the monitor node is incurring",
 			},
 			[]string{"monitor"},
@@ -158,7 +158,7 @@ func NewMonitorCollector(conn Conn) *MonitorCollector {
 		Latency: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "monitor_latency",
+				Name:      "monitor_latency_seconds",
 				Help:      "Latency the monitor node is incurring",
 			},
 			[]string{"monitor"},
@@ -244,19 +244,19 @@ func (m *MonitorCollector) collect() error {
 			if err != nil {
 				return err
 			}
-			m.TotalKBs.WithLabelValues(monstat.Name).Set(kbTotal)
+			m.TotalKBs.WithLabelValues(monstat.Name).Set(kbTotal * 1e3)
 
 			kbUsed, err := monstat.KBUsed.Float64()
 			if err != nil {
 				return err
 			}
-			m.UsedKBs.WithLabelValues(monstat.Name).Set(kbUsed)
+			m.UsedKBs.WithLabelValues(monstat.Name).Set(kbUsed * 1e3)
 
 			kbAvail, err := monstat.KBAvail.Float64()
 			if err != nil {
 				return err
 			}
-			m.AvailKBs.WithLabelValues(monstat.Name).Set(kbAvail)
+			m.AvailKBs.WithLabelValues(monstat.Name).Set(kbAvail * 1e3)
 
 			percentAvail, err := monstat.AvailPercent.Float64()
 			if err != nil {

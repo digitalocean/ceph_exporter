@@ -34,8 +34,7 @@ type ClusterHealthCollector struct {
 	UndersizedPGs prometheus.Gauge
 	StalePGs      prometheus.Gauge
 
-	DegradedObjectsCount   prometheus.Gauge
-	DegradedObjectsPercent prometheus.Gauge
+	DegradedObjectsCount prometheus.Gauge
 
 	OSDsDown prometheus.Gauge
 }
@@ -49,49 +48,42 @@ func NewClusterHealthCollector(conn Conn) *ClusterHealthCollector {
 		DegradedPGs: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "degraded_pgs_count",
+				Name:      "degraded_pgs",
 				Help:      "No. of PGs in a degraded state",
 			},
 		),
 		UncleanPGs: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "unclean_pgs_count",
+				Name:      "unclean_pgs",
 				Help:      "No. of PGs in an unclean state",
 			},
 		),
 		UndersizedPGs: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "undersized_pgs_count",
+				Name:      "undersized_pgs",
 				Help:      "No. of undersized PGs in the cluster",
 			},
 		),
 		StalePGs: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "stale_pgs_count",
+				Name:      "stale_pgs",
 				Help:      "No. of stale PGs in the cluster",
 			},
 		),
 		DegradedObjectsCount: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "degraded_objects_count",
+				Name:      "degraded_objects",
 				Help:      "No. of degraded objects across all PGs",
-			},
-		),
-		DegradedObjectsPercent: prometheus.NewGauge(
-			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "degraded_objects_percent",
-				Help:      "Percentage of degraded objects in the cluster",
 			},
 		),
 		OSDsDown: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "osds_down_count",
+				Name:      "osds_down",
 				Help:      "Count of OSDs that are in DOWN state",
 			},
 		),
@@ -105,7 +97,6 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.UndersizedPGs,
 		c.StalePGs,
 		c.DegradedObjectsCount,
-		c.DegradedObjectsPercent,
 		c.OSDsDown,
 	}
 }
@@ -144,7 +135,7 @@ func (c *ClusterHealthCollector) collect() error {
 		uncleanRegex         = regexp.MustCompile(`([\d]+) pgs stuck unclean`)
 		undersizedRegex      = regexp.MustCompile(`([\d]+) pgs undersized`)
 		staleRegex           = regexp.MustCompile(`([\d]+) pgs stale`)
-		degradedObjectsRegex = regexp.MustCompile(`recovery ([\d]+)/([\d]+) objects degraded \(([\d]+)[^\d]`)
+		degradedObjectsRegex = regexp.MustCompile(`recovery ([\d]+)/([\d]+) objects degraded`)
 		osdsDownRegex        = regexp.MustCompile(`([\d]+)/([\d]+) in osds are down`)
 	)
 
@@ -186,18 +177,12 @@ func (c *ClusterHealthCollector) collect() error {
 		}
 
 		matched = degradedObjectsRegex.FindStringSubmatch(s.Summary)
-		if len(matched) == 4 {
+		if len(matched) == 3 {
 			v, err := strconv.Atoi(matched[1])
 			if err != nil {
 				return err
 			}
 			c.DegradedObjectsCount.Set(float64(v))
-
-			v, err = strconv.Atoi(matched[3])
-			if err != nil {
-				return err
-			}
-			c.DegradedObjectsPercent.Set(float64(v))
 		}
 
 		matched = osdsDownRegex.FindStringSubmatch(s.Summary)

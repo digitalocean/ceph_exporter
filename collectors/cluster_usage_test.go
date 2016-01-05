@@ -57,10 +57,10 @@ func TestClusterUsage(t *testing.T) {
 	}
 
 	for _, re := range []*regexp.Regexp{
-		regexp.MustCompile(`ceph_cluster_bytes_total 10`),
+		regexp.MustCompile(`ceph_cluster_capacity_bytes 10`),
 		regexp.MustCompile(`ceph_cluster_used_bytes 6`),
 		regexp.MustCompile(`ceph_cluster_available_bytes 4`),
-		regexp.MustCompile(`ceph_objects_total 1`),
+		regexp.MustCompile(`ceph_cluster_objects 1`),
 	} {
 		if !re.Match(buf) {
 			t.Errorf("failed matching: %q", re)
