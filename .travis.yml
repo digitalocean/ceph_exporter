@@ -1,0 +1,16 @@
+language: go
+sudo: required
+dist: trusty
+
+go:
+  - 1.5
+
+before_install:
+  - sudo apt-get update
+  - sudo apt-get install -y librados-dev librbd-dev
+
+install:
+  - go get github.com/ceph/go-ceph
+  - go get github.com/prometheus/client_golang/prometheus
+
+script: go test -v -race ./...
