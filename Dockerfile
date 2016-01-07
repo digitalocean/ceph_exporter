@@ -21,4 +21,4 @@ RUN go get -d && \
     go build -o /bin/ceph_exporter
 
 EXPOSE 9190
-CMD ["/bin/ceph_exporter"]
+ENTRYPOINT ["/bin/ceph_exporter"]
