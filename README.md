@@ -34,6 +34,31 @@ go install
 
 A Makefile is provided in case you find a need for it.
 
+## Docker Image
+
+It is possible to run the exporter as a docker image. The port `9190` is
+exposed for running the default ceph exporter.
+
+The exporter needs your ceph configuration in order to establish communication with the monitors. You can either pass it in as an additional command or ideally you would just mount the directory containing both your `ceph.conf` and your user's keyring under the default `/etc/ceph` location that `Ceph` checks for.
+
+A sample run would look like:
+
+```bash
+$ docker build -t digitalocean/ceph_exporter .
+...
+<build takes place here>
+...
+$ docker run -v /etc/ceph:/etc/ceph -p=9190:9190 -it digitalocean/ceph_exporter
+```
+
+You would need to ensure your image can talk over to the monitors so if
+it needs access to your host's network stack you might need to add
+`--net=host` to the above command. It makes the port mapping redundant
+so the `-p` flag can be removed.
+
+Point your prometheus to scrape from `:9190` on your host now (or your port
+of choice if you decide to change it).
+
 ## Contributing
 
 Please refer to the [CONTRIBUTING](CONTRIBUTING.md) guide for more
