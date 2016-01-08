@@ -27,16 +27,43 @@ import (
 // It surfaces changes in the ceph parameters unlike data usage that ClusterUsageCollector
 // does.
 type ClusterHealthCollector struct {
+	// conn holds connection to the Ceph cluster
 	conn Conn
 
-	DegradedPGs   prometheus.Gauge
-	UncleanPGs    prometheus.Gauge
-	UndersizedPGs prometheus.Gauge
-	StalePGs      prometheus.Gauge
+	// DegradedPGs shows the no. of PGs that have some of the replicas
+	// missing.
+	DegradedPGs prometheus.Gauge
 
+	// UncleanPGs shows the no. of PGs that do not have all objects in the PG
+	// that are supposed to be in it.
+	UncleanPGs prometheus.Gauge
+
+	// UndersizedPGs depicts the count of PGs that have fewer copies than configured
+	// replication level.
+	UndersizedPGs prometheus.Gauge
+
+	// StalePGs depicts no. of PGs that are in an unknown state i.e. monitors do not know
+	// anything about their latest state since their pg mapping was modified.
+	StalePGs prometheus.Gauge
+
+	// DegradedObjectsCount gives the no. of RADOS objects are constitute the degraded PGs.
 	DegradedObjectsCount prometheus.Gauge
 
+	// OSDsDown show the no. of OSDs that are in the DOWN state.
 	OSDsDown prometheus.Gauge
+
+	// OSDsUp show the no. of OSDs that are in the UP state and are able to serve requests.
+	OSDsUp prometheus.Gauge
+
+	// OSDsIn shows the no. of OSDs that are marked as IN in the cluster.
+	OSDsIn prometheus.Gauge
+
+	// OSDsNum shows the count of total OSDs the cluster has.
+	OSDsNum prometheus.Gauge
+
+	// RemappedPGs show the count of PGs that are currently remapped and needs to be moved
+	// to newer OSDs.
+	RemappedPGs prometheus.Gauge
 }
 
 // NewClusterHealthCollector creates a new instance of ClusterHealthCollector to collect health
@@ -87,6 +114,34 @@ func NewClusterHealthCollector(conn Conn) *ClusterHealthCollector {
 				Help:      "Count of OSDs that are in DOWN state",
 			},
 		),
+		OSDsUp: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace: cephNamespace,
+				Name:      "osds_up",
+				Help:      "Count of OSDs that are in UP state",
+			},
+		),
+		OSDsIn: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace: cephNamespace,
+				Name:      "osds_in",
+				Help:      "Count of OSDs that are in IN state and available to serve requests",
+			},
+		),
+		OSDsNum: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace: cephNamespace,
+				Name:      "osds",
+				Help:      "Count of total OSDs in the cluster",
+			},
+		),
+		RemappedPGs: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace: cephNamespace,
+				Name:      "pgs_remapped",
+				Help:      "No. of PGs that are remapped and incurring cluster-wide movement",
+			},
+		),
 	}
 }
 
@@ -98,14 +153,28 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.StalePGs,
 		c.DegradedObjectsCount,
 		c.OSDsDown,
+		c.OSDsUp,
+		c.OSDsIn,
+		c.OSDsNum,
+		c.RemappedPGs,
 	}
 }
 
 type cephHealthStats struct {
-	Summary []struct {
-		Severity string `json:"severity"`
-		Summary  string `json:"summary"`
-	} `json:"summary"`
+	Health struct {
+		Summary []struct {
+			Severity string `json:"severity"`
+			Summary  string `json:"summary"`
+		} `json:"summary"`
+	} `json:"health"`
+	OSDMap struct {
+		OSDMap struct {
+			NumOSDs        json.Number `json:"num_osds"`
+			NumUpOSDs      json.Number `json:"num_up_osds"`
+			NumInOSDs      json.Number `json:"num_in_osds"`
+			NumRemappedPGs json.Number `json:"num_remapped_pgs"`
+		} `json:"osdmap"`
+	} `json:"osdmap"`
 }
 
 func (c *ClusterHealthCollector) collect() error {
@@ -126,10 +195,6 @@ func (c *ClusterHealthCollector) collect() error {
 		}
 	}
 
-	if len(stats.Summary) < 1 {
-		return nil
-	}
-
 	var (
 		degradedRegex        = regexp.MustCompile(`([\d]+) pgs degraded`)
 		uncleanRegex         = regexp.MustCompile(`([\d]+) pgs stuck unclean`)
@@ -139,7 +204,7 @@ func (c *ClusterHealthCollector) collect() error {
 		osdsDownRegex        = regexp.MustCompile(`([\d]+)/([\d]+) in osds are down`)
 	)
 
-	for _, s := range stats.Summary {
+	for _, s := range stats.Health.Summary {
 		matched := degradedRegex.FindStringSubmatch(s.Summary)
 		if len(matched) == 2 {
 			v, err := strconv.Atoi(matched[1])
@@ -193,16 +258,38 @@ func (c *ClusterHealthCollector) collect() error {
 			}
 			c.OSDsDown.Set(float64(v))
 		}
-
 	}
+
+	osdsUp, err := stats.OSDMap.OSDMap.NumUpOSDs.Float64()
+	if err != nil {
+		return err
+	}
+	c.OSDsUp.Set(osdsUp)
+
+	osdsIn, err := stats.OSDMap.OSDMap.NumInOSDs.Float64()
+	if err != nil {
+		return err
+	}
+	c.OSDsIn.Set(osdsIn)
+
+	osdsNum, err := stats.OSDMap.OSDMap.NumOSDs.Float64()
+	if err != nil {
+		return err
+	}
+	c.OSDsNum.Set(osdsNum)
+
+	remappedPGs, err := stats.OSDMap.OSDMap.NumRemappedPGs.Float64()
+	if err != nil {
+		return err
+	}
+	c.RemappedPGs.Set(remappedPGs)
 
 	return nil
 }
 
 func (c *ClusterHealthCollector) cephUsageCommand() []byte {
 	cmd, err := json.Marshal(map[string]interface{}{
-		"prefix": "health",
-		"detail": "detail",
+		"prefix": "status",
 		"format": "json",
 	})
 	if err != nil {
