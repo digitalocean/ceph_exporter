@@ -38,7 +38,7 @@ type ClusterHealthCollector struct {
 	// that are supposed to be in it.
 	UncleanPGs prometheus.Gauge
 
-	// UndersizedPGs depicts the count of PGs that have fewer copies than configured
+	// UndersizedPGs depicts the no. of PGs that have fewer copies than configured
 	// replication level.
 	UndersizedPGs prometheus.Gauge
 
@@ -58,10 +58,10 @@ type ClusterHealthCollector struct {
 	// OSDsIn shows the no. of OSDs that are marked as IN in the cluster.
 	OSDsIn prometheus.Gauge
 
-	// OSDsNum shows the count of total OSDs the cluster has.
+	// OSDsNum shows the no. of total OSDs the cluster has.
 	OSDsNum prometheus.Gauge
 
-	// RemappedPGs show the count of PGs that are currently remapped and needs to be moved
+	// RemappedPGs show the no. of PGs that are currently remapped and needs to be moved
 	// to newer OSDs.
 	RemappedPGs prometheus.Gauge
 }

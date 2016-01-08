@@ -32,14 +32,14 @@ func TestClusterHealthCollector(t *testing.T) {
 		{
 			`
 {
-    "osdmap": {
-        "osdmap": {
-            "num_osds": 0,
-            "num_up_osds": 0,
-            "num_in_osds": 0,
-            "num_remapped_pgs": 0
-        }
-    },
+	"osdmap": {
+		"osdmap": {
+			"num_osds": 0,
+			"num_up_osds": 0,
+			"num_in_osds": 0,
+			"num_remapped_pgs": 0
+		}
+	},
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "5 pgs degraded"}]}
 }`,
 			[]*regexp.Regexp{
@@ -49,14 +49,14 @@ func TestClusterHealthCollector(t *testing.T) {
 		{
 			`
 {
-    "osdmap": {
-        "osdmap": {
-            "num_osds": 0,
-            "num_up_osds": 0,
-            "num_in_osds": 0,
-            "num_remapped_pgs": 0
-        }
-    },
+	"osdmap": {
+		"osdmap": {
+			"num_osds": 0,
+			"num_up_osds": 0,
+			"num_in_osds": 0,
+			"num_remapped_pgs": 0
+		}
+	},
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "6 pgs stuck unclean"}]}
 }`,
 			[]*regexp.Regexp{
@@ -66,14 +66,14 @@ func TestClusterHealthCollector(t *testing.T) {
 		{
 			`
 {
-    "osdmap": {
-        "osdmap": {
-            "num_osds": 0,
-            "num_up_osds": 0,
-            "num_in_osds": 0,
-            "num_remapped_pgs": 0
-        }
-    },
+	"osdmap": {
+		"osdmap": {
+			"num_osds": 0,
+			"num_up_osds": 0,
+			"num_in_osds": 0,
+			"num_remapped_pgs": 0
+		}
+	},
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "7 pgs undersized"}]}
 }`,
 			[]*regexp.Regexp{
@@ -83,14 +83,14 @@ func TestClusterHealthCollector(t *testing.T) {
 		{
 			`
 {
-    "osdmap": {
-        "osdmap": {
-            "num_osds": 0,
-            "num_up_osds": 0,
-            "num_in_osds": 0,
-            "num_remapped_pgs": 0
-        }
-    },
+	"osdmap": {
+		"osdmap": {
+			"num_osds": 0,
+			"num_up_osds": 0,
+			"num_in_osds": 0,
+			"num_remapped_pgs": 0
+		}
+	},
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "8 pgs stale"}]}
 }`,
 			[]*regexp.Regexp{
@@ -100,14 +100,14 @@ func TestClusterHealthCollector(t *testing.T) {
 		{
 			`
 {
-    "osdmap": {
-        "osdmap": {
-            "num_osds": 0,
-            "num_up_osds": 0,
-            "num_in_osds": 0,
-            "num_remapped_pgs": 0
-        }
-    },
+	"osdmap": {
+		"osdmap": {
+			"num_osds": 0,
+			"num_up_osds": 0,
+			"num_in_osds": 0,
+			"num_remapped_pgs": 0
+		}
+	},
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "recovery 10/20 objects degraded"}]}
 }`,
 			[]*regexp.Regexp{
@@ -117,14 +117,14 @@ func TestClusterHealthCollector(t *testing.T) {
 		{
 			`
 {
-    "osdmap": {
-        "osdmap": {
-            "num_osds": 0,
-            "num_up_osds": 0,
-            "num_in_osds": 0,
-            "num_remapped_pgs": 0
-        }
-    },
+	"osdmap": {
+		"osdmap": {
+			"num_osds": 0,
+			"num_up_osds": 0,
+			"num_in_osds": 0,
+			"num_remapped_pgs": 0
+		}
+	},
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "3/20 in osds are down"}]}
 }`,
 			[]*regexp.Regexp{
@@ -134,14 +134,14 @@ func TestClusterHealthCollector(t *testing.T) {
 		{
 			`
 {
-    "osdmap": {
-        "osdmap": {
-            "num_osds": 1200,
-            "num_up_osds": 1200,
-            "num_in_osds": 1190,
-            "num_remapped_pgs": 10
-        }
-    },
+	"osdmap": {
+		"osdmap": {
+			"num_osds": 1200,
+			"num_up_osds": 1200,
+			"num_in_osds": 1190,
+			"num_remapped_pgs": 10
+		}
+	},
 	"health": {"summary": []}
 }`,
 			[]*regexp.Regexp{
