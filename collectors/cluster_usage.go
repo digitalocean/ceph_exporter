@@ -159,7 +159,7 @@ func (c *ClusterUsageCollector) Describe(ch chan<- *prometheus.Desc) {
 // cluster usage over to the provided prometheus Metric channel.
 func (c *ClusterUsageCollector) Collect(ch chan<- prometheus.Metric) {
 	if err := c.collect(); err != nil {
-		log.Println("failed collecting metrics:", err)
+		log.Println("failed collecting cluster usage metrics:", err)
 		return
 	}
 

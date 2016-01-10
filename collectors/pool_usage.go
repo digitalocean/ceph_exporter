@@ -175,7 +175,7 @@ func (p *PoolUsageCollector) Describe(ch chan<- *prometheus.Desc) {
 // prometheus channel.
 func (p *PoolUsageCollector) Collect(ch chan<- prometheus.Metric) {
 	if err := p.collect(); err != nil {
-		log.Println("failed collecting metrics:", err)
+		log.Println("failed collecting pool usage metrics:", err)
 		return
 	}
 
