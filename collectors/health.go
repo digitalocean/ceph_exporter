@@ -312,7 +312,7 @@ func (c *ClusterHealthCollector) Describe(ch chan<- *prometheus.Desc) {
 // It requires the caller to handle synchronization.
 func (c *ClusterHealthCollector) Collect(ch chan<- prometheus.Metric) {
 	if err := c.collect(); err != nil {
-		log.Println("failed collecting metrics:", err)
+		log.Println("failed collecting cluster health metrics:", err)
 		return
 	}
 

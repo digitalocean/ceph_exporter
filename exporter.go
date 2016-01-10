@@ -12,6 +12,7 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
+// Command ceph_exporter provides a Prometheus exporter for a Ceph cluster.
 package main
 
 import (
@@ -20,7 +21,7 @@ import (
 	"net/http"
 	"sync"
 
-	ceph_collectors "github.com/digitalocean/ceph_exporter/collectors"
+	"github.com/digitalocean/ceph_exporter/collectors"
 
 	"github.com/ceph/go-ceph/rados"
 	"github.com/prometheus/client_golang/prometheus"
@@ -45,10 +46,10 @@ var _ prometheus.Collector = &CephExporter{}
 func NewCephExporter(conn *rados.Conn) *CephExporter {
 	return &CephExporter{
 		collectors: []prometheus.Collector{
-			ceph_collectors.NewClusterUsageCollector(conn),
-			ceph_collectors.NewPoolUsageCollector(conn),
-			ceph_collectors.NewClusterHealthCollector(conn),
-			ceph_collectors.NewMonitorCollector(conn),
+			collectors.NewClusterUsageCollector(conn),
+			collectors.NewPoolUsageCollector(conn),
+			collectors.NewClusterHealthCollector(conn),
+			collectors.NewMonitorCollector(conn),
 		},
 	}
 }

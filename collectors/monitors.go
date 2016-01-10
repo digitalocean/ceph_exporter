@@ -338,7 +338,7 @@ func (m *MonitorCollector) Describe(ch chan<- *prometheus.Desc) {
 // channel.
 func (m *MonitorCollector) Collect(ch chan<- prometheus.Metric) {
 	if err := m.collect(); err != nil {
-		log.Println("failed collecting metrics:", err)
+		log.Println("failed collecting monitor metrics:", err)
 		return
 	}
 
