@@ -106,29 +106,32 @@ func (c *ClusterUsageCollector) collect() error {
 		return err
 	}
 
-	tot, err := stats.Stats.TotalBytes.Float64()
-	if err != nil {
-		return err
-	}
-	c.GlobalCapacity.Set(tot)
+	var totBytes, usedBytes, availBytes, totObjects float64
 
-	used, err := stats.Stats.TotalUsedBytes.Float64()
+	totBytes, err = stats.Stats.TotalBytes.Float64()
 	if err != nil {
-		return err
+		log.Println("[ERROR] cannot extract total bytes:", err)
 	}
-	c.UsedCapacity.Set(used)
 
-	avail, err := stats.Stats.TotalAvailBytes.Float64()
+	usedBytes, err = stats.Stats.TotalUsedBytes.Float64()
 	if err != nil {
-		return err
+		log.Println("[ERROR] cannot extract used bytes:", err)
 	}
-	c.AvailableCapacity.Set(avail)
 
-	objects, err := stats.Stats.TotalObjects.Float64()
+	availBytes, err = stats.Stats.TotalAvailBytes.Float64()
 	if err != nil {
-		return err
+		log.Println("[ERROR] cannot extract available bytes:", err)
 	}
-	c.Objects.Set(objects)
+
+	totObjects, err = stats.Stats.TotalObjects.Float64()
+	if err != nil {
+		log.Println("[ERROR] cannot extract total objects:", err)
+	}
+
+	c.GlobalCapacity.Set(totBytes)
+	c.UsedCapacity.Set(usedBytes)
+	c.AvailableCapacity.Set(availBytes)
+	c.Objects.Set(totObjects)
 
 	return nil
 }
@@ -159,7 +162,7 @@ func (c *ClusterUsageCollector) Describe(ch chan<- *prometheus.Desc) {
 // cluster usage over to the provided prometheus Metric channel.
 func (c *ClusterUsageCollector) Collect(ch chan<- prometheus.Metric) {
 	if err := c.collect(); err != nil {
-		log.Println("failed collecting cluster usage metrics:", err)
+		log.Println("[ERROR] failed collecting cluster usage metrics:", err)
 		return
 	}
 

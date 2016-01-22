@@ -16,6 +16,7 @@ package collectors
 
 import (
 	"io/ioutil"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -25,8 +26,14 @@ import (
 )
 
 func TestClusterUsage(t *testing.T) {
-	var (
-		expected = `
+	log.SetOutput(ioutil.Discard)
+
+	for _, tt := range []struct {
+		input              string
+		reMatch, reUnmatch []*regexp.Regexp
+	}{
+		{
+			input: `
 {
 	"stats": {
 		"total_bytes": 10,
@@ -34,36 +41,133 @@ func TestClusterUsage(t *testing.T) {
 		"total_avail_bytes": 4,
 		"total_objects": 1
 	}
-}`
-	)
-
-	collector := NewClusterUsageCollector(NewNoopConn(expected))
-	if err := prometheus.Register(collector); err != nil {
-		t.Fatalf("collector failed to register: %s", err)
+}`,
+			reMatch: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_cluster_capacity_bytes 10`),
+				regexp.MustCompile(`ceph_cluster_used_bytes 6`),
+				regexp.MustCompile(`ceph_cluster_available_bytes 4`),
+				regexp.MustCompile(`ceph_cluster_objects 1`),
+			},
+			reUnmatch: []*regexp.Regexp{},
+		},
+		{
+			input: `
+{
+	"stats": {
+		"total_used_bytes": 6,
+		"total_avail_bytes": 4,
+		"total_objects": 1
 	}
-
-	server := httptest.NewServer(prometheus.Handler())
-	defer server.Close()
-
-	resp, err := http.Get(server.URL)
-	if err != nil {
-		t.Fatalf("unexpected failed response from prometheus: %s", err)
+}`,
+			reMatch: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_cluster_capacity_bytes 0`),
+				regexp.MustCompile(`ceph_cluster_used_bytes 6`),
+				regexp.MustCompile(`ceph_cluster_available_bytes 4`),
+				regexp.MustCompile(`ceph_cluster_objects 1`),
+			},
+			reUnmatch: []*regexp.Regexp{},
+		},
+		{
+			input: `
+{
+	"stats": {
+		"total_bytes": 10,
+		"total_avail_bytes": 4,
+		"total_objects": 1
 	}
-	defer resp.Body.Close()
-
-	buf, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("failed reading server response: %s", err)
+}`,
+			reMatch: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_cluster_capacity_bytes 10`),
+				regexp.MustCompile(`ceph_cluster_used_bytes 0`),
+				regexp.MustCompile(`ceph_cluster_available_bytes 4`),
+				regexp.MustCompile(`ceph_cluster_objects 1`),
+			},
+			reUnmatch: []*regexp.Regexp{},
+		},
+		{
+			input: `
+{
+	"stats": {
+		"total_bytes": 10,
+		"total_used_bytes": 6,
+		"total_objects": 1
 	}
-
-	for _, re := range []*regexp.Regexp{
-		regexp.MustCompile(`ceph_cluster_capacity_bytes 10`),
-		regexp.MustCompile(`ceph_cluster_used_bytes 6`),
-		regexp.MustCompile(`ceph_cluster_available_bytes 4`),
-		regexp.MustCompile(`ceph_cluster_objects 1`),
+}`,
+			reMatch: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_cluster_capacity_bytes 10`),
+				regexp.MustCompile(`ceph_cluster_used_bytes 6`),
+				regexp.MustCompile(`ceph_cluster_available_bytes 0`),
+				regexp.MustCompile(`ceph_cluster_objects 1`),
+			},
+			reUnmatch: []*regexp.Regexp{},
+		},
+		{
+			input: `
+{
+	"stats": {
+		"total_bytes": 10,
+		"total_used_bytes": 6,
+		"total_avail_bytes": 4
+	}
+}`,
+			reMatch: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_cluster_capacity_bytes 10`),
+				regexp.MustCompile(`ceph_cluster_used_bytes 6`),
+				regexp.MustCompile(`ceph_cluster_available_bytes 4`),
+				regexp.MustCompile(`ceph_cluster_objects 0`),
+			},
+			reUnmatch: []*regexp.Regexp{},
+		},
+		{
+			input: `
+{
+	"stats": {{{
+		"total_bytes": 10,
+		"total_used_bytes": 6,
+		"total_avail_bytes": 4,
+		"total_objects": 1
+	}
+}`,
+			reMatch: []*regexp.Regexp{},
+			reUnmatch: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_cluster_capacity_bytes`),
+				regexp.MustCompile(`ceph_cluster_used_bytes`),
+				regexp.MustCompile(`ceph_cluster_available_bytes`),
+				regexp.MustCompile(`ceph_cluster_objects`),
+			},
+		},
 	} {
-		if !re.Match(buf) {
-			t.Errorf("failed matching: %q", re)
-		}
+		func() {
+			collector := NewClusterUsageCollector(NewNoopConn(tt.input))
+			if err := prometheus.Register(collector); err != nil {
+				t.Fatalf("collector failed to register: %s", err)
+			}
+			defer prometheus.Unregister(collector)
+
+			server := httptest.NewServer(prometheus.Handler())
+			defer server.Close()
+
+			resp, err := http.Get(server.URL)
+			if err != nil {
+				t.Fatalf("unexpected failed response from prometheus: %s", err)
+			}
+			defer resp.Body.Close()
+
+			buf, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				t.Fatalf("failed reading server response: %s", err)
+			}
+
+			for _, re := range tt.reMatch {
+				if !re.Match(buf) {
+					t.Errorf("failed matching: %q", re)
+				}
+			}
+			for _, re := range tt.reUnmatch {
+				if re.Match(buf) {
+					t.Errorf("should not have matched: %q", re)
+				}
+			}
+		}()
 	}
 }

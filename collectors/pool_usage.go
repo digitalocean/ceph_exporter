@@ -121,28 +121,31 @@ func (p *PoolUsageCollector) collect() error {
 	}
 
 	for _, pool := range stats.Pools {
-		bytesUsed, err := pool.Stats.BytesUsed.Float64()
+		var bytesUsed, objects, read, write float64
+
+		bytesUsed, err = pool.Stats.BytesUsed.Float64()
 		if err != nil {
-			return err
+			log.Printf("[ERROR] cannot extract used bytes for pool %q: %s", pool.Name, err)
 		}
-		p.UsedBytes.WithLabelValues(pool.Name).Set(bytesUsed)
 
 		objects, err := pool.Stats.Objects.Float64()
 		if err != nil {
-			return err
+			log.Printf("[ERROR] cannot extract total objects for pool %q: %s", pool.Name, err)
 		}
+
+		read, err = pool.Stats.Read.Float64()
+		if err != nil {
+			log.Printf("[ERROR] cannot extract read stats for pool %q: %s", pool.Name, err)
+		}
+
+		write, err = pool.Stats.Write.Float64()
+		if err != nil {
+			log.Printf("[ERROR] cannot extract write stats for pool %q: %s", pool.Name, err)
+		}
+
+		p.UsedBytes.WithLabelValues(pool.Name).Set(bytesUsed)
 		p.Objects.WithLabelValues(pool.Name).Set(objects)
-
-		read, err := pool.Stats.Read.Float64()
-		if err != nil {
-			return err
-		}
 		p.ReadIO.WithLabelValues(pool.Name).Set(read)
-
-		write, err := pool.Stats.Write.Float64()
-		if err != nil {
-			return err
-		}
 		p.WriteIO.WithLabelValues(pool.Name).Set(write)
 	}
 
@@ -175,7 +178,7 @@ func (p *PoolUsageCollector) Describe(ch chan<- *prometheus.Desc) {
 // prometheus channel.
 func (p *PoolUsageCollector) Collect(ch chan<- prometheus.Metric) {
 	if err := p.collect(); err != nil {
-		log.Println("failed collecting pool usage metrics:", err)
+		log.Println("[ERROR] failed collecting pool usage metrics:", err)
 		return
 	}
 
