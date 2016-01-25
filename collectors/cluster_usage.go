@@ -34,7 +34,7 @@ type ClusterUsageCollector struct {
 
 	// GlobalCapacity displays the total storage capacity of the cluster. This
 	// information is based on the actual no. of objects that are allocated. It
-	// does not take overcommittment into consideration.
+	// does not take overcommitment into consideration.
 	GlobalCapacity prometheus.Gauge
 
 	// UsedCapacity shows the storage under use.
