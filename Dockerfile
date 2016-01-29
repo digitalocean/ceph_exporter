@@ -20,5 +20,5 @@ WORKDIR $APPLOC
 RUN go get -d && \
     go build -o /bin/ceph_exporter
 
-EXPOSE 9190
+EXPOSE 9128
 ENTRYPOINT ["/bin/ceph_exporter"]
