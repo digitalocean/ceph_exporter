@@ -69,6 +69,12 @@ type ClusterHealthCollector struct {
 	// DegradedObjectsCount gives the no. of RADOS objects are constitute the degraded PGs.
 	DegradedObjectsCount prometheus.Gauge
 
+	// MisplacedObjectsCount gives the no. of RADOS objects that constitute the misplaced PGs.
+	// Misplaced PGs usually represent the PGs that are not in the storage locations that
+	// they should be in. This is different than degraded PGs which means a PG has fewer copies
+	// that it should.
+	MisplacedObjectsCount prometheus.Gauge
+
 	// OSDsDown show the no. of OSDs that are in the DOWN state.
 	OSDsDown prometheus.Gauge
 
@@ -174,6 +180,13 @@ func NewClusterHealthCollector(conn Conn) *ClusterHealthCollector {
 				Help:      "No. of degraded objects across all PGs",
 			},
 		),
+		MisplacedObjectsCount: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace: cephNamespace,
+				Name:      "misplaced_objects",
+				Help:      "No. of misplaced objects across all PGs",
+			},
+		),
 		OSDsDown: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
@@ -224,6 +237,7 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.StalePGs,
 		c.StuckStalePGs,
 		c.DegradedObjectsCount,
+		c.MisplacedObjectsCount,
 		c.OSDsDown,
 		c.OSDsUp,
 		c.OSDsIn,
@@ -280,16 +294,17 @@ func (c *ClusterHealthCollector) collect() error {
 	}
 
 	var (
-		degradedRegex        = regexp.MustCompile(`([\d]+) pgs degraded`)
-		stuckDegradedRegex   = regexp.MustCompile(`([\d]+) pgs stuck degraded`)
-		uncleanRegex         = regexp.MustCompile(`([\d]+) pgs unclean`)
-		stuckUncleanRegex    = regexp.MustCompile(`([\d]+) pgs stuck unclean`)
-		undersizedRegex      = regexp.MustCompile(`([\d]+) pgs undersized`)
-		stuckUndersizedRegex = regexp.MustCompile(`([\d]+) pgs stuck undersized`)
-		staleRegex           = regexp.MustCompile(`([\d]+) pgs stale`)
-		stuckStaleRegex      = regexp.MustCompile(`([\d]+) pgs stuck stale`)
-		degradedObjectsRegex = regexp.MustCompile(`recovery ([\d]+)/([\d]+) objects degraded`)
-		osdsDownRegex        = regexp.MustCompile(`([\d]+)/([\d]+) in osds are down`)
+		degradedRegex         = regexp.MustCompile(`([\d]+) pgs degraded`)
+		stuckDegradedRegex    = regexp.MustCompile(`([\d]+) pgs stuck degraded`)
+		uncleanRegex          = regexp.MustCompile(`([\d]+) pgs unclean`)
+		stuckUncleanRegex     = regexp.MustCompile(`([\d]+) pgs stuck unclean`)
+		undersizedRegex       = regexp.MustCompile(`([\d]+) pgs undersized`)
+		stuckUndersizedRegex  = regexp.MustCompile(`([\d]+) pgs stuck undersized`)
+		staleRegex            = regexp.MustCompile(`([\d]+) pgs stale`)
+		stuckStaleRegex       = regexp.MustCompile(`([\d]+) pgs stuck stale`)
+		degradedObjectsRegex  = regexp.MustCompile(`recovery ([\d]+)/([\d]+) objects degraded`)
+		misplacedObjectsRegex = regexp.MustCompile(`recovery ([\d]+)/([\d]+) objects misplaced`)
+		osdsDownRegex         = regexp.MustCompile(`([\d]+)/([\d]+) in osds are down`)
 	)
 
 	for _, s := range stats.Health.Summary {
@@ -372,6 +387,15 @@ func (c *ClusterHealthCollector) collect() error {
 				return err
 			}
 			c.DegradedObjectsCount.Set(float64(v))
+		}
+
+		matched = misplacedObjectsRegex.FindStringSubmatch(s.Summary)
+		if len(matched) == 3 {
+			v, err := strconv.Atoi(matched[1])
+			if err != nil {
+				return err
+			}
+			c.MisplacedObjectsCount.Set(float64(v))
 		}
 
 		matched = osdsDownRegex.FindStringSubmatch(s.Summary)
