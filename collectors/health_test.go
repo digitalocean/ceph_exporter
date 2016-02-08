@@ -57,10 +57,44 @@ func TestClusterHealthCollector(t *testing.T) {
 			"num_remapped_pgs": 0
 		}
 	},
-	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "6 pgs stuck unclean"}]}
+	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "15 pgs stuck degraded"}]}
+}`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`stuck_degraded_pgs 15`),
+			},
+		},
+		{
+			input: `
+{
+	"osdmap": {
+		"osdmap": {
+			"num_osds": 0,
+			"num_up_osds": 0,
+			"num_in_osds": 0,
+			"num_remapped_pgs": 0
+		}
+	},
+	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "6 pgs unclean"}]}
 }`,
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`unclean_pgs 6`),
+			},
+		},
+		{
+			input: `
+{
+	"osdmap": {
+		"osdmap": {
+			"num_osds": 0,
+			"num_up_osds": 0,
+			"num_in_osds": 0,
+			"num_remapped_pgs": 0
+		}
+	},
+	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "16 pgs stuck unclean"}]}
+}`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`stuck_unclean_pgs 16`),
 			},
 		},
 		{
@@ -91,10 +125,44 @@ func TestClusterHealthCollector(t *testing.T) {
 			"num_remapped_pgs": 0
 		}
 	},
+	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "17 pgs stuck undersized"}]}
+}`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`stuck_undersized_pgs 17`),
+			},
+		},
+		{
+			input: `
+{
+	"osdmap": {
+		"osdmap": {
+			"num_osds": 0,
+			"num_up_osds": 0,
+			"num_in_osds": 0,
+			"num_remapped_pgs": 0
+		}
+	},
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "8 pgs stale"}]}
 }`,
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`stale_pgs 8`),
+			},
+		},
+		{
+			input: `
+{
+	"osdmap": {
+		"osdmap": {
+			"num_osds": 0,
+			"num_up_osds": 0,
+			"num_in_osds": 0,
+			"num_remapped_pgs": 0
+		}
+	},
+	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "18 pgs stuck stale"}]}
+}`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`stuck_stale_pgs 18`),
 			},
 		},
 		{

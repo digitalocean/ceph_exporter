@@ -37,17 +37,34 @@ type ClusterHealthCollector struct {
 	// missing.
 	DegradedPGs prometheus.Gauge
 
+	// StuckDegradedPGs shows the no. of PGs that have some of the replicas
+	// missing, and are stuck in that state.
+	StuckDegradedPGs prometheus.Gauge
+
 	// UncleanPGs shows the no. of PGs that do not have all objects in the PG
 	// that are supposed to be in it.
 	UncleanPGs prometheus.Gauge
+
+	// StuckUncleanPGs shows the no. of PGs that do not have all objects in the PG
+	// that are supposed to be in it, and are stuck in that state.
+	StuckUncleanPGs prometheus.Gauge
 
 	// UndersizedPGs depicts the no. of PGs that have fewer copies than configured
 	// replication level.
 	UndersizedPGs prometheus.Gauge
 
+	// StuckUndersizedPGs depicts the no. of PGs that have fewer copies than configured
+	// replication level, and are stuck in that state.
+	StuckUndersizedPGs prometheus.Gauge
+
 	// StalePGs depicts no. of PGs that are in an unknown state i.e. monitors do not know
 	// anything about their latest state since their pg mapping was modified.
 	StalePGs prometheus.Gauge
+
+	// StuckStalePGs depicts no. of PGs that are in an unknown state i.e. monitors do not know
+	// anything about their latest state since their pg mapping was modified, and are stuck
+	// in that state.
+	StuckStalePGs prometheus.Gauge
 
 	// DegradedObjectsCount gives the no. of RADOS objects are constitute the degraded PGs.
 	DegradedObjectsCount prometheus.Gauge
@@ -101,11 +118,25 @@ func NewClusterHealthCollector(conn Conn) *ClusterHealthCollector {
 				Help:      "No. of PGs in a degraded state",
 			},
 		),
+		StuckDegradedPGs: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace: cephNamespace,
+				Name:      "stuck_degraded_pgs",
+				Help:      "No. of PGs stuck in a degraded state",
+			},
+		),
 		UncleanPGs: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
 				Name:      "unclean_pgs",
 				Help:      "No. of PGs in an unclean state",
+			},
+		),
+		StuckUncleanPGs: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace: cephNamespace,
+				Name:      "stuck_unclean_pgs",
+				Help:      "No. of PGs stuck in an unclean state",
 			},
 		),
 		UndersizedPGs: prometheus.NewGauge(
@@ -115,11 +146,25 @@ func NewClusterHealthCollector(conn Conn) *ClusterHealthCollector {
 				Help:      "No. of undersized PGs in the cluster",
 			},
 		),
+		StuckUndersizedPGs: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace: cephNamespace,
+				Name:      "stuck_undersized_pgs",
+				Help:      "No. of stuck undersized PGs in the cluster",
+			},
+		),
 		StalePGs: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
 				Name:      "stale_pgs",
 				Help:      "No. of stale PGs in the cluster",
+			},
+		),
+		StuckStalePGs: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace: cephNamespace,
+				Name:      "stuck_stale_pgs",
+				Help:      "No. of stuck stale PGs in the cluster",
 			},
 		),
 		DegradedObjectsCount: prometheus.NewGauge(
@@ -171,9 +216,13 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 	return []prometheus.Metric{
 		c.HealthStatus,
 		c.DegradedPGs,
+		c.StuckDegradedPGs,
 		c.UncleanPGs,
+		c.StuckUncleanPGs,
 		c.UndersizedPGs,
+		c.StuckUndersizedPGs,
 		c.StalePGs,
+		c.StuckStalePGs,
 		c.DegradedObjectsCount,
 		c.OSDsDown,
 		c.OSDsUp,
@@ -232,9 +281,13 @@ func (c *ClusterHealthCollector) collect() error {
 
 	var (
 		degradedRegex        = regexp.MustCompile(`([\d]+) pgs degraded`)
-		uncleanRegex         = regexp.MustCompile(`([\d]+) pgs stuck unclean`)
+		stuckDegradedRegex   = regexp.MustCompile(`([\d]+) pgs stuck degraded`)
+		uncleanRegex         = regexp.MustCompile(`([\d]+) pgs unclean`)
+		stuckUncleanRegex    = regexp.MustCompile(`([\d]+) pgs stuck unclean`)
 		undersizedRegex      = regexp.MustCompile(`([\d]+) pgs undersized`)
+		stuckUndersizedRegex = regexp.MustCompile(`([\d]+) pgs stuck undersized`)
 		staleRegex           = regexp.MustCompile(`([\d]+) pgs stale`)
+		stuckStaleRegex      = regexp.MustCompile(`([\d]+) pgs stuck stale`)
 		degradedObjectsRegex = regexp.MustCompile(`recovery ([\d]+)/([\d]+) objects degraded`)
 		osdsDownRegex        = regexp.MustCompile(`([\d]+)/([\d]+) in osds are down`)
 	)
@@ -249,6 +302,15 @@ func (c *ClusterHealthCollector) collect() error {
 			c.DegradedPGs.Set(float64(v))
 		}
 
+		matched = stuckDegradedRegex.FindStringSubmatch(s.Summary)
+		if len(matched) == 2 {
+			v, err := strconv.Atoi(matched[1])
+			if err != nil {
+				return err
+			}
+			c.StuckDegradedPGs.Set(float64(v))
+		}
+
 		matched = uncleanRegex.FindStringSubmatch(s.Summary)
 		if len(matched) == 2 {
 			v, err := strconv.Atoi(matched[1])
@@ -256,6 +318,15 @@ func (c *ClusterHealthCollector) collect() error {
 				return err
 			}
 			c.UncleanPGs.Set(float64(v))
+		}
+
+		matched = stuckUncleanRegex.FindStringSubmatch(s.Summary)
+		if len(matched) == 2 {
+			v, err := strconv.Atoi(matched[1])
+			if err != nil {
+				return err
+			}
+			c.StuckUncleanPGs.Set(float64(v))
 		}
 
 		matched = undersizedRegex.FindStringSubmatch(s.Summary)
@@ -267,6 +338,15 @@ func (c *ClusterHealthCollector) collect() error {
 			c.UndersizedPGs.Set(float64(v))
 		}
 
+		matched = stuckUndersizedRegex.FindStringSubmatch(s.Summary)
+		if len(matched) == 2 {
+			v, err := strconv.Atoi(matched[1])
+			if err != nil {
+				return err
+			}
+			c.StuckUndersizedPGs.Set(float64(v))
+		}
+
 		matched = staleRegex.FindStringSubmatch(s.Summary)
 		if len(matched) == 2 {
 			v, err := strconv.Atoi(matched[1])
@@ -274,6 +354,15 @@ func (c *ClusterHealthCollector) collect() error {
 				return err
 			}
 			c.StalePGs.Set(float64(v))
+		}
+
+		matched = stuckStaleRegex.FindStringSubmatch(s.Summary)
+		if len(matched) == 2 {
+			v, err := strconv.Atoi(matched[1])
+			if err != nil {
+				return err
+			}
+			c.StuckStalePGs.Set(float64(v))
 		}
 
 		matched = degradedObjectsRegex.FindStringSubmatch(s.Summary)
