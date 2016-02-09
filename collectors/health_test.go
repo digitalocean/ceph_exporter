@@ -193,6 +193,23 @@ func TestClusterHealthCollector(t *testing.T) {
 			"num_remapped_pgs": 0
 		}
 	},
+	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "recovery 20/40 objects misplaced"}]}
+}`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`misplaced_objects 20`),
+			},
+		},
+		{
+			input: `
+{
+	"osdmap": {
+		"osdmap": {
+			"num_osds": 0,
+			"num_up_osds": 0,
+			"num_in_osds": 0,
+			"num_remapped_pgs": 0
+		}
+	},
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "3/20 in osds are down"}]}
 }`,
 			regexes: []*regexp.Regexp{
