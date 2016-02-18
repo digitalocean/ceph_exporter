@@ -284,6 +284,24 @@ func TestClusterHealthCollector(t *testing.T) {
 				regexp.MustCompile(`health_status 2`),
 			},
 		},
+		{
+			input: `
+$ sudo ceph -s
+    cluster eff51be8-938a-4afa-b0d1-7a580b4ceb37
+     health HEALTH_OK
+     monmap e3: 3 mons at {mon01,mon02,mon03}
+  recovery io 5779 MB/s, 4 keys/s, 1522 objects/s
+  client io 4273 kB/s rd, 2740 MB/s wr, 2863 op/s
+`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`recovery_io_bytes 5.779e`),
+				regexp.MustCompile(`recovery_io_keys 4`),
+				regexp.MustCompile(`recovery_io_objects 1522`),
+				regexp.MustCompile(`client_io_ops 2863`),
+				regexp.MustCompile(`client_io_read_bytes 4.273e`),
+				regexp.MustCompile(`client_io_write_bytes 2.74e`),
+			},
+		},
 	} {
 		func() {
 			collector := NewClusterHealthCollector(NewNoopConn(tt.input))
