@@ -550,106 +550,119 @@ func (c *ClusterHealthCollector) collectRecoveryClientIO() error {
 		return err
 	}
 
-	var matched []string
 	sc := bufio.NewScanner(bytes.NewReader(buf))
 	for sc.Scan() {
 		line := strings.TrimSpace(sc.Text())
 
 		switch {
 		case strings.HasPrefix(line, "recovery io"):
-			matched = recoveryIORateRegex.FindStringSubmatch(line)
-			if len(matched) == 3 {
-				v, err := strconv.Atoi(matched[1])
-				if err != nil {
-					return err
-				}
-
-				switch strings.ToLower(matched[2]) {
-				case "gb":
-					v = v * 1e9
-				case "mb":
-					v = v * 1e6
-				case "kb":
-					v = v * 1e3
-				default:
-					return fmt.Errorf("can't parse units %q", matched[2])
-				}
-
-				c.RecoveryIORate.Set(float64(v))
-			}
-
-			matched = recoveryIOKeysRegex.FindStringSubmatch(line)
-			if len(matched) == 2 {
-				v, err := strconv.Atoi(matched[1])
-				if err != nil {
-					return err
-				}
-
-				c.RecoveryIOKeys.Set(float64(v))
-			}
-
-			matched = recoveryIOObjectsRegex.FindStringSubmatch(line)
-			if len(matched) == 2 {
-				v, err := strconv.Atoi(matched[1])
-				if err != nil {
-					return err
-				}
-
-				c.RecoveryIOObjects.Set(float64(v))
+			if err := c.collectRecoveryIO(line); err != nil {
+				return err
 			}
 		case strings.HasPrefix(line, "client io"):
-			matched = clientIOReadRegex.FindStringSubmatch(line)
-			if len(matched) == 3 {
-				v, err := strconv.Atoi(matched[1])
-				if err != nil {
-					return err
-				}
-
-				switch strings.ToLower(matched[2]) {
-				case "gb":
-					v = v * 1e9
-				case "mb":
-					v = v * 1e6
-				case "kb":
-					v = v * 1e3
-				default:
-					return fmt.Errorf("can't parse units %q", matched[2])
-				}
-
-				c.ClientIORead.Set(float64(v))
-			}
-
-			matched = clientIOWriteRegex.FindStringSubmatch(line)
-			if len(matched) == 3 {
-				v, err := strconv.Atoi(matched[1])
-				if err != nil {
-					return err
-				}
-
-				switch strings.ToLower(matched[2]) {
-				case "gb":
-					v = v * 1e9
-				case "mb":
-					v = v * 1e6
-				case "kb":
-					v = v * 1e3
-				default:
-					return fmt.Errorf("can't parse units %q", matched[2])
-				}
-
-				c.ClientIOWrite.Set(float64(v))
-			}
-
-			matched = clientIOOpsRegex.FindStringSubmatch(line)
-			if len(matched) == 2 {
-				v, err := strconv.Atoi(matched[1])
-				if err != nil {
-					return err
-				}
-
-				c.ClientIOOps.Set(float64(v))
+			if err := c.collectClientIO(line); err != nil {
+				return err
 			}
 		}
+	}
+	return nil
+}
+
+func (c *ClusterHealthCollector) collectClientIO(clientStr string) error {
+	matched := clientIOReadRegex.FindStringSubmatch(clientStr)
+	if len(matched) == 3 {
+		v, err := strconv.Atoi(matched[1])
+		if err != nil {
+			return err
+		}
+
+		switch strings.ToLower(matched[2]) {
+		case "gb":
+			v = v * 1e9
+		case "mb":
+			v = v * 1e6
+		case "kb":
+			v = v * 1e3
+		default:
+			return fmt.Errorf("can't parse units %q", matched[2])
+		}
+
+		c.ClientIORead.Set(float64(v))
+	}
+
+	matched = clientIOWriteRegex.FindStringSubmatch(clientStr)
+	if len(matched) == 3 {
+		v, err := strconv.Atoi(matched[1])
+		if err != nil {
+			return err
+		}
+
+		switch strings.ToLower(matched[2]) {
+		case "gb":
+			v = v * 1e9
+		case "mb":
+			v = v * 1e6
+		case "kb":
+			v = v * 1e3
+		default:
+			return fmt.Errorf("can't parse units %q", matched[2])
+		}
+
+		c.ClientIOWrite.Set(float64(v))
+	}
+
+	matched = clientIOOpsRegex.FindStringSubmatch(clientStr)
+	if len(matched) == 2 {
+		v, err := strconv.Atoi(matched[1])
+		if err != nil {
+			return err
+		}
+
+		c.ClientIOOps.Set(float64(v))
+	}
+	return nil
+}
+
+func (c *ClusterHealthCollector) collectRecoveryIO(recoveryStr string) error {
+	matched := recoveryIORateRegex.FindStringSubmatch(recoveryStr)
+	if len(matched) == 3 {
+		v, err := strconv.Atoi(matched[1])
+		if err != nil {
+			return err
+		}
+
+		switch strings.ToLower(matched[2]) {
+		case "gb":
+			v = v * 1e9
+		case "mb":
+			v = v * 1e6
+		case "kb":
+			v = v * 1e3
+		default:
+			return fmt.Errorf("can't parse units %q", matched[2])
+		}
+
+		c.RecoveryIORate.Set(float64(v))
+	}
+
+	matched = recoveryIOKeysRegex.FindStringSubmatch(recoveryStr)
+	if len(matched) == 2 {
+		v, err := strconv.Atoi(matched[1])
+		if err != nil {
+			return err
+		}
+
+		c.RecoveryIOKeys.Set(float64(v))
+	}
+
+	matched = recoveryIOObjectsRegex.FindStringSubmatch(recoveryStr)
+	if len(matched) == 2 {
+		v, err := strconv.Atoi(matched[1])
+		if err != nil {
+			return err
+		}
+
+		c.RecoveryIOObjects.Set(float64(v))
 	}
 	return nil
 }
