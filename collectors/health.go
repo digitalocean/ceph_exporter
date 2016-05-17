@@ -33,7 +33,11 @@ var (
 	recoveryIOObjectsRegex = regexp.MustCompile(`(\d+) objects/s`)
 	clientIOReadRegex      = regexp.MustCompile(`(\d+) (\w{2})/s rd`)
 	clientIOWriteRegex     = regexp.MustCompile(`(\d+) (\w{2})/s wr`)
-	clientIOOpsRegex       = regexp.MustCompile(`(\d+) op/s`)
+	clientIOReadOpsRegex   = regexp.MustCompile(`(\d+) op/s rd`)
+	clientIOWriteOpsRegex  = regexp.MustCompile(`(\d+) op/s wr`)
+
+	// Older versions of Ceph, hammer (v0.94) and below, support this format.
+	clientIOOpsRegex = regexp.MustCompile(`(\d+) op/s[^ \w]*$`)
 )
 
 // ClusterHealthCollector collects information about the health of an overall cluster.
@@ -122,6 +126,12 @@ type ClusterHealthCollector struct {
 
 	// ClientIOOps shows the rate of total operations conducted by all clients on the cluster.
 	ClientIOOps prometheus.Gauge
+
+	// ClientIOReadOps shows the rate of total read operations conducted by all clients on the cluster.
+	ClientIOReadOps prometheus.Gauge
+
+	// ClientIOWriteOps shows the rate of total write operations conducted by all clients on the cluster.
+	ClientIOWriteOps prometheus.Gauge
 }
 
 const (
@@ -296,6 +306,20 @@ func NewClusterHealthCollector(conn Conn) *ClusterHealthCollector {
 				Help:      "Total client ops on the cluster measured per second",
 			},
 		),
+		ClientIOReadOps: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace: cephNamespace,
+				Name:      "client_io_read_ops",
+				Help:      "Total client read I/O ops on the cluster measured per second",
+			},
+		),
+		ClientIOWriteOps: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace: cephNamespace,
+				Name:      "client_io_write_ops",
+				Help:      "Total client write I/O ops on the cluster measured per second",
+			},
+		),
 	}
 }
 
@@ -323,6 +347,8 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.ClientIORead,
 		c.ClientIOWrite,
 		c.ClientIOOps,
+		c.ClientIOReadOps,
+		c.ClientIOWriteOps,
 	}
 }
 
@@ -611,6 +637,7 @@ func (c *ClusterHealthCollector) collectClientIO(clientStr string) error {
 		c.ClientIOWrite.Set(float64(v))
 	}
 
+	var clientIOOps float64
 	matched = clientIOOpsRegex.FindStringSubmatch(clientStr)
 	if len(matched) == 2 {
 		v, err := strconv.Atoi(matched[1])
@@ -618,8 +645,42 @@ func (c *ClusterHealthCollector) collectClientIO(clientStr string) error {
 			return err
 		}
 
-		c.ClientIOOps.Set(float64(v))
+		clientIOOps = float64(v)
 	}
+
+	var clientIOReadOps, clientIOWriteOps float64
+	matched = clientIOReadOpsRegex.FindStringSubmatch(clientStr)
+	if len(matched) == 2 {
+		v, err := strconv.Atoi(matched[1])
+		if err != nil {
+			return err
+		}
+
+		clientIOReadOps = float64(v)
+		c.ClientIOReadOps.Set(clientIOReadOps)
+	}
+
+	matched = clientIOWriteOpsRegex.FindStringSubmatch(clientStr)
+	if len(matched) == 2 {
+		v, err := strconv.Atoi(matched[1])
+		if err != nil {
+			return err
+		}
+
+		clientIOWriteOps = float64(v)
+		c.ClientIOWriteOps.Set(clientIOWriteOps)
+	}
+
+	// In versions older than Jewel, we directly get access to total
+	// client I/O. But in Jewel and newer the format is changed to
+	// separately display read and write IOPs. In such a case, we
+	// compute and set the total IOPs ourselves.
+	if clientIOOps == 0 {
+		clientIOOps = clientIOReadOps + clientIOWriteOps
+	}
+
+	c.ClientIOOps.Set(clientIOOps)
+
 	return nil
 }
 
