@@ -31,8 +31,8 @@ var (
 	recoveryIORateRegex    = regexp.MustCompile(`(\d+) (\w{2})/s`)
 	recoveryIOKeysRegex    = regexp.MustCompile(`(\d+) keys/s`)
 	recoveryIOObjectsRegex = regexp.MustCompile(`(\d+) objects/s`)
-	clientIOReadRegex      = regexp.MustCompile(`(\d+) (\w[bB])/s rd`)
-	clientIOWriteRegex     = regexp.MustCompile(`(\d+) (\w[bB])/s wr`)
+	clientIOReadRegex      = regexp.MustCompile(`(\d+) ([kKmMgG][bB])/s rd`)
+	clientIOWriteRegex     = regexp.MustCompile(`(\d+) ([kKmMgG][bB])/s wr`)
 	clientIOReadOpsRegex   = regexp.MustCompile(`(\d+) op/s rd`)
 	clientIOWriteOpsRegex  = regexp.MustCompile(`(\d+) op/s wr`)
 
