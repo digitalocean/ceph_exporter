@@ -31,6 +31,10 @@ type PoolUsageCollector struct {
 	// does not factor in the overcommitment made for individual images.
 	UsedBytes *prometheus.GaugeVec
 
+	// MaxAvail tracks the amount of bytes currently free for the pool,
+	// which depends on the replication settings for the pool in question.
+	MaxAvail *prometheus.GaugeVec
+
 	// Objects shows the no. of RADOS objects created within the pool.
 	Objects *prometheus.GaugeVec
 
@@ -52,6 +56,15 @@ func NewPoolUsageCollector(conn Conn) *PoolUsageCollector {
 				Namespace: cephNamespace,
 				Name:      "pool_used_bytes",
 				Help:      "Capacity of the pool that is currently under use",
+			},
+			[]string{"pool"},
+		),
+		MaxAvail: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace: cephNamespace,
+				Subsystem: "df",
+				Name:      "pool_available_bytes",
+				Help:      "Free space for this ceph pool",
 			},
 			[]string{"pool"},
 		),
@@ -85,6 +98,7 @@ func NewPoolUsageCollector(conn Conn) *PoolUsageCollector {
 func (p *PoolUsageCollector) collectorList() []prometheus.Collector {
 	return []prometheus.Collector{
 		p.UsedBytes,
+		p.MaxAvail,
 		p.Objects,
 		p.ReadIO,
 		p.WriteIO,
@@ -97,6 +111,7 @@ type cephPoolStats struct {
 		ID    int    `json:"id"`
 		Stats struct {
 			BytesUsed json.Number `json:"bytes_used"`
+			MaxAvail  float64     `json:"max_avail"`
 			Objects   json.Number `json:"objects"`
 			Read      json.Number `json:"rd"`
 			Write     json.Number `json:"wr"`
@@ -144,6 +159,7 @@ func (p *PoolUsageCollector) collect() error {
 		}
 
 		p.UsedBytes.WithLabelValues(pool.Name).Set(bytesUsed)
+		p.MaxAvail.WithLabelValues(pool.Name).Set(pool.Stats.MaxAvail)
 		p.Objects.WithLabelValues(pool.Name).Set(objects)
 		p.ReadIO.WithLabelValues(pool.Name).Set(read)
 		p.WriteIO.WithLabelValues(pool.Name).Set(write)
