@@ -54,7 +54,8 @@ func NewPoolUsageCollector(conn Conn) *PoolUsageCollector {
 		UsedBytes: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "pool_used_bytes",
+				Subsystem: "pool",
+				Name:      "used_bytes",
 				Help:      "Capacity of the pool that is currently under use",
 			},
 			[]string{"pool"},
@@ -62,8 +63,8 @@ func NewPoolUsageCollector(conn Conn) *PoolUsageCollector {
 		MaxAvail: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Subsystem: "df",
-				Name:      "pool_available_bytes",
+				Subsystem: "pool",
+				Name:      "available_bytes",
 				Help:      "Free space for this ceph pool",
 			},
 			[]string{"pool"},
@@ -71,7 +72,8 @@ func NewPoolUsageCollector(conn Conn) *PoolUsageCollector {
 		Objects: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "pool_objects_total",
+				Subsystem: "pool",
+				Name:      "objects_total",
 				Help:      "Total no. of objects allocated within the pool",
 			},
 			[]string{"pool"},
@@ -79,7 +81,8 @@ func NewPoolUsageCollector(conn Conn) *PoolUsageCollector {
 		ReadIO: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Namespace: cephNamespace,
-				Name:      "pool_read_total",
+				Subsystem: "pool",
+				Name:      "read_total",
 				Help:      "Total read i/o calls the pool has been subject to",
 			},
 			[]string{"pool"},
@@ -87,7 +90,8 @@ func NewPoolUsageCollector(conn Conn) *PoolUsageCollector {
 		WriteIO: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Namespace: cephNamespace,
-				Name:      "pool_write_total",
+				Subsystem: "pool",
+				Name:      "write_total",
 				Help:      "Total write i/o calls the pool has been subject to",
 			},
 			[]string{"pool"},
