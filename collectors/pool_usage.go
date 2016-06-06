@@ -31,6 +31,10 @@ type PoolUsageCollector struct {
 	// does not factor in the overcommitment made for individual images.
 	UsedBytes *prometheus.GaugeVec
 
+	// MaxAvail tracks the amount of bytes currently free for the pool,
+	// which depends on the replication settings for the pool in question.
+	MaxAvail *prometheus.GaugeVec
+
 	// Objects shows the no. of RADOS objects created within the pool.
 	Objects *prometheus.GaugeVec
 
@@ -44,40 +48,57 @@ type PoolUsageCollector struct {
 // NewPoolUsageCollector creates a new instance of PoolUsageCollector and returns
 // its reference.
 func NewPoolUsageCollector(conn Conn) *PoolUsageCollector {
+	var (
+		subSystem = "pool"
+		poolLabel = []string{"pool"}
+	)
 	return &PoolUsageCollector{
 		conn: conn,
 
 		UsedBytes: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "pool_used_bytes",
+				Subsystem: subSystem,
+				Name:      "used_bytes",
 				Help:      "Capacity of the pool that is currently under use",
 			},
-			[]string{"pool"},
+			poolLabel,
+		),
+		MaxAvail: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace: cephNamespace,
+				Subsystem: subSystem,
+				Name:      "available_bytes",
+				Help:      "Free space for this ceph pool",
+			},
+			poolLabel,
 		),
 		Objects: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "pool_objects_total",
+				Subsystem: subSystem,
+				Name:      "objects_total",
 				Help:      "Total no. of objects allocated within the pool",
 			},
-			[]string{"pool"},
+			poolLabel,
 		),
 		ReadIO: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Namespace: cephNamespace,
-				Name:      "pool_read_total",
+				Subsystem: subSystem,
+				Name:      "read_total",
 				Help:      "Total read i/o calls the pool has been subject to",
 			},
-			[]string{"pool"},
+			poolLabel,
 		),
 		WriteIO: prometheus.NewCounterVec(
 			prometheus.CounterOpts{
 				Namespace: cephNamespace,
-				Name:      "pool_write_total",
+				Subsystem: subSystem,
+				Name:      "write_total",
 				Help:      "Total write i/o calls the pool has been subject to",
 			},
-			[]string{"pool"},
+			poolLabel,
 		),
 	}
 }
@@ -85,6 +106,7 @@ func NewPoolUsageCollector(conn Conn) *PoolUsageCollector {
 func (p *PoolUsageCollector) collectorList() []prometheus.Collector {
 	return []prometheus.Collector{
 		p.UsedBytes,
+		p.MaxAvail,
 		p.Objects,
 		p.ReadIO,
 		p.WriteIO,
@@ -96,10 +118,11 @@ type cephPoolStats struct {
 		Name  string `json:"name"`
 		ID    int    `json:"id"`
 		Stats struct {
-			BytesUsed json.Number `json:"bytes_used"`
-			Objects   json.Number `json:"objects"`
-			Read      json.Number `json:"rd"`
-			Write     json.Number `json:"wr"`
+			BytesUsed float64 `json:"bytes_used"`
+			MaxAvail  float64 `json:"max_avail"`
+			Objects   float64 `json:"objects"`
+			Read      float64 `json:"rd"`
+			Write     float64 `json:"wr"`
 		} `json:"stats"`
 	} `json:"pools"`
 }
@@ -121,32 +144,11 @@ func (p *PoolUsageCollector) collect() error {
 	}
 
 	for _, pool := range stats.Pools {
-		var bytesUsed, objects, read, write float64
-
-		bytesUsed, err = pool.Stats.BytesUsed.Float64()
-		if err != nil {
-			log.Printf("[ERROR] cannot extract used bytes for pool %q: %s", pool.Name, err)
-		}
-
-		objects, err := pool.Stats.Objects.Float64()
-		if err != nil {
-			log.Printf("[ERROR] cannot extract total objects for pool %q: %s", pool.Name, err)
-		}
-
-		read, err = pool.Stats.Read.Float64()
-		if err != nil {
-			log.Printf("[ERROR] cannot extract read stats for pool %q: %s", pool.Name, err)
-		}
-
-		write, err = pool.Stats.Write.Float64()
-		if err != nil {
-			log.Printf("[ERROR] cannot extract write stats for pool %q: %s", pool.Name, err)
-		}
-
-		p.UsedBytes.WithLabelValues(pool.Name).Set(bytesUsed)
-		p.Objects.WithLabelValues(pool.Name).Set(objects)
-		p.ReadIO.WithLabelValues(pool.Name).Set(read)
-		p.WriteIO.WithLabelValues(pool.Name).Set(write)
+		p.UsedBytes.WithLabelValues(pool.Name).Set(pool.Stats.BytesUsed)
+		p.MaxAvail.WithLabelValues(pool.Name).Set(pool.Stats.MaxAvail)
+		p.Objects.WithLabelValues(pool.Name).Set(pool.Stats.Objects)
+		p.ReadIO.WithLabelValues(pool.Name).Set(pool.Stats.Read)
+		p.WriteIO.WithLabelValues(pool.Name).Set(pool.Stats.Write)
 	}
 
 	return nil

@@ -128,6 +128,15 @@ func TestPoolUsageCollector(t *testing.T) {
 			},
 			reUnmatch: []*regexp.Regexp{},
 		},
+		{
+			input: `
+{"pools": [
+	{"name": "ssd", "id": 11, "stats": {"max_avail": 4618201748262, "objects": 5, "rd": 4, "wr": 6}}
+]}`,
+			reMatch: []*regexp.Regexp{
+				regexp.MustCompile(`pool_available_bytes{pool="ssd"} 4.618201748262e\+12`),
+			},
+		},
 	} {
 		func() {
 			collector := NewPoolUsageCollector(NewNoopConn(tt.input))
