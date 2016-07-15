@@ -250,8 +250,17 @@ type cephOsdDump struct {
 }
 
 func (o *OsdCollector) collect() error {
-	cmd := o.cephOSDDfCommand()
+	cmd, err := o.cephOSDDfCommand()
+
+	if err != nil {
+		return err
+	}
+
 	buf, _, err := o.conn.MonCommand(cmd)
+	if err != nil {
+		log.Println("[ERROR] Unable to collect data from ceph osd df", err)
+		return err
+	}
 
 	osdDf := &cephOsdDf{}
 	if err := json.Unmarshal(buf, osdDf); err != nil {
@@ -269,6 +278,7 @@ func (o *OsdCollector) collect() error {
 
 		depth, err := node.Depth.Float64()
 		if err != nil {
+
 			return err
 		}
 
@@ -320,7 +330,7 @@ func (o *OsdCollector) collect() error {
 
 	totalKb, err := osdDf.Summary.TotalKB.Float64()
 	if err != nil {
-		return nil
+		return err
 	}
 
 	o.TotalKB.Set(totalKb)
@@ -341,7 +351,7 @@ func (o *OsdCollector) collect() error {
 
 	averageUtil, err := osdDf.Summary.AverageUtil.Float64()
 	if err != nil {
-		return nil
+		return err
 	}
 
 	o.AverageUtil.Set(averageUtil)
@@ -352,7 +362,11 @@ func (o *OsdCollector) collect() error {
 
 func (o *OsdCollector) collectOsdPerf() error {
 	osdPerfCmd := o.cephOSDPerfCommand()
-	buf, _, _ := o.conn.MonCommand(osdPerfCmd)
+	buf, _, err := o.conn.MonCommand(osdPerfCmd)
+	if err != nil {
+		log.Println("[ERROR] Unable to collect data from ceph osd perf", err)
+		return err
+	}
 
 	osdPerf := &cephPerfStat{}
 	if err := json.Unmarshal(buf, osdPerf); err != nil {
@@ -384,7 +398,11 @@ func (o *OsdCollector) collectOsdPerf() error {
 
 func (o *OsdCollector) collectOsdDump() error {
 	osdDumpCmd := o.cephOsdDump()
-	buff, _, _ := o.conn.MonCommand(osdDumpCmd)
+	buff, _, err := o.conn.MonCommand(osdDumpCmd)
+	if err != nil {
+		log.Println("[ERROR] Unable to collect data from ceph osd dump", err)
+		return err
+	}
 
 	osdDump := &cephOsdDump{}
 	if err := json.Unmarshal(buff, osdDump); err != nil {
@@ -428,15 +446,15 @@ func (o *OsdCollector) cephOsdDump() []byte {
 	return cmd
 }
 
-func (o *OsdCollector) cephOSDDfCommand() []byte {
+func (o *OsdCollector) cephOSDDfCommand() ([]byte, error) {
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix": "osd df",
 		"format": "json",
 	})
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	return cmd
+	return cmd, nil
 }
 
 func (o *OsdCollector) cephOSDPerfCommand() []byte {
@@ -458,10 +476,6 @@ func (o *OsdCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (o *OsdCollector) Collect(ch chan<- prometheus.Metric) {
-	if err := o.collect(); err != nil {
-		log.Println("failed collecting osd metrics:", err)
-		return
-	}
 
 	if err := o.collectOsdPerf(); err != nil {
 		log.Println("failed collecting cluster osd perf stats:", err)
@@ -469,6 +483,10 @@ func (o *OsdCollector) Collect(ch chan<- prometheus.Metric) {
 
 	if err := o.collectOsdDump(); err != nil {
 		log.Println("failed collecting cluster osd dump", err)
+	}
+
+	if err := o.collect(); err != nil {
+		log.Println("failed collecting osd metrics:", err)
 	}
 
 	for _, metric := range o.collectorList() {
