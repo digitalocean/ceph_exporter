@@ -250,11 +250,7 @@ type cephOsdDump struct {
 }
 
 func (o *OsdCollector) collect() error {
-	cmd, err := o.cephOSDDfCommand()
-
-	if err != nil {
-		return err
-	}
+	cmd := o.cephOSDDfCommand()
 
 	buf, _, err := o.conn.MonCommand(cmd)
 	if err != nil {
@@ -446,15 +442,15 @@ func (o *OsdCollector) cephOsdDump() []byte {
 	return cmd
 }
 
-func (o *OsdCollector) cephOSDDfCommand() ([]byte, error) {
+func (o *OsdCollector) cephOSDDfCommand() []byte {
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix": "osd df",
 		"format": "json",
 	})
 	if err != nil {
-		return nil, err
+		panic(err)
 	}
-	return cmd, nil
+	return cmd
 }
 
 func (o *OsdCollector) cephOSDPerfCommand() []byte {
