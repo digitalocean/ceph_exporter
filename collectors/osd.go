@@ -317,7 +317,7 @@ func (o *OsdCollector) collect() error {
 
 		pgs, err := node.Pgs.Float64()
 		if err != nil {
-			return err
+			continue
 		}
 
 		o.Pgs.WithLabelValues(node.Name).Set(pgs)
