@@ -4,7 +4,7 @@ MAINTAINER Vaibhav Bhembre <vaibhav@digitalocean.com>
 ENV GOROOT /goroot
 ENV GOPATH /go
 ENV PATH $GOROOT/bin:$PATH
-ENV APPLOC $GOPATH/src/github.com/AcalephStorage/ceph_exporter
+ENV APPLOC $GOPATH/src/github.com/digitalocean/ceph_exporter
 
 RUN apt-get update && apt-get install -y apt-transport-https
 
