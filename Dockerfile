@@ -10,7 +10,8 @@ RUN apt-get update && apt-get install -y apt-transport-https
 
 RUN echo "deb https://download.ceph.com/debian-jewel trusty main" >> /etc/apt/sources.list
 
-RUN apt-get install -y build-essential git curl
+RUN apt-get update && \
+    apt-get install -y build-essential git curl
 
 RUN apt-get install -y --force-yes librados-dev librbd-dev
 
