@@ -8,42 +8,64 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+//OsdCollector sample comment
 type OsdCollector struct {
 	conn Conn
 
+	//CrushWeight is a persistent setting, and it affects how CRUSH assigns data to OSDs.
+	//CrushWeight displays the CRUSH weight for the OSD
 	CrushWeight *prometheus.GaugeVec
 
+	//Depth displays the OSD's level of hierarchy in the CRUSH map
 	Depth *prometheus.GaugeVec
 
+	//Reweight sets an override weight on the OSD.
+	//Reweight displays value within 0 to 1.
 	Reweight *prometheus.GaugeVec
 
-	KB *prometheus.GaugeVec
+	//Bytes displays the total bytes available in the OSD
+	Bytes *prometheus.GaugeVec
 
-	UsedKB *prometheus.GaugeVec
+	//UsedBytes displays the total used bytes in the OSD
+	UsedBytes *prometheus.GaugeVec
 
-	AvailKB *prometheus.GaugeVec
+	//AvailBytes displays the total available bytes in the OSD
+	AvailBytes *prometheus.GaugeVec
 
+	//Utilization displays current utilization of the OSD
 	Utilization *prometheus.GaugeVec
 
+	//Pgs displays total no. of placement groups in the OSD.
+	//Available in Ceph Jewel version.
 	Pgs *prometheus.GaugeVec
 
+	//CommitLatency displays in seconds how long it takes for an operation to be applied to disk
 	CommitLatency *prometheus.GaugeVec
 
+	//ApplyLatency displays in seconds how long it takes to get applied to the backing filesystem
 	ApplyLatency *prometheus.GaugeVec
 
+	//OsdsIn displays the In state of the OSD
 	OsdIn *prometheus.GaugeVec
 
+	//OsdsUP displays the Up state of the OSD
 	OsdUp *prometheus.GaugeVec
 
-	TotalKB prometheus.Gauge
+	//TotalBytes displays total bytes in all OSDs
+	TotalBytes prometheus.Gauge
 
-	TotalUsedKB prometheus.Gauge
+	//TotalUsedBytes displays total used bytes in all OSDs
+	TotalUsedBytes prometheus.Gauge
 
-	TotalAvailKB prometheus.Gauge
+	//TotalAvailBytes displays total available bytes in all OSDs
+	TotalAvailBytes prometheus.Gauge
 
+	//AverageUtil displays average utilization in all OSDs
 	AverageUtil prometheus.Gauge
 }
 
+//NewOsdCollector creates an instance of the OsdCollector and instantiates
+// the individual metrics that show information about the osd.
 func NewOsdCollector(conn Conn) *OsdCollector {
 	return &OsdCollector{
 		conn: conn,
@@ -75,29 +97,29 @@ func NewOsdCollector(conn Conn) *OsdCollector {
 			[]string{"osd"},
 		),
 
-		KB: prometheus.NewGaugeVec(
+		Bytes: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "osd_kb",
-				Help:      "OSD Total KB",
+				Name:      "osd_bytes",
+				Help:      "OSD Total Bytes",
 			},
 			[]string{"osd"},
 		),
 
-		UsedKB: prometheus.NewGaugeVec(
+		UsedBytes: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "osd_kb_used",
-				Help:      "OSD Used Storage in KB",
+				Name:      "osd_bytes_used",
+				Help:      "OSD Used Storage in Bytes",
 			},
 			[]string{"osd"},
 		),
 
-		AvailKB: prometheus.NewGaugeVec(
+		AvailBytes: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "osd_kb_avail",
-				Help:      "OSD Available Storage in KB",
+				Name:      "osd_bytes_avail",
+				Help:      "OSD Available Storage in Bytes",
 			},
 			[]string{"osd"},
 		),
@@ -120,26 +142,26 @@ func NewOsdCollector(conn Conn) *OsdCollector {
 			[]string{"osd"},
 		),
 
-		TotalKB: prometheus.NewGauge(
+		TotalBytes: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "osd_total_kb",
-				Help:      "OSD Total Storage KB",
+				Name:      "osd_total_bytes",
+				Help:      "OSD Total Storage Bytes",
 			},
 		),
-		TotalUsedKB: prometheus.NewGauge(
+		TotalUsedBytes: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "osd_total_kb_used",
-				Help:      "OSD Total Used Storage KB",
+				Name:      "osd_total_bytes_used",
+				Help:      "OSD Total Used Storage Bytes",
 			},
 		),
 
-		TotalAvailKB: prometheus.NewGauge(
+		TotalAvailBytes: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "osd_total_kb_avail",
-				Help:      "OSD Total Available Storage KB ",
+				Name:      "osd_total_bytes_avail",
+				Help:      "OSD Total Available Storage Bytes ",
 			},
 		),
 
@@ -154,7 +176,7 @@ func NewOsdCollector(conn Conn) *OsdCollector {
 		CommitLatency: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "osd_perf_commit_latency_ms",
+				Name:      "osd_perf_commit_latency_seconds",
 				Help:      "OSD Perf Commit Latency",
 			},
 			[]string{"osd"},
@@ -163,7 +185,7 @@ func NewOsdCollector(conn Conn) *OsdCollector {
 		ApplyLatency: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "osd_perf_apply_latency_ms",
+				Name:      "osd_perf_apply_latency_seconds",
 				Help:      "OSD Perf Apply Latency",
 			},
 			[]string{"osd"},
@@ -194,14 +216,14 @@ func (o *OsdCollector) collectorList() []prometheus.Collector {
 		o.CrushWeight,
 		o.Depth,
 		o.Reweight,
-		o.KB,
-		o.UsedKB,
-		o.AvailKB,
+		o.Bytes,
+		o.UsedBytes,
+		o.AvailBytes,
 		o.Utilization,
 		o.Pgs,
-		o.TotalKB,
-		o.TotalUsedKB,
-		o.TotalAvailKB,
+		o.TotalBytes,
+		o.TotalUsedBytes,
+		o.TotalAvailBytes,
 		o.AverageUtil,
 		o.CommitLatency,
 		o.ApplyLatency,
@@ -233,7 +255,7 @@ type cephOsdDf struct {
 
 type cephPerfStat struct {
 	PerfInfo []struct {
-		Id    json.Number `json:"id"`
+		ID    json.Number `json:"id"`
 		Stats struct {
 			CommitLatency json.Number `json:"commit_latency_ms"`
 			ApplyLatency  json.Number `json:"apply_latency_ms"`
@@ -287,26 +309,26 @@ func (o *OsdCollector) collect() error {
 
 		o.Reweight.WithLabelValues(node.Name).Set(reweight)
 
-		kb, err := node.KB.Float64()
+		osdKB, err := node.KB.Float64()
 		if err != nil {
 			return nil
 		}
 
-		o.KB.WithLabelValues(node.Name).Set(kb)
+		o.Bytes.WithLabelValues(node.Name).Set(osdKB * 1e3)
 
-		usedKb, err := node.UsedKB.Float64()
+		usedKB, err := node.UsedKB.Float64()
 		if err != nil {
 			return err
 		}
 
-		o.UsedKB.WithLabelValues(node.Name).Set(usedKb)
+		o.UsedBytes.WithLabelValues(node.Name).Set(usedKB * 1e3)
 
-		availKb, err := node.AvailKB.Float64()
+		availKB, err := node.AvailKB.Float64()
 		if err != nil {
 			return err
 		}
 
-		o.AvailKB.WithLabelValues(node.Name).Set(availKb)
+		o.AvailBytes.WithLabelValues(node.Name).Set(availKB * 1e3)
 
 		util, err := node.Utilization.Float64()
 		if err != nil {
@@ -324,26 +346,26 @@ func (o *OsdCollector) collect() error {
 
 	}
 
-	totalKb, err := osdDf.Summary.TotalKB.Float64()
+	totalKB, err := osdDf.Summary.TotalKB.Float64()
 	if err != nil {
 		return err
 	}
 
-	o.TotalKB.Set(totalKb)
+	o.TotalBytes.Set(totalKB * 1e3)
 
-	totalUsedKb, err := osdDf.Summary.TotalUsedKB.Float64()
+	totalUsedKB, err := osdDf.Summary.TotalUsedKB.Float64()
 	if err != nil {
 		return err
 	}
 
-	o.TotalUsedKB.Set(totalUsedKb)
+	o.TotalUsedBytes.Set(totalUsedKB * 1e3)
 
-	totalAvailKb, err := osdDf.Summary.TotalAvailKB.Float64()
+	totalAvailKB, err := osdDf.Summary.TotalAvailKB.Float64()
 	if err != nil {
 		return err
 	}
 
-	o.TotalAvailKB.Set(totalAvailKb)
+	o.TotalAvailBytes.Set(totalAvailKB * 1e3)
 
 	averageUtil, err := osdDf.Summary.AverageUtil.Float64()
 	if err != nil {
@@ -370,23 +392,23 @@ func (o *OsdCollector) collectOsdPerf() error {
 	}
 
 	for _, perfStat := range osdPerf.PerfInfo {
-		osdId, err := perfStat.Id.Int64()
+		osdID, err := perfStat.ID.Int64()
 		if err != nil {
 			return err
 		}
-		osdName := fmt.Sprintf("osd.%v", osdId)
+		osdName := fmt.Sprintf("osd.%v", osdID)
 
 		commitLatency, err := perfStat.Stats.CommitLatency.Float64()
 		if err != nil {
 			return err
 		}
-		o.CommitLatency.WithLabelValues(osdName).Set(commitLatency)
+		o.CommitLatency.WithLabelValues(osdName).Set(commitLatency / 1e3)
 
 		applyLatency, err := perfStat.Stats.ApplyLatency.Float64()
 		if err != nil {
 			return err
 		}
-		o.ApplyLatency.WithLabelValues(osdName).Set(applyLatency)
+		o.ApplyLatency.WithLabelValues(osdName).Set(applyLatency / 1e3)
 	}
 
 	return nil
@@ -406,11 +428,11 @@ func (o *OsdCollector) collectOsdDump() error {
 	}
 
 	for _, dumpInfo := range osdDump.Osds {
-		osdId, err := dumpInfo.Osd.Int64()
+		osdID, err := dumpInfo.Osd.Int64()
 		if err != nil {
 			return err
 		}
-		osdName := fmt.Sprintf("osd.%v", osdId)
+		osdName := fmt.Sprintf("osd.%v", osdID)
 
 		in, err := dumpInfo.In.Float64()
 		if err != nil {
@@ -464,6 +486,8 @@ func (o *OsdCollector) cephOSDPerfCommand() []byte {
 	return cmd
 }
 
+// Describe sends the descriptors of each OsdCollector related metrics we have defined
+// to the provided prometheus channel.
 func (o *OsdCollector) Describe(ch chan<- *prometheus.Desc) {
 	for _, metric := range o.collectorList() {
 		metric.Describe(ch)
@@ -471,6 +495,8 @@ func (o *OsdCollector) Describe(ch chan<- *prometheus.Desc) {
 
 }
 
+// Collect sends all the collected metrics to the provided prometheus channel.
+// It requires the caller to handle synchronization.
 func (o *OsdCollector) Collect(ch chan<- prometheus.Metric) {
 
 	if err := o.collectOsdPerf(); err != nil {
