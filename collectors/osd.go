@@ -13,14 +13,14 @@ type OsdCollector struct {
 	conn Conn
 
 	//CrushWeight is a persistent setting, and it affects how CRUSH assigns data to OSDs.
-	//CrushWeight displays the CRUSH weight for the OSD
+	//It displays the CRUSH weight for the OSD
 	CrushWeight *prometheus.GaugeVec
 
 	//Depth displays the OSD's level of hierarchy in the CRUSH map
 	Depth *prometheus.GaugeVec
 
 	//Reweight sets an override weight on the OSD.
-	//Reweight displays value within 0 to 1.
+	//It displays value within 0 to 1.
 	Reweight *prometheus.GaugeVec
 
 	//Bytes displays the total bytes available in the OSD
@@ -109,7 +109,7 @@ func NewOsdCollector(conn Conn) *OsdCollector {
 		UsedBytes: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "osd_bytes_used",
+				Name:      "osd_used_bytes",
 				Help:      "OSD Used Storage in Bytes",
 			},
 			[]string{"osd"},
@@ -118,7 +118,7 @@ func NewOsdCollector(conn Conn) *OsdCollector {
 		AvailBytes: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "osd_bytes_avail",
+				Name:      "osd_avail_bytes",
 				Help:      "OSD Available Storage in Bytes",
 			},
 			[]string{"osd"},
@@ -152,7 +152,7 @@ func NewOsdCollector(conn Conn) *OsdCollector {
 		TotalUsedBytes: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "osd_total_bytes_used",
+				Name:      "osd_total_used_bytes",
 				Help:      "OSD Total Used Storage Bytes",
 			},
 		),
@@ -160,7 +160,7 @@ func NewOsdCollector(conn Conn) *OsdCollector {
 		TotalAvailBytes: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
-				Name:      "osd_total_bytes_avail",
+				Name:      "osd_total_avail_bytes",
 				Help:      "OSD Total Available Storage Bytes ",
 			},
 		),
