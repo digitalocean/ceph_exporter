@@ -50,7 +50,7 @@ func NewCephExporter(conn *rados.Conn) *CephExporter {
 			collectors.NewPoolUsageCollector(conn),
 			collectors.NewClusterHealthCollector(conn),
 			collectors.NewMonitorCollector(conn),
-			collectors.NewOsdCollector(conn),
+			collectors.NewOSDCollector(conn),
 		},
 	}
 }

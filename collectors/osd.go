@@ -8,66 +8,68 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-//OsdCollector sample comment
-type OsdCollector struct {
+// OSDCollector displays statistics about OSD in the ceph cluster.
+// An important aspect of monitoring OSDs is to ensure that when the cluster is up and
+// running that all OSDs that are in the cluster are up and running, too
+type OSDCollector struct {
 	conn Conn
 
-	//CrushWeight is a persistent setting, and it affects how CRUSH assigns data to OSDs.
-	//It displays the CRUSH weight for the OSD
+	// CrushWeight is a persistent setting, and it affects how CRUSH assigns data to OSDs.
+	// It displays the CRUSH weight for the OSD
 	CrushWeight *prometheus.GaugeVec
 
-	//Depth displays the OSD's level of hierarchy in the CRUSH map
+	// Depth displays the OSD's level of hierarchy in the CRUSH map
 	Depth *prometheus.GaugeVec
 
-	//Reweight sets an override weight on the OSD.
-	//It displays value within 0 to 1.
+	// Reweight sets an override weight on the OSD.
+	// It displays value within 0 to 1.
 	Reweight *prometheus.GaugeVec
 
-	//Bytes displays the total bytes available in the OSD
+	// Bytes displays the total bytes available in the OSD
 	Bytes *prometheus.GaugeVec
 
-	//UsedBytes displays the total used bytes in the OSD
+	// UsedBytes displays the total used bytes in the OSD
 	UsedBytes *prometheus.GaugeVec
 
-	//AvailBytes displays the total available bytes in the OSD
+	// AvailBytes displays the total available bytes in the OSD
 	AvailBytes *prometheus.GaugeVec
 
-	//Utilization displays current utilization of the OSD
+	// Utilization displays current utilization of the OSD
 	Utilization *prometheus.GaugeVec
 
-	//Pgs displays total no. of placement groups in the OSD.
-	//Available in Ceph Jewel version.
+	// Pgs displays total no. of placement groups in the OSD.
+	// Available in Ceph Jewel version.
 	Pgs *prometheus.GaugeVec
 
-	//CommitLatency displays in seconds how long it takes for an operation to be applied to disk
+	// CommitLatency displays in seconds how long it takes for an operation to be applied to disk
 	CommitLatency *prometheus.GaugeVec
 
-	//ApplyLatency displays in seconds how long it takes to get applied to the backing filesystem
+	// ApplyLatency displays in seconds how long it takes to get applied to the backing filesystem
 	ApplyLatency *prometheus.GaugeVec
 
-	//OsdsIn displays the In state of the OSD
-	OsdIn *prometheus.GaugeVec
+	// OSDIn displays the In state of the OSD
+	OSDIn *prometheus.GaugeVec
 
-	//OsdsUP displays the Up state of the OSD
-	OsdUp *prometheus.GaugeVec
+	// OSDUp displays the Up state of the OSD
+	OSDUp *prometheus.GaugeVec
 
-	//TotalBytes displays total bytes in all OSDs
+	// TotalBytes displays total bytes in all OSDs
 	TotalBytes prometheus.Gauge
 
-	//TotalUsedBytes displays total used bytes in all OSDs
+	// TotalUsedBytes displays total used bytes in all OSDs
 	TotalUsedBytes prometheus.Gauge
 
-	//TotalAvailBytes displays total available bytes in all OSDs
+	// TotalAvailBytes displays total available bytes in all OSDs
 	TotalAvailBytes prometheus.Gauge
 
-	//AverageUtil displays average utilization in all OSDs
+	// AverageUtil displays average utilization in all OSDs
 	AverageUtil prometheus.Gauge
 }
 
-//NewOsdCollector creates an instance of the OsdCollector and instantiates
-// the individual metrics that show information about the osd.
-func NewOsdCollector(conn Conn) *OsdCollector {
-	return &OsdCollector{
+//NewOSDCollector creates an instance of the OSDCollector and instantiates
+// the individual metrics that show information about the OSD.
+func NewOSDCollector(conn Conn) *OSDCollector {
+	return &OSDCollector{
 		conn: conn,
 
 		CrushWeight: prometheus.NewGaugeVec(
@@ -191,7 +193,7 @@ func NewOsdCollector(conn Conn) *OsdCollector {
 			[]string{"osd"},
 		),
 
-		OsdIn: prometheus.NewGaugeVec(
+		OSDIn: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
 				Name:      "osd_in",
@@ -200,7 +202,7 @@ func NewOsdCollector(conn Conn) *OsdCollector {
 			[]string{"osd"},
 		),
 
-		OsdUp: prometheus.NewGaugeVec(
+		OSDUp: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
 				Name:      "osd_up",
@@ -211,7 +213,7 @@ func NewOsdCollector(conn Conn) *OsdCollector {
 	}
 }
 
-func (o *OsdCollector) collectorList() []prometheus.Collector {
+func (o *OSDCollector) collectorList() []prometheus.Collector {
 	return []prometheus.Collector{
 		o.CrushWeight,
 		o.Depth,
@@ -227,13 +229,13 @@ func (o *OsdCollector) collectorList() []prometheus.Collector {
 		o.AverageUtil,
 		o.CommitLatency,
 		o.ApplyLatency,
-		o.OsdIn,
-		o.OsdUp,
+		o.OSDIn,
+		o.OSDUp,
 	}
 }
 
-type cephOsdDf struct {
-	OsdNodes []struct {
+type cephOSDDF struct {
+	OSDNodes []struct {
 		Name        string      `json:"name"`
 		CrushWeight json.Number `json:"crush_weight"`
 		Depth       json.Number `json:"depth"`
@@ -263,16 +265,16 @@ type cephPerfStat struct {
 	} `json:"osd_perf_infos"`
 }
 
-type cephOsdDump struct {
-	Osds []struct {
-		Osd json.Number `json:"osd"`
+type cephOSDDump struct {
+	OSDs []struct {
+		OSD json.Number `json:"osd"`
 		Up  json.Number `json:"up"`
 		In  json.Number `json:"in"`
 	} `json:"osds"`
 }
 
-func (o *OsdCollector) collect() error {
-	cmd := o.cephOSDDfCommand()
+func (o *OSDCollector) collect() error {
+	cmd := o.cephOSDDFCommand()
 
 	buf, _, err := o.conn.MonCommand(cmd)
 	if err != nil {
@@ -280,12 +282,12 @@ func (o *OsdCollector) collect() error {
 		return err
 	}
 
-	osdDf := &cephOsdDf{}
-	if err := json.Unmarshal(buf, osdDf); err != nil {
+	osdDF := &cephOSDDF{}
+	if err := json.Unmarshal(buf, osdDF); err != nil {
 		return err
 	}
 
-	for _, node := range osdDf.OsdNodes {
+	for _, node := range osdDF.OSDNodes {
 
 		crushWeight, err := node.CrushWeight.Float64()
 		if err != nil {
@@ -346,28 +348,28 @@ func (o *OsdCollector) collect() error {
 
 	}
 
-	totalKB, err := osdDf.Summary.TotalKB.Float64()
+	totalKB, err := osdDF.Summary.TotalKB.Float64()
 	if err != nil {
 		return err
 	}
 
 	o.TotalBytes.Set(totalKB * 1e3)
 
-	totalUsedKB, err := osdDf.Summary.TotalUsedKB.Float64()
+	totalUsedKB, err := osdDF.Summary.TotalUsedKB.Float64()
 	if err != nil {
 		return err
 	}
 
 	o.TotalUsedBytes.Set(totalUsedKB * 1e3)
 
-	totalAvailKB, err := osdDf.Summary.TotalAvailKB.Float64()
+	totalAvailKB, err := osdDF.Summary.TotalAvailKB.Float64()
 	if err != nil {
 		return err
 	}
 
 	o.TotalAvailBytes.Set(totalAvailKB * 1e3)
 
-	averageUtil, err := osdDf.Summary.AverageUtil.Float64()
+	averageUtil, err := osdDF.Summary.AverageUtil.Float64()
 	if err != nil {
 		return err
 	}
@@ -378,7 +380,7 @@ func (o *OsdCollector) collect() error {
 
 }
 
-func (o *OsdCollector) collectOsdPerf() error {
+func (o *OSDCollector) collectOSDPerf() error {
 	osdPerfCmd := o.cephOSDPerfCommand()
 	buf, _, err := o.conn.MonCommand(osdPerfCmd)
 	if err != nil {
@@ -414,21 +416,21 @@ func (o *OsdCollector) collectOsdPerf() error {
 	return nil
 }
 
-func (o *OsdCollector) collectOsdDump() error {
-	osdDumpCmd := o.cephOsdDump()
+func (o *OSDCollector) collectOSDDump() error {
+	osdDumpCmd := o.cephOSDDump()
 	buff, _, err := o.conn.MonCommand(osdDumpCmd)
 	if err != nil {
 		log.Println("[ERROR] Unable to collect data from ceph osd dump", err)
 		return err
 	}
 
-	osdDump := &cephOsdDump{}
+	osdDump := &cephOSDDump{}
 	if err := json.Unmarshal(buff, osdDump); err != nil {
 		return err
 	}
 
-	for _, dumpInfo := range osdDump.Osds {
-		osdID, err := dumpInfo.Osd.Int64()
+	for _, dumpInfo := range osdDump.OSDs {
+		osdID, err := dumpInfo.OSD.Int64()
 		if err != nil {
 			return err
 		}
@@ -439,21 +441,21 @@ func (o *OsdCollector) collectOsdDump() error {
 			return err
 		}
 
-		o.OsdIn.WithLabelValues(osdName).Set(in)
+		o.OSDIn.WithLabelValues(osdName).Set(in)
 
 		up, err := dumpInfo.Up.Float64()
 		if err != nil {
 			return err
 		}
 
-		o.OsdUp.WithLabelValues(osdName).Set(up)
+		o.OSDUp.WithLabelValues(osdName).Set(up)
 	}
 
 	return nil
 
 }
 
-func (o *OsdCollector) cephOsdDump() []byte {
+func (o *OSDCollector) cephOSDDump() []byte {
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix": "osd dump",
 		"format": "json",
@@ -464,7 +466,7 @@ func (o *OsdCollector) cephOsdDump() []byte {
 	return cmd
 }
 
-func (o *OsdCollector) cephOSDDfCommand() []byte {
+func (o *OSDCollector) cephOSDDFCommand() []byte {
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix": "osd df",
 		"format": "json",
@@ -475,7 +477,7 @@ func (o *OsdCollector) cephOSDDfCommand() []byte {
 	return cmd
 }
 
-func (o *OsdCollector) cephOSDPerfCommand() []byte {
+func (o *OSDCollector) cephOSDPerfCommand() []byte {
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix": "osd perf",
 		"format": "json",
@@ -486,9 +488,9 @@ func (o *OsdCollector) cephOSDPerfCommand() []byte {
 	return cmd
 }
 
-// Describe sends the descriptors of each OsdCollector related metrics we have defined
+// Describe sends the descriptors of each OSDCollector related metrics we have defined
 // to the provided prometheus channel.
-func (o *OsdCollector) Describe(ch chan<- *prometheus.Desc) {
+func (o *OSDCollector) Describe(ch chan<- *prometheus.Desc) {
 	for _, metric := range o.collectorList() {
 		metric.Describe(ch)
 	}
@@ -497,14 +499,14 @@ func (o *OsdCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect sends all the collected metrics to the provided prometheus channel.
 // It requires the caller to handle synchronization.
-func (o *OsdCollector) Collect(ch chan<- prometheus.Metric) {
+func (o *OSDCollector) Collect(ch chan<- prometheus.Metric) {
 
-	if err := o.collectOsdPerf(); err != nil {
-		log.Println("failed collecting cluster osd perf stats:", err)
+	if err := o.collectOSDPerf(); err != nil {
+		log.Println("failed collecting osd perf stats:", err)
 	}
 
-	if err := o.collectOsdDump(); err != nil {
-		log.Println("failed collecting cluster osd dump", err)
+	if err := o.collectOSDDump(); err != nil {
+		log.Println("failed collecting osd dump:", err)
 	}
 
 	if err := o.collect(); err != nil {

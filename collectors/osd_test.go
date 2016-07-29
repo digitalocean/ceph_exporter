@@ -10,7 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-func TestOsdCollector(t *testing.T) {
+func TestOSDCollector(t *testing.T) {
 	for _, tt := range []struct {
 		input   string
 		regexes []*regexp.Regexp
@@ -219,7 +219,7 @@ func TestOsdCollector(t *testing.T) {
 		},
 	} {
 		func() {
-			collector := NewOsdCollector(NewNoopConn(tt.input))
+			collector := NewOSDCollector(NewNoopConn(tt.input))
 			if err := prometheus.Register(collector); err != nil {
 				t.Fatalf("collector failed to register: %s", err)
 			}
