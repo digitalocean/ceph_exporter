@@ -16,6 +16,8 @@ locations](http://docs.ceph.com/docs/master/rados/configuration/ceph-conf/#the-c
 
 We use Ceph's [official Golang client](https://github.com/ceph/go-ceph) to run commands on the cluster.
 
+Ceph exporter is tested only on Ceph's Hammer(v0.94) and Jewel(v10.2) releases. It might not work as expected with older or non-LTS versions of Ceph.
+
 ## Flags
 
 Name | Description | Default
