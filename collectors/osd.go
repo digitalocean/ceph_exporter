@@ -37,6 +37,9 @@ type OSDCollector struct {
 	// Utilization displays current utilization of the OSD
 	Utilization *prometheus.GaugeVec
 
+	// Variance displays current variance of the OSD from the standard utilization
+	Variance *prometheus.GaugeVec
+
 	// Pgs displays total no. of placement groups in the OSD.
 	// Available in Ceph Jewel version.
 	Pgs *prometheus.GaugeVec
@@ -135,6 +138,15 @@ func NewOSDCollector(conn Conn) *OSDCollector {
 			[]string{"osd"},
 		),
 
+		Variance: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace: cephNamespace,
+				Name:      "osd_variance",
+				Help:      "OSD Variance",
+			},
+			[]string{"osd"},
+		),
+
 		Pgs: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
@@ -222,6 +234,7 @@ func (o *OSDCollector) collectorList() []prometheus.Collector {
 		o.UsedBytes,
 		o.AvailBytes,
 		o.Utilization,
+		o.Variance,
 		o.Pgs,
 		o.TotalBytes,
 		o.TotalUsedBytes,
@@ -244,6 +257,7 @@ type cephOSDDF struct {
 		UsedKB      json.Number `json:"kb_used"`
 		AvailKB     json.Number `json:"kb_avail"`
 		Utilization json.Number `json:"utilization"`
+		Variance    json.Number `json:"var"`
 		Pgs         json.Number `json:"pgs"`
 	} `json:"nodes"`
 
@@ -338,6 +352,13 @@ func (o *OSDCollector) collect() error {
 		}
 
 		o.Utilization.WithLabelValues(node.Name).Set(util)
+
+		variance, err := node.Variance.Float64()
+		if err != nil {
+			return err
+		}
+
+		o.Variance.WithLabelValues(node.Name).Set(variance)
 
 		pgs, err := node.Pgs.Float64()
 		if err != nil {

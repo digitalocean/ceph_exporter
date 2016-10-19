@@ -137,6 +137,33 @@ func TestPoolUsageCollector(t *testing.T) {
 				regexp.MustCompile(`pool_available_bytes{pool="ssd"} 4.618201748262e\+12`),
 			},
 		},
+		{
+			input: `
+{"pools": [
+	{"id": 32, "name": "cinder_sas", "stats": { "bytes_used": 71525351713, "dirty": 17124, "kb_used": 69848977, "max_avail": 6038098673664, "objects": 17124, "quota_bytes": 0, "quota_objects": 0, "raw_bytes_used": 214576054272, "rd": 348986643, "rd_bytes": 3288983853056, "wr": 45792703, "wr_bytes": 272268791808 }},
+	{"id": 33, "name": "cinder_ssd", "stats": { "bytes_used": 68865564849, "dirty": 16461, "kb_used": 67251529, "max_avail": 186205372416, "objects": 16461, "quota_bytes": 0, "quota_objects": 0, "raw_bytes_used": 206596702208, "rd": 347, "rd_bytes": 12899328, "wr": 26721, "wr_bytes": 68882356224 }}
+]}`,
+			reMatch: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_pool_available_bytes{pool="cinder_sas"} 6.038098673664e\+12`),
+				regexp.MustCompile(`ceph_pool_dirty_objects_total{pool="cinder_sas"} 17124`),
+				regexp.MustCompile(`ceph_pool_objects_total{pool="cinder_sas"} 17124`),
+				regexp.MustCompile(`ceph_pool_raw_used_bytes{pool="cinder_sas"} 2.14576054272e\+11`),
+				regexp.MustCompile(`ceph_pool_read_bytes_total{pool="cinder_sas"} 3.288983853056e\+12`),
+				regexp.MustCompile(`ceph_pool_read_total{pool="cinder_sas"} 3.48986643e\+08`),
+				regexp.MustCompile(`ceph_pool_used_bytes{pool="cinder_sas"} 7.1525351713e\+10`),
+				regexp.MustCompile(`ceph_pool_write_bytes_total{pool="cinder_sas"} 2.72268791808e\+11`),
+				regexp.MustCompile(`ceph_pool_write_total{pool="cinder_sas"} 4.5792703e\+07`),
+				regexp.MustCompile(`ceph_pool_available_bytes{pool="cinder_ssd"} 1.86205372416e\+11`),
+				regexp.MustCompile(`ceph_pool_dirty_objects_total{pool="cinder_ssd"} 16461`),
+				regexp.MustCompile(`ceph_pool_objects_total{pool="cinder_ssd"} 16461`),
+				regexp.MustCompile(`ceph_pool_raw_used_bytes{pool="cinder_ssd"} 2.06596702208e\+11`),
+				regexp.MustCompile(`ceph_pool_read_bytes_total{pool="cinder_ssd"} 1.2899328e\+07`),
+				regexp.MustCompile(`ceph_pool_read_total{pool="cinder_ssd"} 347`),
+				regexp.MustCompile(`ceph_pool_used_bytes{pool="cinder_ssd"} 6.8865564849e\+10`),
+				regexp.MustCompile(`ceph_pool_write_bytes_total{pool="cinder_ssd"} 6.8882356224e\+10`),
+				regexp.MustCompile(`ceph_pool_write_total{pool="cinder_ssd"} 26721`),
+			},
+		},
 	} {
 		func() {
 			collector := NewPoolUsageCollector(NewNoopConn(tt.input))
