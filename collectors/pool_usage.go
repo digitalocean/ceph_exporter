@@ -42,22 +42,22 @@ type PoolUsageCollector struct {
 	// Objects shows the no. of RADOS objects created within the pool.
 	Objects *prometheus.GaugeVec
 
-	// DirtyObjects shows the no. of RADOS dirty objects in a cache-tier pool, 
+	// DirtyObjects shows the no. of RADOS dirty objects in a cache-tier pool,
 	// this doesn't make sense in a regular pool, see:
 	// http://lists.ceph.com/pipermail/ceph-users-ceph.com/2015-April/000557.html
 	DirtyObjects *prometheus.GaugeVec
 
 	// ReadIO tracks the read IO calls made for the images within each pool.
-	ReadIO *prometheus.CounterVec
+	ReadIO *prometheus.GaugeVec
 
 	// Readbytes tracks the read throughput made for the images within each pool.
-	ReadBytes *prometheus.CounterVec
+	ReadBytes *prometheus.GaugeVec
 
 	// WriteIO tracks the write IO calls made for the images within each pool.
-	WriteIO *prometheus.CounterVec
+	WriteIO *prometheus.GaugeVec
 
 	// WriteBytes tracks the write throughput made for the images within each pool.
-	WriteBytes *prometheus.CounterVec
+	WriteBytes *prometheus.GaugeVec
 }
 
 // NewPoolUsageCollector creates a new instance of PoolUsageCollector and returns
@@ -115,39 +115,39 @@ func NewPoolUsageCollector(conn Conn) *PoolUsageCollector {
 			},
 			poolLabel,
 		),
-		ReadIO: prometheus.NewCounterVec(
-			prometheus.CounterOpts{
+		ReadIO: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
 				Subsystem: subSystem,
 				Name:      "read_total",
-				Help:      "Total read i/o calls the pool has been subject to",
+				Help:      "Total read i/o calls for the pool",
 			},
 			poolLabel,
 		),
-		ReadBytes: prometheus.NewCounterVec(
-			prometheus.CounterOpts{
+		ReadBytes: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
 				Subsystem: subSystem,
 				Name:      "read_bytes_total",
-				Help:      "Total read throughput the pool has been subject to",
+				Help:      "Total read throughput for the pool",
 			},
 			poolLabel,
 		),
-		WriteIO: prometheus.NewCounterVec(
-			prometheus.CounterOpts{
+		WriteIO: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
 				Subsystem: subSystem,
 				Name:      "write_total",
-				Help:      "Total write i/o calls the pool has been subject to",
+				Help:      "Total write i/o calls for the pool",
 			},
 			poolLabel,
 		),
-		WriteBytes: prometheus.NewCounterVec(
-			prometheus.CounterOpts{
+		WriteBytes: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
 				Subsystem: subSystem,
 				Name:      "write_bytes_total",
-				Help:      "Total write throughput the pool has been subject to",
+				Help:      "Total write throughput for the pool",
 			},
 			poolLabel,
 		),
