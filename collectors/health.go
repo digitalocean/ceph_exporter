@@ -136,13 +136,13 @@ type ClusterHealthCollector struct {
 	// ClientIOWriteOps shows the rate of total write operations conducted by all clients on the cluster.
 	ClientIOWriteOps prometheus.Gauge
 
-	//CacheFlushIORate shows the i/o rate at which data is being flushed from the cache pool
+	// CacheFlushIORate shows the i/o rate at which data is being flushed from the cache pool.
 	CacheFlushIORate prometheus.Gauge
 
-	//CacheEvictIORate shows the i/o rate at which data is being flushed from the cache pool
+	// CacheEvictIORate shows the i/o rate at which data is being flushed from the cache pool.
 	CacheEvictIORate prometheus.Gauge
 
-	//CachePromoteIOOps shows the rate of operations promoting objects to the cache pool
+	// CachePromoteIOOps shows the rate of operations promoting objects to the cache pool.
 	CachePromoteIOOps prometheus.Gauge
 }
 
