@@ -310,6 +310,7 @@ $ sudo ceph -s
      monmap e3: 3 mons at {mon01,mon02,mon03}
   recovery io 5779 MB/s, 4 keys/s, 1522 objects/s
   client io 2863 op/s rd, 5847 op/s wr
+  cache io 251 MB/s flush, 6646 kB/s evict, 55 op/s promote
 `,
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`recovery_io_bytes 5.779e`),
@@ -318,6 +319,9 @@ $ sudo ceph -s
 				regexp.MustCompile(`client_io_ops 8710`),
 				regexp.MustCompile(`client_io_read_ops 2863`),
 				regexp.MustCompile(`client_io_write_ops 5847`),
+				regexp.MustCompile(`cache_flush_io_bytes 2.51e`),
+				regexp.MustCompile(`cache_evict_io_bytes 6.646e`),
+				regexp.MustCompile(`cache_promote_io_ops 55`),
 			},
 		},
 	} {

@@ -35,6 +35,9 @@ var (
 	clientIOWriteRegex     = regexp.MustCompile(`(\d+) ([kKmMgG][bB])/s wr`)
 	clientIOReadOpsRegex   = regexp.MustCompile(`(\d+) op/s rd`)
 	clientIOWriteOpsRegex  = regexp.MustCompile(`(\d+) op/s wr`)
+	cacheFlushRateRegex    = regexp.MustCompile(`(\d+) ([kKmMgG][bB])/s flush`)
+	cacheEvictRateRegex    = regexp.MustCompile(`(\d+) ([kKmMgG][bB])/s evict`)
+	cachePromoteOpsRegex   = regexp.MustCompile(`(\d+) op/s promote`)
 
 	// Older versions of Ceph, hammer (v0.94) and below, support this format.
 	clientIOOpsRegex = regexp.MustCompile(`(\d+) op/s[^ \w]*$`)
@@ -132,6 +135,15 @@ type ClusterHealthCollector struct {
 
 	// ClientIOWriteOps shows the rate of total write operations conducted by all clients on the cluster.
 	ClientIOWriteOps prometheus.Gauge
+
+	// CacheFlushIORate shows the i/o rate at which data is being flushed from the cache pool.
+	CacheFlushIORate prometheus.Gauge
+
+	// CacheEvictIORate shows the i/o rate at which data is being flushed from the cache pool.
+	CacheEvictIORate prometheus.Gauge
+
+	// CachePromoteIOOps shows the rate of operations promoting objects to the cache pool.
+	CachePromoteIOOps prometheus.Gauge
 }
 
 const (
@@ -320,6 +332,27 @@ func NewClusterHealthCollector(conn Conn) *ClusterHealthCollector {
 				Help:      "Total client write I/O ops on the cluster measured per second",
 			},
 		),
+		CacheFlushIORate: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace: cephNamespace,
+				Name:      "cache_flush_io_bytes",
+				Help:      "Rate of bytes being flushed from the cache pool per second",
+			},
+		),
+		CacheEvictIORate: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace: cephNamespace,
+				Name:      "cache_evict_io_bytes",
+				Help:      "Rate of bytes being evicted from the cache pool per second",
+			},
+		),
+		CachePromoteIOOps: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace: cephNamespace,
+				Name:      "cache_promote_io_ops",
+				Help:      "Total cache promote operations measured per second",
+			},
+		),
 	}
 }
 
@@ -349,6 +382,9 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.ClientIOOps,
 		c.ClientIOReadOps,
 		c.ClientIOWriteOps,
+		c.CacheFlushIORate,
+		c.CacheEvictIORate,
+		c.CachePromoteIOOps,
 	}
 }
 
@@ -589,6 +625,10 @@ func (c *ClusterHealthCollector) collectRecoveryClientIO() error {
 			if err := c.collectClientIO(line); err != nil {
 				return err
 			}
+		case strings.HasPrefix(line, "cache io"):
+			if err := c.collectCacheIO(line); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -728,6 +768,60 @@ func (c *ClusterHealthCollector) collectRecoveryIO(recoveryStr string) error {
 	return nil
 }
 
+func (c *ClusterHealthCollector) collectCacheIO(clientStr string) error {
+	matched := cacheFlushRateRegex.FindStringSubmatch(clientStr)
+	if len(matched) == 3 {
+		v, err := strconv.Atoi(matched[1])
+		if err != nil {
+			return err
+		}
+
+		switch strings.ToLower(matched[2]) {
+		case "gb":
+			v = v * 1e9
+		case "mb":
+			v = v * 1e6
+		case "kb":
+			v = v * 1e3
+		default:
+			return fmt.Errorf("can't parse units %q", matched[2])
+		}
+
+		c.CacheFlushIORate.Set(float64(v))
+	}
+
+	matched = cacheEvictRateRegex.FindStringSubmatch(clientStr)
+	if len(matched) == 3 {
+		v, err := strconv.Atoi(matched[1])
+		if err != nil {
+			return err
+		}
+
+		switch strings.ToLower(matched[2]) {
+		case "gb":
+			v = v * 1e9
+		case "mb":
+			v = v * 1e6
+		case "kb":
+			v = v * 1e3
+		default:
+			return fmt.Errorf("can't parse units %q", matched[2])
+		}
+
+		c.CacheEvictIORate.Set(float64(v))
+	}
+
+	matched = cachePromoteOpsRegex.FindStringSubmatch(clientStr)
+	if len(matched) == 2 {
+		v, err := strconv.Atoi(matched[1])
+		if err != nil {
+			return err
+		}
+
+		c.CachePromoteIOOps.Set(float64(v))
+	}
+	return nil
+}
 // Describe sends all the descriptions of individual metrics of ClusterHealthCollector
 // to the provided prometheus channel.
 func (c *ClusterHealthCollector) Describe(ch chan<- *prometheus.Desc) {
