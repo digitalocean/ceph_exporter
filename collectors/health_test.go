@@ -204,16 +204,15 @@ func TestClusterHealthCollector(t *testing.T) {
 {
 	"osdmap": {
 		"osdmap": {
-			"num_osds": 0,
-			"num_up_osds": 0,
+			"num_osds": 20,
+			"num_up_osds": 10,
 			"num_in_osds": 0,
 			"num_remapped_pgs": 0
 		}
-	},
-	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "3/20 in osds are down"}]}
+	}
 }`,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`osds_down 3`),
+				regexp.MustCompile(`osds_down 10`),
 			},
 		},
 		{
@@ -322,6 +321,24 @@ $ sudo ceph -s
 				regexp.MustCompile(`cache_flush_io_bytes 2.51e`),
 				regexp.MustCompile(`cache_evict_io_bytes 6.646e`),
 				regexp.MustCompile(`cache_promote_io_ops 55`),
+			},
+		},
+		{
+			input: `
+{
+	"osdmap": {
+		"osdmap": {
+			"num_osds": 0,
+			"num_up_osds": 0,
+			"num_in_osds": 0,
+			"num_remapped_pgs": 0
+		}
+	},
+	"pgmap": { "num_pgs": 52000 },
+	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "7 pgs undersized"}]}
+}`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`total_pgs 52000`),
 			},
 		},
 	} {
