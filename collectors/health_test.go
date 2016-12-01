@@ -204,16 +204,15 @@ func TestClusterHealthCollector(t *testing.T) {
 {
 	"osdmap": {
 		"osdmap": {
-			"num_osds": 0,
-			"num_up_osds": 0,
+			"num_osds": 20,
+			"num_up_osds": 10,
 			"num_in_osds": 0,
 			"num_remapped_pgs": 0
 		}
-	},
-	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "3/20 in osds are down"}]}
+	}
 }`,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`osds_down 3`),
+				regexp.MustCompile(`osds_down 10`),
 			},
 		},
 		{

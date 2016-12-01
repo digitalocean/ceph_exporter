@@ -446,7 +446,6 @@ func (c *ClusterHealthCollector) collect() error {
 		stuckStaleRegex       = regexp.MustCompile(`([\d]+) pgs stuck stale`)
 		degradedObjectsRegex  = regexp.MustCompile(`recovery ([\d]+)/([\d]+) objects degraded`)
 		misplacedObjectsRegex = regexp.MustCompile(`recovery ([\d]+)/([\d]+) objects misplaced`)
-		osdsDownRegex         = regexp.MustCompile(`([\d]+)/([\d]+) in osds are down`)
 	)
 
 	for _, s := range stats.Health.Summary {
@@ -539,15 +538,6 @@ func (c *ClusterHealthCollector) collect() error {
 			}
 			c.MisplacedObjectsCount.Set(float64(v))
 		}
-
-		matched = osdsDownRegex.FindStringSubmatch(s.Summary)
-		if len(matched) == 3 {
-			v, err := strconv.Atoi(matched[1])
-			if err != nil {
-				return err
-			}
-			c.OSDsDown.Set(float64(v))
-		}
 	}
 
 	osdsUp, err := stats.OSDMap.OSDMap.NumUpOSDs.Float64()
@@ -567,6 +557,10 @@ func (c *ClusterHealthCollector) collect() error {
 		return err
 	}
 	c.OSDsNum.Set(osdsNum)
+
+	// Ceph (until v10.2.3) doesn't expose the value of down OSDs
+	// from its status, which is why we have to compute it ourselves.
+	c.OSDsDown.Set(osdsNum - osdsUp)
 
 	remappedPGs, err := stats.OSDMap.OSDMap.NumRemappedPGs.Float64()
 	if err != nil {
@@ -822,6 +816,7 @@ func (c *ClusterHealthCollector) collectCacheIO(clientStr string) error {
 	}
 	return nil
 }
+
 // Describe sends all the descriptions of individual metrics of ClusterHealthCollector
 // to the provided prometheus channel.
 func (c *ClusterHealthCollector) Describe(ch chan<- *prometheus.Desc) {
