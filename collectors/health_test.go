@@ -323,6 +323,24 @@ $ sudo ceph -s
 				regexp.MustCompile(`cache_promote_io_ops 55`),
 			},
 		},
+		{
+			input: `
+{
+	"osdmap": {
+		"osdmap": {
+			"num_osds": 0,
+			"num_up_osds": 0,
+			"num_in_osds": 0,
+			"num_remapped_pgs": 0
+		}
+	},
+	"pgmap": { "num_pgs": 52000 },
+	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "7 pgs undersized"}]}
+}`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`total_pgs 52000`),
+			},
+		},
 	} {
 		func() {
 			collector := NewClusterHealthCollector(NewNoopConn(tt.input))

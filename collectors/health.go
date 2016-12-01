@@ -53,6 +53,9 @@ type ClusterHealthCollector struct {
 	// HealthStatus shows the overall health status of a given cluster.
 	HealthStatus prometheus.Gauge
 
+	// TotalPGs shows the total no. of PGs the cluster constitutes of.
+	TotalPGs prometheus.Gauge
+
 	// DegradedPGs shows the no. of PGs that have some of the replicas
 	// missing.
 	DegradedPGs prometheus.Gauge
@@ -87,12 +90,14 @@ type ClusterHealthCollector struct {
 	StuckStalePGs prometheus.Gauge
 
 	// DegradedObjectsCount gives the no. of RADOS objects are constitute the degraded PGs.
+	// This includes object replicas in its count.
 	DegradedObjectsCount prometheus.Gauge
 
 	// MisplacedObjectsCount gives the no. of RADOS objects that constitute the misplaced PGs.
 	// Misplaced PGs usually represent the PGs that are not in the storage locations that
 	// they should be in. This is different than degraded PGs which means a PG has fewer copies
 	// that it should.
+	// This includes object replicas in its count.
 	MisplacedObjectsCount prometheus.Gauge
 
 	// OSDsDown show the no. of OSDs that are in the DOWN state.
@@ -171,6 +176,13 @@ func NewClusterHealthCollector(conn Conn) *ClusterHealthCollector {
 				Help:      "Health status of Cluster, can vary only between 3 states (err:2, warn:1, ok:0)",
 			},
 		),
+		TotalPGs: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace: cephNamespace,
+				Name:      "total_pgs",
+				Help:      "Total no. of PGs in the cluster",
+			},
+		),
 		DegradedPGs: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
@@ -231,14 +243,14 @@ func NewClusterHealthCollector(conn Conn) *ClusterHealthCollector {
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
 				Name:      "degraded_objects",
-				Help:      "No. of degraded objects across all PGs",
+				Help:      "No. of degraded objects across all PGs, includes replicas",
 			},
 		),
 		MisplacedObjectsCount: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
 				Name:      "misplaced_objects",
-				Help:      "No. of misplaced objects across all PGs",
+				Help:      "No. of misplaced objects across all PGs, includes replicas",
 			},
 		),
 		OSDsDown: prometheus.NewGauge(
@@ -359,6 +371,7 @@ func NewClusterHealthCollector(conn Conn) *ClusterHealthCollector {
 func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 	return []prometheus.Metric{
 		c.HealthStatus,
+		c.TotalPGs,
 		c.DegradedPGs,
 		c.StuckDegradedPGs,
 		c.UncleanPGs,
@@ -404,6 +417,9 @@ type cephHealthStats struct {
 			NumRemappedPGs json.Number `json:"num_remapped_pgs"`
 		} `json:"osdmap"`
 	} `json:"osdmap"`
+	PGMap struct {
+		NumPGs json.Number `json:"num_pgs"`
+	} `json:"pgmap"`
 }
 
 func (c *ClusterHealthCollector) collect() error {
@@ -567,6 +583,12 @@ func (c *ClusterHealthCollector) collect() error {
 		return err
 	}
 	c.RemappedPGs.Set(remappedPGs)
+
+	totalPGs, err := stats.PGMap.NumPGs.Float64()
+	if err != nil {
+		return err
+	}
+	c.TotalPGs.Set(totalPGs)
 
 	return nil
 }
