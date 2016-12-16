@@ -6,12 +6,10 @@ ENV GOPATH /go
 ENV PATH $GOROOT/bin:$PATH
 ENV APPLOC $GOPATH/src/github.com/digitalocean/ceph_exporter
 
-RUN apt-get update && apt-get install -y apt-transport-https
+RUN apt-get update && \
+    apt-get install -y apt-transport-https build-essential git curl
 
 RUN echo "deb https://download.ceph.com/debian-jewel trusty main" >> /etc/apt/sources.list
-
-RUN apt-get update && \
-    apt-get install -y build-essential git curl
 
 RUN apt-get install -y --force-yes librados-dev librbd-dev
 
