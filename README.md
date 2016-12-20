@@ -38,22 +38,30 @@ A Makefile is provided in case you find a need for it.
 
 ## Docker Image
 
-It is possible to run the exporter as a docker image. The port `9128` is
-exposed for running the default ceph exporter.
+### Docker Hub
 
-The exporter needs your ceph configuration in order to establish communication with the monitors. You can either pass it in as an additional command or ideally you would just mount the directory containing both your `ceph.conf` and your user's keyring under the default `/etc/ceph` location that `Ceph` checks for.
+The official docker image is available at [digitalocean/ceph_exporter](https://hub.docker.com/r/digitalocean/ceph_exporter/).
 
-A sample run would look like:
+### Build From Source
+
+It is also possible to build your own locally from the source. The port `9128` is
+exposed as a default port for ceph exporter.
+
+The exporter needs your ceph configuration in order to establish communication with the monitors. You can either pass it in as an additional command or mount the directory containing both your `ceph.conf` and your user's keyring under the default `/etc/ceph` location that `Ceph` checks for.
+
+A sample build command would look like:
 
 ```bash
 $ docker build -t digitalocean/ceph_exporter .
-...
-<build takes place here>
-...
+```
+
+You can start running your ceph exporter container now.
+
+```bash
 $ docker run -v /etc/ceph:/etc/ceph -p=9128:9128 -it digitalocean/ceph_exporter
 ```
 
-You would need to ensure your image can talk over to the monitors so if
+You would have to ensure your image can talk over to the monitors. If
 it needs access to your host's network stack you might need to add
 `--net=host` to the above command. It makes the port mapping redundant
 so the `-p` flag can be removed.
