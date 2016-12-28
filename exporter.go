@@ -81,10 +81,11 @@ func main() {
 		metricsPath = flag.String("telemetry.path", "/metrics", "URL path for surfacing collected metrics")
 
 		cephConfig = flag.String("ceph.config", "", "path to ceph config file")
+                cephUser = flag.String("ceph.user", "admin", "Ceph user to connect to cluster. The key file must be named ceph.client.<user>.keyring.")
 	)
 	flag.Parse()
 
-	conn, err := rados.NewConn()
+	conn, err := rados.NewConnWithUser(*cephUser)
 	if err != nil {
 		log.Fatalf("cannot create new ceph connection: %s", err)
 	}
