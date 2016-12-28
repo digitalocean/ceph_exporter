@@ -81,7 +81,7 @@ func main() {
 		metricsPath = flag.String("telemetry.path", "/metrics", "URL path for surfacing collected metrics")
 
 		cephConfig = flag.String("ceph.config", "", "path to ceph config file")
-		cephUser   = flag.String("ceph.user", "admin", "Ceph user to connect to cluster. The key file must be named ceph.client.<user>.keyring.")
+		cephUser   = flag.String("ceph.user", "admin", "Ceph user to connect to cluster.")
 	)
 	flag.Parse()
 
