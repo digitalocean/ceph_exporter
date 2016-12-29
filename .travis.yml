@@ -24,10 +24,12 @@ script:
   - go test -coverprofile=collectors.coverprofile ./collectors
   - $HOME/gopath/bin/gover
   - $HOME/gopath/bin/goveralls -coverprofile=gover.coverprofile -service travis-ci
-  - docker build -t digitalocean/ceph_exporter .
 
 after_success:
-  - if [ "$TRAVIS_BRANCH" == "master" ]; then
+  - export DOCKER_REPO="digitalocean/ceph_exporter"
+  - if [ ! -z "$TRAVIS_TAG" ]; then
+    docker build -t $DOCKER_REPO:$DOCKER_TAG .;
+    docker tag $DOCKER_REPO:$DOCKER_TAG $DOCKER_REPO:latest;
     docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
-    docker push digitalocean/ceph_exporter:$DOCKER_TAG;
+    docker push $DOCKER_REPO;
     fi
