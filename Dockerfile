@@ -11,7 +11,8 @@ RUN apt-get update && \
 
 RUN echo "deb https://download.ceph.com/debian-jewel trusty main" >> /etc/apt/sources.list
 
-RUN apt-get install -y --force-yes librados-dev librbd-dev
+RUN apt-get update && \
+    apt-get install -y --force-yes librados-dev librbd-dev
 
 RUN \
   mkdir -p /goroot && \
