@@ -5,6 +5,9 @@ dist: trusty
 go:
   - 1.5
 
+env:
+  - DOCKER_TAG=$TRAVIS_TAG
+
 before_install:
   - sudo apt-get update
   - sudo apt-get install -y librados-dev librbd-dev
@@ -26,5 +29,5 @@ script:
 after_success:
   - if [ "$TRAVIS_BRANCH" == "master" ]; then
     docker login -u="$DOCKER_USERNAME" -p="$DOCKER_PASSWORD";
-    docker push digitalocean/ceph_exporter;
+    docker push digitalocean/ceph_exporter:$DOCKER_TAG;
     fi
