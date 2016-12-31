@@ -108,7 +108,13 @@ func main() {
 
 	http.Handle(*metricsPath, prometheus.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, *metricsPath, http.StatusMovedPermanently)
+		w.Write([]byte(`<html>
+			<head><title>Ceph Exporter</title></head>
+			<body>
+			<h1>Ceph Exporter</h1>
+			<p><a href='` + *metricsPath + `'>Metrics</a></p>
+			</body>
+			</html>`))
 	})
 
 	log.Printf("Starting ceph exporter on %q", *addr)
