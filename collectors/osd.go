@@ -71,154 +71,174 @@ type OSDCollector struct {
 
 //NewOSDCollector creates an instance of the OSDCollector and instantiates
 // the individual metrics that show information about the OSD.
-func NewOSDCollector(conn Conn) *OSDCollector {
+func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
+	labels := make(prometheus.Labels)
+	labels["cluster"] = cluster
+
 	return &OSDCollector{
 		conn: conn,
 
 		CrushWeight: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "osd_crush_weight",
-				Help:      "OSD Crush Weight",
+				Namespace:   cephNamespace,
+				Name:        "osd_crush_weight",
+				Help:        "OSD Crush Weight",
+				ConstLabels: labels,
 			},
 			[]string{"osd"},
 		),
 
 		Depth: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "osd_depth",
-				Help:      "OSD Depth",
+				Namespace:   cephNamespace,
+				Name:        "osd_depth",
+				Help:        "OSD Depth",
+				ConstLabels: labels,
 			},
 			[]string{"osd"},
 		),
 
 		Reweight: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "osd_reweight",
-				Help:      "OSD Reweight",
+				Namespace:   cephNamespace,
+				Name:        "osd_reweight",
+				Help:        "OSD Reweight",
+				ConstLabels: labels,
 			},
 			[]string{"osd"},
 		),
 
 		Bytes: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "osd_bytes",
-				Help:      "OSD Total Bytes",
+				Namespace:   cephNamespace,
+				Name:        "osd_bytes",
+				Help:        "OSD Total Bytes",
+				ConstLabels: labels,
 			},
 			[]string{"osd"},
 		),
 
 		UsedBytes: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "osd_used_bytes",
-				Help:      "OSD Used Storage in Bytes",
+				Namespace:   cephNamespace,
+				Name:        "osd_used_bytes",
+				Help:        "OSD Used Storage in Bytes",
+				ConstLabels: labels,
 			},
 			[]string{"osd"},
 		),
 
 		AvailBytes: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "osd_avail_bytes",
-				Help:      "OSD Available Storage in Bytes",
+				Namespace:   cephNamespace,
+				Name:        "osd_avail_bytes",
+				Help:        "OSD Available Storage in Bytes",
+				ConstLabels: labels,
 			},
 			[]string{"osd"},
 		),
 
 		Utilization: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "osd_utilization",
-				Help:      "OSD Utilization",
+				Namespace:   cephNamespace,
+				Name:        "osd_utilization",
+				Help:        "OSD Utilization",
+				ConstLabels: labels,
 			},
 			[]string{"osd"},
 		),
 
 		Variance: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "osd_variance",
-				Help:      "OSD Variance",
+				Namespace:   cephNamespace,
+				Name:        "osd_variance",
+				Help:        "OSD Variance",
+				ConstLabels: labels,
 			},
 			[]string{"osd"},
 		),
 
 		Pgs: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "osd_pgs",
-				Help:      "OSD Placement Group Count",
+				Namespace:   cephNamespace,
+				Name:        "osd_pgs",
+				Help:        "OSD Placement Group Count",
+				ConstLabels: labels,
 			},
 			[]string{"osd"},
 		),
 
 		TotalBytes: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "osd_total_bytes",
-				Help:      "OSD Total Storage Bytes",
+				Namespace:   cephNamespace,
+				Name:        "osd_total_bytes",
+				Help:        "OSD Total Storage Bytes",
+				ConstLabels: labels,
 			},
 		),
 		TotalUsedBytes: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "osd_total_used_bytes",
-				Help:      "OSD Total Used Storage Bytes",
+				Namespace:   cephNamespace,
+				Name:        "osd_total_used_bytes",
+				Help:        "OSD Total Used Storage Bytes",
+				ConstLabels: labels,
 			},
 		),
 
 		TotalAvailBytes: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "osd_total_avail_bytes",
-				Help:      "OSD Total Available Storage Bytes ",
+				Namespace:   cephNamespace,
+				Name:        "osd_total_avail_bytes",
+				Help:        "OSD Total Available Storage Bytes ",
+				ConstLabels: labels,
 			},
 		),
 
 		AverageUtil: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "osd_average_utilization",
-				Help:      "OSD Average Utilization",
+				Namespace:   cephNamespace,
+				Name:        "osd_average_utilization",
+				Help:        "OSD Average Utilization",
+				ConstLabels: labels,
 			},
 		),
 
 		CommitLatency: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "osd_perf_commit_latency_seconds",
-				Help:      "OSD Perf Commit Latency",
+				Namespace:   cephNamespace,
+				Name:        "osd_perf_commit_latency_seconds",
+				Help:        "OSD Perf Commit Latency",
+				ConstLabels: labels,
 			},
 			[]string{"osd"},
 		),
 
 		ApplyLatency: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "osd_perf_apply_latency_seconds",
-				Help:      "OSD Perf Apply Latency",
+				Namespace:   cephNamespace,
+				Name:        "osd_perf_apply_latency_seconds",
+				Help:        "OSD Perf Apply Latency",
+				ConstLabels: labels,
 			},
 			[]string{"osd"},
 		),
 
 		OSDIn: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "osd_in",
-				Help:      "OSD In Status",
+				Namespace:   cephNamespace,
+				Name:        "osd_in",
+				Help:        "OSD In Status",
+				ConstLabels: labels,
 			},
 			[]string{"osd"},
 		),
 
 		OSDUp: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "osd_up",
-				Help:      "OSD Up Status",
+				Namespace:   cephNamespace,
+				Name:        "osd_up",
+				Help:        "OSD Up Status",
+				ConstLabels: labels,
 			},
 			[]string{"osd"},
 		),

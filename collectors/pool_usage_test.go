@@ -38,10 +38,10 @@ func TestPoolUsageCollector(t *testing.T) {
 	{"name": "rbd", "id": 11, "stats": {"bytes_used": 20, "objects": 5, "rd": 4, "wr": 6}}
 ]}`,
 			reMatch: []*regexp.Regexp{
-				regexp.MustCompile(`pool_used_bytes{pool="rbd"} 20`),
-				regexp.MustCompile(`pool_objects_total{pool="rbd"} 5`),
-				regexp.MustCompile(`pool_read_total{pool="rbd"} 4`),
-				regexp.MustCompile(`pool_write_total{pool="rbd"} 6`),
+				regexp.MustCompile(`pool_used_bytes{cluster="ceph",pool="rbd"} 20`),
+				regexp.MustCompile(`pool_objects_total{cluster="ceph",pool="rbd"} 5`),
+				regexp.MustCompile(`pool_read_total{cluster="ceph",pool="rbd"} 4`),
+				regexp.MustCompile(`pool_write_total{cluster="ceph",pool="rbd"} 6`),
 			},
 			reUnmatch: []*regexp.Regexp{},
 		},
@@ -51,10 +51,10 @@ func TestPoolUsageCollector(t *testing.T) {
 	{"name": "rbd", "id": 11, "stats": {"objects": 5, "rd": 4, "wr": 6}}
 ]}`,
 			reMatch: []*regexp.Regexp{
-				regexp.MustCompile(`pool_used_bytes{pool="rbd"} 0`),
-				regexp.MustCompile(`pool_objects_total{pool="rbd"} 5`),
-				regexp.MustCompile(`pool_read_total{pool="rbd"} 4`),
-				regexp.MustCompile(`pool_write_total{pool="rbd"} 6`),
+				regexp.MustCompile(`pool_used_bytes{cluster="ceph",pool="rbd"} 0`),
+				regexp.MustCompile(`pool_objects_total{cluster="ceph",pool="rbd"} 5`),
+				regexp.MustCompile(`pool_read_total{cluster="ceph",pool="rbd"} 4`),
+				regexp.MustCompile(`pool_write_total{cluster="ceph",pool="rbd"} 6`),
 			},
 			reUnmatch: []*regexp.Regexp{},
 		},
@@ -64,10 +64,10 @@ func TestPoolUsageCollector(t *testing.T) {
 	{"name": "rbd", "id": 11, "stats": {"bytes_used": 20, "rd": 4, "wr": 6}}
 ]}`,
 			reMatch: []*regexp.Regexp{
-				regexp.MustCompile(`pool_used_bytes{pool="rbd"} 20`),
-				regexp.MustCompile(`pool_objects_total{pool="rbd"} 0`),
-				regexp.MustCompile(`pool_read_total{pool="rbd"} 4`),
-				regexp.MustCompile(`pool_write_total{pool="rbd"} 6`),
+				regexp.MustCompile(`pool_used_bytes{cluster="ceph",pool="rbd"} 20`),
+				regexp.MustCompile(`pool_objects_total{cluster="ceph",pool="rbd"} 0`),
+				regexp.MustCompile(`pool_read_total{cluster="ceph",pool="rbd"} 4`),
+				regexp.MustCompile(`pool_write_total{cluster="ceph",pool="rbd"} 6`),
 			},
 			reUnmatch: []*regexp.Regexp{},
 		},
@@ -77,10 +77,10 @@ func TestPoolUsageCollector(t *testing.T) {
 	{"name": "rbd", "id": 11, "stats": {"bytes_used": 20, "objects": 5, "wr": 6}}
 ]}`,
 			reMatch: []*regexp.Regexp{
-				regexp.MustCompile(`pool_used_bytes{pool="rbd"} 20`),
-				regexp.MustCompile(`pool_objects_total{pool="rbd"} 5`),
-				regexp.MustCompile(`pool_read_total{pool="rbd"} 0`),
-				regexp.MustCompile(`pool_write_total{pool="rbd"} 6`),
+				regexp.MustCompile(`pool_used_bytes{cluster="ceph",pool="rbd"} 20`),
+				regexp.MustCompile(`pool_objects_total{cluster="ceph",pool="rbd"} 5`),
+				regexp.MustCompile(`pool_read_total{cluster="ceph",pool="rbd"} 0`),
+				regexp.MustCompile(`pool_write_total{cluster="ceph",pool="rbd"} 6`),
 			},
 			reUnmatch: []*regexp.Regexp{},
 		},
@@ -90,10 +90,10 @@ func TestPoolUsageCollector(t *testing.T) {
 	{"name": "rbd", "id": 11, "stats": {"bytes_used": 20, "objects": 5, "rd": 4}}
 ]}`,
 			reMatch: []*regexp.Regexp{
-				regexp.MustCompile(`pool_used_bytes{pool="rbd"} 20`),
-				regexp.MustCompile(`pool_objects_total{pool="rbd"} 5`),
-				regexp.MustCompile(`pool_read_total{pool="rbd"} 4`),
-				regexp.MustCompile(`pool_write_total{pool="rbd"} 0`),
+				regexp.MustCompile(`pool_used_bytes{cluster="ceph",pool="rbd"} 20`),
+				regexp.MustCompile(`pool_objects_total{cluster="ceph",pool="rbd"} 5`),
+				regexp.MustCompile(`pool_read_total{cluster="ceph",pool="rbd"} 4`),
+				regexp.MustCompile(`pool_write_total{cluster="ceph",pool="rbd"} 0`),
 			},
 			reUnmatch: []*regexp.Regexp{},
 		},
@@ -104,10 +104,10 @@ func TestPoolUsageCollector(t *testing.T) {
 ]}`,
 			reMatch: []*regexp.Regexp{},
 			reUnmatch: []*regexp.Regexp{
-				regexp.MustCompile(`pool_used_bytes`),
-				regexp.MustCompile(`pool_objects_total`),
-				regexp.MustCompile(`pool_read_total`),
-				regexp.MustCompile(`pool_write_total`),
+				regexp.MustCompile(`pool_used_bytes{cluster="ceph"}`),
+				regexp.MustCompile(`pool_objects_total{cluster="ceph"}`),
+				regexp.MustCompile(`pool_read_total{cluster="ceph"}`),
+				regexp.MustCompile(`pool_write_total{cluster="ceph"}`),
 			},
 		},
 		{
@@ -117,14 +117,14 @@ func TestPoolUsageCollector(t *testing.T) {
 	{"name": "rbd-new", "id": 12, "stats": {"bytes_used": 50, "objects": 20, "rd": 10, "wr": 30}}
 ]}`,
 			reMatch: []*regexp.Regexp{
-				regexp.MustCompile(`pool_used_bytes{pool="rbd"} 20`),
-				regexp.MustCompile(`pool_objects_total{pool="rbd"} 5`),
-				regexp.MustCompile(`pool_read_total{pool="rbd"} 4`),
-				regexp.MustCompile(`pool_write_total{pool="rbd"} 6`),
-				regexp.MustCompile(`pool_used_bytes{pool="rbd-new"} 50`),
-				regexp.MustCompile(`pool_objects_total{pool="rbd-new"} 20`),
-				regexp.MustCompile(`pool_read_total{pool="rbd-new"} 10`),
-				regexp.MustCompile(`pool_write_total{pool="rbd-new"} 30`),
+				regexp.MustCompile(`pool_used_bytes{cluster="ceph",pool="rbd"} 20`),
+				regexp.MustCompile(`pool_objects_total{cluster="ceph",pool="rbd"} 5`),
+				regexp.MustCompile(`pool_read_total{cluster="ceph",pool="rbd"} 4`),
+				regexp.MustCompile(`pool_write_total{cluster="ceph",pool="rbd"} 6`),
+				regexp.MustCompile(`pool_used_bytes{cluster="ceph",pool="rbd-new"} 50`),
+				regexp.MustCompile(`pool_objects_total{cluster="ceph",pool="rbd-new"} 20`),
+				regexp.MustCompile(`pool_read_total{cluster="ceph",pool="rbd-new"} 10`),
+				regexp.MustCompile(`pool_write_total{cluster="ceph",pool="rbd-new"} 30`),
 			},
 			reUnmatch: []*regexp.Regexp{},
 		},
@@ -134,7 +134,7 @@ func TestPoolUsageCollector(t *testing.T) {
 	{"name": "ssd", "id": 11, "stats": {"max_avail": 4618201748262, "objects": 5, "rd": 4, "wr": 6}}
 ]}`,
 			reMatch: []*regexp.Regexp{
-				regexp.MustCompile(`pool_available_bytes{pool="ssd"} 4.618201748262e\+12`),
+				regexp.MustCompile(`pool_available_bytes{cluster="ceph",pool="ssd"} 4.618201748262e\+12`),
 			},
 		},
 		{
@@ -144,29 +144,29 @@ func TestPoolUsageCollector(t *testing.T) {
 	{"id": 33, "name": "cinder_ssd", "stats": { "bytes_used": 68865564849, "dirty": 16461, "kb_used": 67251529, "max_avail": 186205372416, "objects": 16461, "quota_bytes": 0, "quota_objects": 0, "raw_bytes_used": 206596702208, "rd": 347, "rd_bytes": 12899328, "wr": 26721, "wr_bytes": 68882356224 }}
 ]}`,
 			reMatch: []*regexp.Regexp{
-				regexp.MustCompile(`ceph_pool_available_bytes{pool="cinder_sas"} 6.038098673664e\+12`),
-				regexp.MustCompile(`ceph_pool_dirty_objects_total{pool="cinder_sas"} 17124`),
-				regexp.MustCompile(`ceph_pool_objects_total{pool="cinder_sas"} 17124`),
-				regexp.MustCompile(`ceph_pool_raw_used_bytes{pool="cinder_sas"} 2.14576054272e\+11`),
-				regexp.MustCompile(`ceph_pool_read_bytes_total{pool="cinder_sas"} 3.288983853056e\+12`),
-				regexp.MustCompile(`ceph_pool_read_total{pool="cinder_sas"} 3.48986643e\+08`),
-				regexp.MustCompile(`ceph_pool_used_bytes{pool="cinder_sas"} 7.1525351713e\+10`),
-				regexp.MustCompile(`ceph_pool_write_bytes_total{pool="cinder_sas"} 2.72268791808e\+11`),
-				regexp.MustCompile(`ceph_pool_write_total{pool="cinder_sas"} 4.5792703e\+07`),
-				regexp.MustCompile(`ceph_pool_available_bytes{pool="cinder_ssd"} 1.86205372416e\+11`),
-				regexp.MustCompile(`ceph_pool_dirty_objects_total{pool="cinder_ssd"} 16461`),
-				regexp.MustCompile(`ceph_pool_objects_total{pool="cinder_ssd"} 16461`),
-				regexp.MustCompile(`ceph_pool_raw_used_bytes{pool="cinder_ssd"} 2.06596702208e\+11`),
-				regexp.MustCompile(`ceph_pool_read_bytes_total{pool="cinder_ssd"} 1.2899328e\+07`),
-				regexp.MustCompile(`ceph_pool_read_total{pool="cinder_ssd"} 347`),
-				regexp.MustCompile(`ceph_pool_used_bytes{pool="cinder_ssd"} 6.8865564849e\+10`),
-				regexp.MustCompile(`ceph_pool_write_bytes_total{pool="cinder_ssd"} 6.8882356224e\+10`),
-				regexp.MustCompile(`ceph_pool_write_total{pool="cinder_ssd"} 26721`),
+				regexp.MustCompile(`ceph_pool_available_bytes{cluster="ceph",pool="cinder_sas"} 6.038098673664e\+12`),
+				regexp.MustCompile(`ceph_pool_dirty_objects_total{cluster="ceph",pool="cinder_sas"} 17124`),
+				regexp.MustCompile(`ceph_pool_objects_total{cluster="ceph",pool="cinder_sas"} 17124`),
+				regexp.MustCompile(`ceph_pool_raw_used_bytes{cluster="ceph",pool="cinder_sas"} 2.14576054272e\+11`),
+				regexp.MustCompile(`ceph_pool_read_bytes_total{cluster="ceph",pool="cinder_sas"} 3.288983853056e\+12`),
+				regexp.MustCompile(`ceph_pool_read_total{cluster="ceph",pool="cinder_sas"} 3.48986643e\+08`),
+				regexp.MustCompile(`ceph_pool_used_bytes{cluster="ceph",pool="cinder_sas"} 7.1525351713e\+10`),
+				regexp.MustCompile(`ceph_pool_write_bytes_total{cluster="ceph",pool="cinder_sas"} 2.72268791808e\+11`),
+				regexp.MustCompile(`ceph_pool_write_total{cluster="ceph",pool="cinder_sas"} 4.5792703e\+07`),
+				regexp.MustCompile(`ceph_pool_available_bytes{cluster="ceph",pool="cinder_ssd"} 1.86205372416e\+11`),
+				regexp.MustCompile(`ceph_pool_dirty_objects_total{cluster="ceph",pool="cinder_ssd"} 16461`),
+				regexp.MustCompile(`ceph_pool_objects_total{cluster="ceph",pool="cinder_ssd"} 16461`),
+				regexp.MustCompile(`ceph_pool_raw_used_bytes{cluster="ceph",pool="cinder_ssd"} 2.06596702208e\+11`),
+				regexp.MustCompile(`ceph_pool_read_bytes_total{cluster="ceph",pool="cinder_ssd"} 1.2899328e\+07`),
+				regexp.MustCompile(`ceph_pool_read_total{cluster="ceph",pool="cinder_ssd"} 347`),
+				regexp.MustCompile(`ceph_pool_used_bytes{cluster="ceph",pool="cinder_ssd"} 6.8865564849e\+10`),
+				regexp.MustCompile(`ceph_pool_write_bytes_total{cluster="ceph",pool="cinder_ssd"} 6.8882356224e\+10`),
+				regexp.MustCompile(`ceph_pool_write_total{cluster="ceph",pool="cinder_ssd"} 26721`),
 			},
 		},
 	} {
 		func() {
-			collector := NewPoolUsageCollector(NewNoopConn(tt.input))
+			collector := NewPoolUsageCollector(NewNoopConn(tt.input), "ceph")
 			if err := prometheus.Register(collector); err != nil {
 				t.Fatalf("collector failed to register: %s", err)
 			}

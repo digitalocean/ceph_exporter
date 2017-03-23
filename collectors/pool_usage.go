@@ -62,92 +62,105 @@ type PoolUsageCollector struct {
 
 // NewPoolUsageCollector creates a new instance of PoolUsageCollector and returns
 // its reference.
-func NewPoolUsageCollector(conn Conn) *PoolUsageCollector {
+func NewPoolUsageCollector(conn Conn, cluster string) *PoolUsageCollector {
 	var (
 		subSystem = "pool"
 		poolLabel = []string{"pool"}
 	)
+
+	labels := make(prometheus.Labels)
+	labels["cluster"] = cluster
+
 	return &PoolUsageCollector{
 		conn: conn,
 
 		UsedBytes: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Subsystem: subSystem,
-				Name:      "used_bytes",
-				Help:      "Capacity of the pool that is currently under use",
+				Namespace:   cephNamespace,
+				Subsystem:   subSystem,
+				Name:        "used_bytes",
+				Help:        "Capacity of the pool that is currently under use",
+				ConstLabels: labels,
 			},
 			poolLabel,
 		),
 		RawUsedBytes: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Subsystem: subSystem,
-				Name:      "raw_used_bytes",
-				Help:      "Raw capacity of the pool that is currently under use, this factors in the size",
+				Namespace:   cephNamespace,
+				Subsystem:   subSystem,
+				Name:        "raw_used_bytes",
+				Help:        "Raw capacity of the pool that is currently under use, this factors in the size",
+				ConstLabels: labels,
 			},
 			poolLabel,
 		),
 		MaxAvail: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Subsystem: subSystem,
-				Name:      "available_bytes",
-				Help:      "Free space for this ceph pool",
+				Namespace:   cephNamespace,
+				Subsystem:   subSystem,
+				Name:        "available_bytes",
+				Help:        "Free space for this ceph pool",
+				ConstLabels: labels,
 			},
 			poolLabel,
 		),
 		Objects: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Subsystem: subSystem,
-				Name:      "objects_total",
-				Help:      "Total no. of objects allocated within the pool",
+				Namespace:   cephNamespace,
+				Subsystem:   subSystem,
+				Name:        "objects_total",
+				Help:        "Total no. of objects allocated within the pool",
+				ConstLabels: labels,
 			},
 			poolLabel,
 		),
 		DirtyObjects: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Subsystem: subSystem,
-				Name:      "dirty_objects_total",
-				Help:      "Total no. of dirty objects in a cache-tier pool",
+				Namespace:   cephNamespace,
+				Subsystem:   subSystem,
+				Name:        "dirty_objects_total",
+				Help:        "Total no. of dirty objects in a cache-tier pool",
+				ConstLabels: labels,
 			},
 			poolLabel,
 		),
 		ReadIO: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Subsystem: subSystem,
-				Name:      "read_total",
-				Help:      "Total read i/o calls for the pool",
+				Namespace:   cephNamespace,
+				Subsystem:   subSystem,
+				Name:        "read_total",
+				Help:        "Total read i/o calls for the pool",
+				ConstLabels: labels,
 			},
 			poolLabel,
 		),
 		ReadBytes: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Subsystem: subSystem,
-				Name:      "read_bytes_total",
-				Help:      "Total read throughput for the pool",
+				Namespace:   cephNamespace,
+				Subsystem:   subSystem,
+				Name:        "read_bytes_total",
+				Help:        "Total read throughput for the pool",
+				ConstLabels: labels,
 			},
 			poolLabel,
 		),
 		WriteIO: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Subsystem: subSystem,
-				Name:      "write_total",
-				Help:      "Total write i/o calls for the pool",
+				Namespace:   cephNamespace,
+				Subsystem:   subSystem,
+				Name:        "write_total",
+				Help:        "Total write i/o calls for the pool",
+				ConstLabels: labels,
 			},
 			poolLabel,
 		),
 		WriteBytes: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Subsystem: subSystem,
-				Name:      "write_bytes_total",
-				Help:      "Total write throughput for the pool",
+				Namespace:   cephNamespace,
+				Subsystem:   subSystem,
+				Name:        "write_bytes_total",
+				Help:        "Total write throughput for the pool",
+				ConstLabels: labels,
 			},
 			poolLabel,
 		),

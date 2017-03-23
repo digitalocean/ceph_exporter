@@ -165,204 +165,235 @@ const (
 
 // NewClusterHealthCollector creates a new instance of ClusterHealthCollector to collect health
 // metrics on.
-func NewClusterHealthCollector(conn Conn) *ClusterHealthCollector {
+func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollector {
+	labels := make(prometheus.Labels)
+	labels["cluster"] = cluster
+
 	return &ClusterHealthCollector{
 		conn: conn,
 
 		HealthStatus: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "health_status",
-				Help:      "Health status of Cluster, can vary only between 3 states (err:2, warn:1, ok:0)",
+				Namespace:   cephNamespace,
+				Name:        "health_status",
+				Help:        "Health status of Cluster, can vary only between 3 states (err:2, warn:1, ok:0)",
+				ConstLabels: labels,
 			},
 		),
 		TotalPGs: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "total_pgs",
-				Help:      "Total no. of PGs in the cluster",
+				Namespace:   cephNamespace,
+				Name:        "total_pgs",
+				Help:        "Total no. of PGs in the cluster",
+				ConstLabels: labels,
 			},
 		),
 		DegradedPGs: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "degraded_pgs",
-				Help:      "No. of PGs in a degraded state",
+				Namespace:   cephNamespace,
+				Name:        "degraded_pgs",
+				Help:        "No. of PGs in a degraded state",
+				ConstLabels: labels,
 			},
 		),
 		StuckDegradedPGs: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "stuck_degraded_pgs",
-				Help:      "No. of PGs stuck in a degraded state",
+				Namespace:   cephNamespace,
+				Name:        "stuck_degraded_pgs",
+				Help:        "No. of PGs stuck in a degraded state",
+				ConstLabels: labels,
 			},
 		),
 		UncleanPGs: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "unclean_pgs",
-				Help:      "No. of PGs in an unclean state",
+				Namespace:   cephNamespace,
+				Name:        "unclean_pgs",
+				Help:        "No. of PGs in an unclean state",
+				ConstLabels: labels,
 			},
 		),
 		StuckUncleanPGs: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "stuck_unclean_pgs",
-				Help:      "No. of PGs stuck in an unclean state",
+				Namespace:   cephNamespace,
+				Name:        "stuck_unclean_pgs",
+				Help:        "No. of PGs stuck in an unclean state",
+				ConstLabels: labels,
 			},
 		),
 		UndersizedPGs: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "undersized_pgs",
-				Help:      "No. of undersized PGs in the cluster",
+				Namespace:   cephNamespace,
+				Name:        "undersized_pgs",
+				Help:        "No. of undersized PGs in the cluster",
+				ConstLabels: labels,
 			},
 		),
 		StuckUndersizedPGs: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "stuck_undersized_pgs",
-				Help:      "No. of stuck undersized PGs in the cluster",
+				Namespace:   cephNamespace,
+				Name:        "stuck_undersized_pgs",
+				Help:        "No. of stuck undersized PGs in the cluster",
+				ConstLabels: labels,
 			},
 		),
 		StalePGs: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "stale_pgs",
-				Help:      "No. of stale PGs in the cluster",
+				Namespace:   cephNamespace,
+				Name:        "stale_pgs",
+				Help:        "No. of stale PGs in the cluster",
+				ConstLabels: labels,
 			},
 		),
 		StuckStalePGs: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "stuck_stale_pgs",
-				Help:      "No. of stuck stale PGs in the cluster",
+				Namespace:   cephNamespace,
+				Name:        "stuck_stale_pgs",
+				Help:        "No. of stuck stale PGs in the cluster",
+				ConstLabels: labels,
 			},
 		),
 		DegradedObjectsCount: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "degraded_objects",
-				Help:      "No. of degraded objects across all PGs, includes replicas",
+				Namespace:   cephNamespace,
+				Name:        "degraded_objects",
+				Help:        "No. of degraded objects across all PGs, includes replicas",
+				ConstLabels: labels,
 			},
 		),
 		MisplacedObjectsCount: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "misplaced_objects",
-				Help:      "No. of misplaced objects across all PGs, includes replicas",
+				Namespace:   cephNamespace,
+				Name:        "misplaced_objects",
+				Help:        "No. of misplaced objects across all PGs, includes replicas",
+				ConstLabels: labels,
 			},
 		),
 		OSDsDown: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "osds_down",
-				Help:      "Count of OSDs that are in DOWN state",
+				Namespace:   cephNamespace,
+				Name:        "osds_down",
+				Help:        "Count of OSDs that are in DOWN state",
+				ConstLabels: labels,
 			},
 		),
 		OSDsUp: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "osds_up",
-				Help:      "Count of OSDs that are in UP state",
+				Namespace:   cephNamespace,
+				Name:        "osds_up",
+				Help:        "Count of OSDs that are in UP state",
+				ConstLabels: labels,
 			},
 		),
 		OSDsIn: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "osds_in",
-				Help:      "Count of OSDs that are in IN state and available to serve requests",
+				Namespace:   cephNamespace,
+				Name:        "osds_in",
+				Help:        "Count of OSDs that are in IN state and available to serve requests",
+				ConstLabels: labels,
 			},
 		),
 		OSDsNum: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "osds",
-				Help:      "Count of total OSDs in the cluster",
+				Namespace:   cephNamespace,
+				Name:        "osds",
+				Help:        "Count of total OSDs in the cluster",
+				ConstLabels: labels,
 			},
 		),
 		RemappedPGs: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "pgs_remapped",
-				Help:      "No. of PGs that are remapped and incurring cluster-wide movement",
+				Namespace:   cephNamespace,
+				Name:        "pgs_remapped",
+				Help:        "No. of PGs that are remapped and incurring cluster-wide movement",
+				ConstLabels: labels,
 			},
 		),
 		RecoveryIORate: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "recovery_io_bytes",
-				Help:      "Rate of bytes being recovered in cluster per second",
+				Namespace:   cephNamespace,
+				Name:        "recovery_io_bytes",
+				Help:        "Rate of bytes being recovered in cluster per second",
+				ConstLabels: labels,
 			},
 		),
 		RecoveryIOKeys: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "recovery_io_keys",
-				Help:      "Rate of keys being recovered in cluster per second",
+				Namespace:   cephNamespace,
+				Name:        "recovery_io_keys",
+				Help:        "Rate of keys being recovered in cluster per second",
+				ConstLabels: labels,
 			},
 		),
 		RecoveryIOObjects: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "recovery_io_objects",
-				Help:      "Rate of objects being recovered in cluster per second",
+				Namespace:   cephNamespace,
+				Name:        "recovery_io_objects",
+				Help:        "Rate of objects being recovered in cluster per second",
+				ConstLabels: labels,
 			},
 		),
 		ClientIORead: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "client_io_read_bytes",
-				Help:      "Rate of bytes being read by all clients per second",
+				Namespace:   cephNamespace,
+				Name:        "client_io_read_bytes",
+				Help:        "Rate of bytes being read by all clients per second",
+				ConstLabels: labels,
 			},
 		),
 		ClientIOWrite: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "client_io_write_bytes",
-				Help:      "Rate of bytes being written by all clients per second",
+				Namespace:   cephNamespace,
+				Name:        "client_io_write_bytes",
+				Help:        "Rate of bytes being written by all clients per second",
+				ConstLabels: labels,
 			},
 		),
 		ClientIOOps: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "client_io_ops",
-				Help:      "Total client ops on the cluster measured per second",
+				Namespace:   cephNamespace,
+				Name:        "client_io_ops",
+				Help:        "Total client ops on the cluster measured per second",
+				ConstLabels: labels,
 			},
 		),
 		ClientIOReadOps: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "client_io_read_ops",
-				Help:      "Total client read I/O ops on the cluster measured per second",
+				Namespace:   cephNamespace,
+				Name:        "client_io_read_ops",
+				Help:        "Total client read I/O ops on the cluster measured per second",
+				ConstLabels: labels,
 			},
 		),
 		ClientIOWriteOps: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "client_io_write_ops",
-				Help:      "Total client write I/O ops on the cluster measured per second",
+				Namespace:   cephNamespace,
+				Name:        "client_io_write_ops",
+				Help:        "Total client write I/O ops on the cluster measured per second",
+				ConstLabels: labels,
 			},
 		),
 		CacheFlushIORate: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "cache_flush_io_bytes",
-				Help:      "Rate of bytes being flushed from the cache pool per second",
+				Namespace:   cephNamespace,
+				Name:        "cache_flush_io_bytes",
+				Help:        "Rate of bytes being flushed from the cache pool per second",
+				ConstLabels: labels,
 			},
 		),
 		CacheEvictIORate: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "cache_evict_io_bytes",
-				Help:      "Rate of bytes being evicted from the cache pool per second",
+				Namespace:   cephNamespace,
+				Name:        "cache_evict_io_bytes",
+				Help:        "Rate of bytes being evicted from the cache pool per second",
+				ConstLabels: labels,
 			},
 		),
 		CachePromoteIOOps: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "cache_promote_io_ops",
-				Help:      "Total cache promote operations measured per second",
+				Namespace:   cephNamespace,
+				Name:        "cache_promote_io_ops",
+				Help:        "Total cache promote operations measured per second",
+				ConstLabels: labels,
 			},
 		),
 	}
