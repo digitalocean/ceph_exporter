@@ -49,29 +49,36 @@ type ClusterUsageCollector struct {
 
 // NewClusterUsageCollector creates and returns the reference to ClusterUsageCollector
 // and internally defines each metric that display cluster stats.
-func NewClusterUsageCollector(conn Conn) *ClusterUsageCollector {
+func NewClusterUsageCollector(conn Conn, cluster string) *ClusterUsageCollector {
+	labels := make(prometheus.Labels)
+	labels["cluster"] = cluster
+
 	return &ClusterUsageCollector{
 		conn: conn,
 
 		GlobalCapacity: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: cephNamespace,
-			Name:      "cluster_capacity_bytes",
-			Help:      "Total capacity of the cluster",
+			Namespace:   cephNamespace,
+			Name:        "cluster_capacity_bytes",
+			Help:        "Total capacity of the cluster",
+			ConstLabels: labels,
 		}),
 		UsedCapacity: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: cephNamespace,
-			Name:      "cluster_used_bytes",
-			Help:      "Capacity of the cluster currently in use",
+			Namespace:   cephNamespace,
+			Name:        "cluster_used_bytes",
+			Help:        "Capacity of the cluster currently in use",
+			ConstLabels: labels,
 		}),
 		AvailableCapacity: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: cephNamespace,
-			Name:      "cluster_available_bytes",
-			Help:      "Available space within the cluster",
+			Namespace:   cephNamespace,
+			Name:        "cluster_available_bytes",
+			Help:        "Available space within the cluster",
+			ConstLabels: labels,
 		}),
 		Objects: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: cephNamespace,
-			Name:      "cluster_objects",
-			Help:      "No. of rados objects within the cluster",
+			Namespace:   cephNamespace,
+			Name:        "cluster_objects",
+			Help:        "No. of rados objects within the cluster",
+			ConstLabels: labels,
 		}),
 	}
 }

@@ -1,0 +1,8 @@
+cluster:
+  - cluster_label: block01
+    user: admin
+    config_file: /etc/ceph/ceph.conf
+
+  - cluster_label: block02
+    user: admin
+    config_file: /etc/ceph/ceph2.conf

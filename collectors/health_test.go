@@ -43,7 +43,7 @@ func TestClusterHealthCollector(t *testing.T) {
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "5 pgs degraded"}]}
 }`,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`degraded_pgs 5`),
+				regexp.MustCompile(`degraded_pgs{cluster="ceph"} 5`),
 			},
 		},
 		{
@@ -60,7 +60,7 @@ func TestClusterHealthCollector(t *testing.T) {
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "15 pgs stuck degraded"}]}
 }`,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`stuck_degraded_pgs 15`),
+				regexp.MustCompile(`stuck_degraded_pgs{cluster="ceph"} 15`),
 			},
 		},
 		{
@@ -77,7 +77,7 @@ func TestClusterHealthCollector(t *testing.T) {
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "6 pgs unclean"}]}
 }`,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`unclean_pgs 6`),
+				regexp.MustCompile(`unclean_pgs{cluster="ceph"} 6`),
 			},
 		},
 		{
@@ -94,7 +94,7 @@ func TestClusterHealthCollector(t *testing.T) {
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "16 pgs stuck unclean"}]}
 }`,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`stuck_unclean_pgs 16`),
+				regexp.MustCompile(`stuck_unclean_pgs{cluster="ceph"} 16`),
 			},
 		},
 		{
@@ -111,7 +111,7 @@ func TestClusterHealthCollector(t *testing.T) {
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "7 pgs undersized"}]}
 }`,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`undersized_pgs 7`),
+				regexp.MustCompile(`undersized_pgs{cluster="ceph"} 7`),
 			},
 		},
 		{
@@ -128,7 +128,7 @@ func TestClusterHealthCollector(t *testing.T) {
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "17 pgs stuck undersized"}]}
 }`,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`stuck_undersized_pgs 17`),
+				regexp.MustCompile(`stuck_undersized_pgs{cluster="ceph"} 17`),
 			},
 		},
 		{
@@ -145,7 +145,7 @@ func TestClusterHealthCollector(t *testing.T) {
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "8 pgs stale"}]}
 }`,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`stale_pgs 8`),
+				regexp.MustCompile(`stale_pgs{cluster="ceph"} 8`),
 			},
 		},
 		{
@@ -162,7 +162,7 @@ func TestClusterHealthCollector(t *testing.T) {
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "18 pgs stuck stale"}]}
 }`,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`stuck_stale_pgs 18`),
+				regexp.MustCompile(`stuck_stale_pgs{cluster="ceph"} 18`),
 			},
 		},
 		{
@@ -179,7 +179,7 @@ func TestClusterHealthCollector(t *testing.T) {
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "recovery 10/20 objects degraded"}]}
 }`,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`degraded_objects 10`),
+				regexp.MustCompile(`degraded_objects{cluster="ceph"} 10`),
 			},
 		},
 		{
@@ -196,7 +196,7 @@ func TestClusterHealthCollector(t *testing.T) {
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "recovery 20/40 objects misplaced"}]}
 }`,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`misplaced_objects 20`),
+				regexp.MustCompile(`misplaced_objects{cluster="ceph"} 20`),
 			},
 		},
 		{
@@ -212,7 +212,7 @@ func TestClusterHealthCollector(t *testing.T) {
 	}
 }`,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`osds_down 10`),
+				regexp.MustCompile(`osds_down{cluster="ceph"} 10`),
 			},
 		},
 		{
@@ -229,10 +229,10 @@ func TestClusterHealthCollector(t *testing.T) {
 	"health": {"summary": []}
 }`,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`osds 1200`),
-				regexp.MustCompile(`osds_up 1200`),
-				regexp.MustCompile(`osds_in 1190`),
-				regexp.MustCompile(`pgs_remapped 10`),
+				regexp.MustCompile(`osds{cluster="ceph"} 1200`),
+				regexp.MustCompile(`osds_up{cluster="ceph"} 1200`),
+				regexp.MustCompile(`osds_in{cluster="ceph"} 1190`),
+				regexp.MustCompile(`pgs_remapped{cluster="ceph"} 10`),
 			},
 		},
 		{
@@ -248,7 +248,7 @@ func TestClusterHealthCollector(t *testing.T) {
 	},
 	"health": { "overall_status": "HEALTH_OK" } }`,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`health_status 0`),
+				regexp.MustCompile(`health_status{cluster="ceph"} 0`),
 			},
 		},
 		{
@@ -264,7 +264,7 @@ func TestClusterHealthCollector(t *testing.T) {
 	},
 	"health": { "overall_status": "HEALTH_WARN" } }`,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`health_status 1`),
+				regexp.MustCompile(`health_status{cluster="ceph"} 1`),
 			},
 		},
 		{
@@ -280,7 +280,7 @@ func TestClusterHealthCollector(t *testing.T) {
 	},
 	"health": { "overall_status": "HEALTH_ERR" } }`,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`health_status 2`),
+				regexp.MustCompile(`health_status{cluster="ceph"} 2`),
 			},
 		},
 		{
@@ -293,12 +293,12 @@ $ sudo ceph -s
   client io 4273 kB/s rd, 2740 MB/s wr, 2863 op/s
 `,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`recovery_io_bytes 5.779e`),
-				regexp.MustCompile(`recovery_io_keys 4`),
-				regexp.MustCompile(`recovery_io_objects 1522`),
-				regexp.MustCompile(`client_io_ops 2863`),
-				regexp.MustCompile(`client_io_read_bytes 4.273e`),
-				regexp.MustCompile(`client_io_write_bytes 2.74e`),
+				regexp.MustCompile(`recovery_io_bytes{cluster="ceph"} 5.779e`),
+				regexp.MustCompile(`recovery_io_keys{cluster="ceph"} 4`),
+				regexp.MustCompile(`recovery_io_objects{cluster="ceph"} 1522`),
+				regexp.MustCompile(`client_io_ops{cluster="ceph"} 2863`),
+				regexp.MustCompile(`client_io_read_bytes{cluster="ceph"} 4.273e`),
+				regexp.MustCompile(`client_io_write_bytes{cluster="ceph"} 2.74e`),
 			},
 		},
 		{
@@ -312,15 +312,15 @@ $ sudo ceph -s
   cache io 251 MB/s flush, 6646 kB/s evict, 55 op/s promote
 `,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`recovery_io_bytes 5.779e`),
-				regexp.MustCompile(`recovery_io_keys 4`),
-				regexp.MustCompile(`recovery_io_objects 1522`),
-				regexp.MustCompile(`client_io_ops 8710`),
-				regexp.MustCompile(`client_io_read_ops 2863`),
-				regexp.MustCompile(`client_io_write_ops 5847`),
-				regexp.MustCompile(`cache_flush_io_bytes 2.51e`),
-				regexp.MustCompile(`cache_evict_io_bytes 6.646e`),
-				regexp.MustCompile(`cache_promote_io_ops 55`),
+				regexp.MustCompile(`recovery_io_bytes{cluster="ceph"} 5.779e`),
+				regexp.MustCompile(`recovery_io_keys{cluster="ceph"} 4`),
+				regexp.MustCompile(`recovery_io_objects{cluster="ceph"} 1522`),
+				regexp.MustCompile(`client_io_ops{cluster="ceph"} 8710`),
+				regexp.MustCompile(`client_io_read_ops{cluster="ceph"} 2863`),
+				regexp.MustCompile(`client_io_write_ops{cluster="ceph"} 5847`),
+				regexp.MustCompile(`cache_flush_io_bytes{cluster="ceph"} 2.51e`),
+				regexp.MustCompile(`cache_evict_io_bytes{cluster="ceph"} 6.646e`),
+				regexp.MustCompile(`cache_promote_io_ops{cluster="ceph"} 55`),
 			},
 		},
 		{
@@ -338,12 +338,12 @@ $ sudo ceph -s
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "7 pgs undersized"}]}
 }`,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`total_pgs 52000`),
+				regexp.MustCompile(`total_pgs{cluster="ceph"} 52000`),
 			},
 		},
 	} {
 		func() {
-			collector := NewClusterHealthCollector(NewNoopConn(tt.input))
+			collector := NewClusterHealthCollector(NewNoopConn(tt.input), "ceph")
 			if err := prometheus.Register(collector); err != nil {
 				t.Fatalf("collector failed to register: %s", err)
 			}

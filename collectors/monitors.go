@@ -77,97 +77,111 @@ type Store struct {
 
 // NewMonitorCollector creates an instance of the MonitorCollector and instantiates
 // the individual metrics that show information about the monitor processes.
-func NewMonitorCollector(conn Conn) *MonitorCollector {
+func NewMonitorCollector(conn Conn, cluster string) *MonitorCollector {
+	labels := make(prometheus.Labels)
+	labels["cluster"] = cluster
+
 	return &MonitorCollector{
 		conn: conn,
 
 		TotalKBs: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "monitor_capacity_bytes",
-				Help:      "Total storage capacity of the monitor node",
+				Namespace:   cephNamespace,
+				Name:        "monitor_capacity_bytes",
+				Help:        "Total storage capacity of the monitor node",
+				ConstLabels: labels,
 			},
 			[]string{"monitor"},
 		),
 		UsedKBs: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "monitor_used_bytes",
-				Help:      "Storage of the monitor node that is currently allocated for use",
+				Namespace:   cephNamespace,
+				Name:        "monitor_used_bytes",
+				Help:        "Storage of the monitor node that is currently allocated for use",
+				ConstLabels: labels,
 			},
 			[]string{"monitor"},
 		),
 		AvailKBs: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "monitor_avail_bytes",
-				Help:      "Total unused storage capacity that the monitor node has left",
+				Namespace:   cephNamespace,
+				Name:        "monitor_avail_bytes",
+				Help:        "Total unused storage capacity that the monitor node has left",
+				ConstLabels: labels,
 			},
 			[]string{"monitor"},
 		),
 		PercentAvail: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "monitor_avail_percent",
-				Help:      "Percentage of total unused storage capacity that the monitor node has left",
+				Namespace:   cephNamespace,
+				Name:        "monitor_avail_percent",
+				Help:        "Percentage of total unused storage capacity that the monitor node has left",
+				ConstLabels: labels,
 			},
 			[]string{"monitor"},
 		),
 		Store: Store{
 			TotalBytes: prometheus.NewGaugeVec(
 				prometheus.GaugeOpts{
-					Namespace: cephNamespace,
-					Name:      "monitor_store_capacity_bytes",
-					Help:      "Total capacity of the FileStore backing the monitor daemon",
+					Namespace:   cephNamespace,
+					Name:        "monitor_store_capacity_bytes",
+					Help:        "Total capacity of the FileStore backing the monitor daemon",
+					ConstLabels: labels,
 				},
 				[]string{"monitor"},
 			),
 			SSTBytes: prometheus.NewGaugeVec(
 				prometheus.GaugeOpts{
-					Namespace: cephNamespace,
-					Name:      "monitor_store_sst_bytes",
-					Help:      "Capacity of the FileStore used only for raw SSTs",
+					Namespace:   cephNamespace,
+					Name:        "monitor_store_sst_bytes",
+					Help:        "Capacity of the FileStore used only for raw SSTs",
+					ConstLabels: labels,
 				},
 				[]string{"monitor"},
 			),
 			LogBytes: prometheus.NewGaugeVec(
 				prometheus.GaugeOpts{
-					Namespace: cephNamespace,
-					Name:      "monitor_store_log_bytes",
-					Help:      "Capacity of the FileStore used only for logging",
+					Namespace:   cephNamespace,
+					Name:        "monitor_store_log_bytes",
+					Help:        "Capacity of the FileStore used only for logging",
+					ConstLabels: labels,
 				},
 				[]string{"monitor"},
 			),
 			MiscBytes: prometheus.NewGaugeVec(
 				prometheus.GaugeOpts{
-					Namespace: cephNamespace,
-					Name:      "monitor_store_misc_bytes",
-					Help:      "Capacity of the FileStore used only for storing miscellaneous information",
+					Namespace:   cephNamespace,
+					Name:        "monitor_store_misc_bytes",
+					Help:        "Capacity of the FileStore used only for storing miscellaneous information",
+					ConstLabels: labels,
 				},
 				[]string{"monitor"},
 			),
 		},
 		ClockSkew: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "monitor_clock_skew_seconds",
-				Help:      "Clock skew the monitor node is incurring",
+				Namespace:   cephNamespace,
+				Name:        "monitor_clock_skew_seconds",
+				Help:        "Clock skew the monitor node is incurring",
+				ConstLabels: labels,
 			},
 			[]string{"monitor"},
 		),
 		Latency: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "monitor_latency_seconds",
-				Help:      "Latency the monitor node is incurring",
+				Namespace:   cephNamespace,
+				Name:        "monitor_latency_seconds",
+				Help:        "Latency the monitor node is incurring",
+				ConstLabels: labels,
 			},
 			[]string{"monitor"},
 		),
 		NodesinQuorum: prometheus.NewGauge(
 			prometheus.GaugeOpts{
-				Namespace: cephNamespace,
-				Name:      "monitor_quorum_count",
-				Help:      "The total size of the monitor quorum",
+				Namespace:   cephNamespace,
+				Name:        "monitor_quorum_count",
+				Help:        "The total size of the monitor quorum",
+				ConstLabels: labels,
 			},
 		),
 	}
