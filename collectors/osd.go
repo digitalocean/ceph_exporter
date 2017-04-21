@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"bytes"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -315,6 +316,9 @@ func (o *OSDCollector) collect() error {
 		log.Println("[ERROR] Unable to collect data from ceph osd df", err)
 		return err
 	}
+
+	// Workaround for Ceph Jewel after 10.2.5 produces invalid json when osd is out
+	buf = bytes.Replace(buf, []byte("-nan"), []byte("0"), -1)
 
 	osdDF := &cephOSDDF{}
 	if err := json.Unmarshal(buf, osdDF); err != nil {
