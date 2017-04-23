@@ -341,6 +341,37 @@ $ sudo ceph -s
 				regexp.MustCompile(`total_pgs{cluster="ceph"} 52000`),
 			},
 		},
+		{
+			input: `
+{
+	"osdmap": {
+		"osdmap": {
+			"num_osds": 0,
+			"num_up_osds": 0,
+			"num_in_osds": 0,
+			"num_remapped_pgs": 0
+		}
+	},
+	"pgmap": {
+		"pgs_by_state": [
+			{
+				"state_name": "active+clean+scrubbing",
+				"count": 2
+			},
+			{
+				"state_name": "active+clean+scrubbing+deep",
+				"count": 5
+			}
+		],
+		"num_pgs": 52000
+	},
+	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "7 pgs undersized"}]}
+}`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`scrubbing_pgs{cluster="ceph"} 2`),
+				regexp.MustCompile(`deep_scrubbing_pgs{cluster="ceph"} 5`),
+			},
+		},
 	} {
 		func() {
 			collector := NewClusterHealthCollector(NewNoopConn(tt.input), "ceph")

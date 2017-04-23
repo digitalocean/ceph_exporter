@@ -89,6 +89,14 @@ type ClusterHealthCollector struct {
 	// in that state.
 	StuckStalePGs prometheus.Gauge
 
+	// ScrubbingPGs depicts no. of PGs that are in scrubbing state.
+	// Light scrubbing checks the object size and attributes.
+	ScrubbingPGs prometheus.Gauge
+
+	// DeepScrubbingPGs depicts no. of PGs that are in scrubbing+deep state.
+	// Deep scrubbing reads the data and uses checksums to ensure data integrity.
+	DeepScrubbingPGs prometheus.Gauge
+
 	// DegradedObjectsCount gives the no. of RADOS objects are constitute the degraded PGs.
 	// This includes object replicas in its count.
 	DegradedObjectsCount prometheus.Gauge
@@ -185,6 +193,22 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 				Namespace:   cephNamespace,
 				Name:        "total_pgs",
 				Help:        "Total no. of PGs in the cluster",
+				ConstLabels: labels,
+			},
+		),
+		ScrubbingPGs: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "scrubbing_pgs",
+				Help:        "No. of scrubbing PGs in the cluster",
+				ConstLabels: labels,
+			},
+		),
+		DeepScrubbingPGs: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "deep_scrubbing_pgs",
+				Help:        "No. of deep scrubbing PGs in the cluster",
 				ConstLabels: labels,
 			},
 		),
@@ -411,6 +435,8 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.StuckUndersizedPGs,
 		c.StalePGs,
 		c.StuckStalePGs,
+		c.ScrubbingPGs,
+		c.DeepScrubbingPGs,
 		c.DegradedObjectsCount,
 		c.MisplacedObjectsCount,
 		c.OSDsDown,
@@ -449,6 +475,10 @@ type cephHealthStats struct {
 		} `json:"osdmap"`
 	} `json:"osdmap"`
 	PGMap struct {
+		PGsByState []struct {
+			StateName string      `json:"state_name"`
+			Count     json.Number `json:"count"`
+		} `json:"pgs_by_state"`
 		NumPGs json.Number `json:"num_pgs"`
 	} `json:"pgmap"`
 }
@@ -614,6 +644,28 @@ func (c *ClusterHealthCollector) collect() error {
 		return err
 	}
 	c.RemappedPGs.Set(remappedPGs)
+
+	scrubbingPGs     := float64(0)
+	deepScrubbingPGs := float64(0)
+	for _, pg := range stats.PGMap.PGsByState {
+		if strings.Contains(pg.StateName, "scrubbing") {
+			if strings.Contains(pg.StateName, "deep") {
+				deepScrubbingCount, err := pg.Count.Float64()
+				if err != nil {
+					return err
+				}
+				deepScrubbingPGs += deepScrubbingCount
+			} else {
+				scrubbingCount, err := pg.Count.Float64()
+				if err != nil {
+					return err
+				}
+				scrubbingPGs += scrubbingCount
+			}
+		}
+	}
+	c.ScrubbingPGs.Set(scrubbingPGs)
+	c.DeepScrubbingPGs.Set(deepScrubbingPGs)
 
 	totalPGs, err := stats.PGMap.NumPGs.Float64()
 	if err != nil {
