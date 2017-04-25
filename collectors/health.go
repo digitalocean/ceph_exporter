@@ -97,6 +97,9 @@ type ClusterHealthCollector struct {
 	// Deep scrubbing reads the data and uses checksums to ensure data integrity.
 	DeepScrubbingPGs prometheus.Gauge
 
+	// SlowRequests depicts no. of total slow requests in the cluster
+	SlowRequests prometheus.Gauge
+
 	// DegradedObjectsCount gives the no. of RADOS objects are constitute the degraded PGs.
 	// This includes object replicas in its count.
 	DegradedObjectsCount prometheus.Gauge
@@ -209,6 +212,14 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 				Namespace:   cephNamespace,
 				Name:        "deep_scrubbing_pgs",
 				Help:        "No. of deep scrubbing PGs in the cluster",
+				ConstLabels: labels,
+			},
+		),
+		SlowRequests: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "slow_requests",
+				Help:        "No. of slow requests",
 				ConstLabels: labels,
 			},
 		),
@@ -437,6 +448,7 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.StuckStalePGs,
 		c.ScrubbingPGs,
 		c.DeepScrubbingPGs,
+		c.SlowRequests,
 		c.DegradedObjectsCount,
 		c.MisplacedObjectsCount,
 		c.OSDsDown,
@@ -521,6 +533,7 @@ func (c *ClusterHealthCollector) collect() error {
 		stuckUndersizedRegex  = regexp.MustCompile(`([\d]+) pgs stuck undersized`)
 		staleRegex            = regexp.MustCompile(`([\d]+) pgs stale`)
 		stuckStaleRegex       = regexp.MustCompile(`([\d]+) pgs stuck stale`)
+		slowRequestRegex      = regexp.MustCompile(`([\d]+) requests are blocked`)
 		degradedObjectsRegex  = regexp.MustCompile(`recovery ([\d]+)/([\d]+) objects degraded`)
 		misplacedObjectsRegex = regexp.MustCompile(`recovery ([\d]+)/([\d]+) objects misplaced`)
 	)
@@ -596,6 +609,15 @@ func (c *ClusterHealthCollector) collect() error {
 				return err
 			}
 			c.StuckStalePGs.Set(float64(v))
+		}
+
+		matched = slowRequestRegex.FindStringSubmatch(s.Summary)
+		if len(matched) == 2 {
+			v, err := strconv.Atoi(matched[1])
+			if err != nil {
+				return err
+			}
+			c.SlowRequests.Set(float64(v))
 		}
 
 		matched = degradedObjectsRegex.FindStringSubmatch(s.Summary)

@@ -372,6 +372,22 @@ $ sudo ceph -s
 				regexp.MustCompile(`deep_scrubbing_pgs{cluster="ceph"} 5`),
 			},
 		},
+		{
+			input: `
+{
+	"health": {
+		"summary": [
+			{
+				"severity": "HEALTH_WARN",
+				"summary": "6 requests are blocked > 32 sec"
+			}
+		]
+	}
+}`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`slow_requests{cluster="ceph"} 6`),
+			},
+		},
 	} {
 		func() {
 			collector := NewClusterHealthCollector(NewNoopConn(tt.input), "ceph")
