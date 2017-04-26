@@ -76,6 +76,8 @@ information on how to submit your changes to this repository.
 
 ## Sample view
 
+See ./examples for docker-compose file with Grafana if you'd like to quickly get a test environment up and running.
+
 If you have [promdash](https://github.com/prometheus/promdash) set up you
 can generate views like:
 
