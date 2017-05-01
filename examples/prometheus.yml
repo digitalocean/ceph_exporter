@@ -1,4 +1,5 @@
 # prometheus.yml
+
 # Place in same directory as docker-compose.yml and replace $DOCKERHOST with your desired host IP where ceph_exporter is running
 
 global:
