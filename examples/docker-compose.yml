@@ -1,6 +1,9 @@
 # Example usage of exporter in use
 
-# In this case, it depends on the proper ceph keys in the correct place.
+# In this case, it depends on the proper ceph keys in the correct place. Adapt this to your use case if you would like to use in production
+
+# CEPHCONF = /etc/ceph is usually the folder you want, if you're storing them somewhere else, change the value below
+
 
 version: '2'
 
@@ -8,21 +11,25 @@ services:
   prometheus:
     image: prom/prometheus:v1.6.1
     volumes:
-        - './prometheus.yml:/etc/prometheus/prometheus.yml'
+        - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    volumes:
+        - prometheus_data:/prometheus
     command:
-        - '-config.file=/etc/prometheus/prometheus.yml'
+        - -config.file=/etc/prometheus/prometheus.yml
     ports:
         - '9090:9090'
   ceph-exporter:
     image: digitalocean/ceph_exporter
     volumes:
-        - '/etc/ceph:/etc/ceph'
+        - $CEPHCONF:/etc/ceph
     ports:
         - '9128:9128'
   grafana:
     image: grafana/grafana:4.2.0
     environment:
         - GF_SECURITY_ADMIN_PASSWORD=test
+    volumes:
+        - grafana_data:/var/lib/grafana
     depends_on:
         - prometheus
     ports:

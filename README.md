@@ -78,6 +78,10 @@ information on how to submit your changes to this repository.
 
 See ./examples for docker-compose file with Grafana if you'd like to quickly get a test environment up and running.
 
+Link to official documentation explaining docker-compose: https://docs.docker.com/compose/
+
+Docker-compose file itself has comments on how to change it to adapt to your environment.
+
 If you have [promdash](https://github.com/prometheus/promdash) set up you
 can generate views like:
 
