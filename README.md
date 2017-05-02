@@ -76,6 +76,13 @@ information on how to submit your changes to this repository.
 
 ## Sample view
 
+See ./examples for docker-compose file with Grafana if you'd like to quickly get a test environment up and running.
+
+Link to official documentation explaining docker-compose: https://docs.docker.com/compose/
+
+Docker-compose file itself has comments on how to change it to adapt to your environment. It does use volumes in order to persist data.
+Docker volumes documentation: https://docs.docker.com/engine/tutorials/dockervolumes/
+
 If you have [promdash](https://github.com/prometheus/promdash) set up you
 can generate views like:
 
