@@ -21,7 +21,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/EmilioD/ceph_exporter/collectors"
+	"github.com/digitalocean/ceph_exporter/collectors"
 
 	"github.com/ceph/go-ceph/rados"
 	"github.com/prometheus/client_golang/prometheus"
