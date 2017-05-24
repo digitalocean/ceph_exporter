@@ -58,6 +58,12 @@ type PoolUsageCollector struct {
 
 	// WriteBytes tracks the write throughput made for the images within each pool.
 	WriteBytes *prometheus.GaugeVec
+	
+	// QuotaMaxBytes tracks the set quota for maximum bytes within each pool.
+	QuotaMaxBytes *prometheus.GaugeVec
+	
+	// QuotaMaxObjects tracks the set quota for the maximum objects within each pool.
+	QuotaMaxObjects *prometheus.GaugeVec
 }
 
 // NewPoolUsageCollector creates a new instance of PoolUsageCollector and returns
@@ -164,6 +170,26 @@ func NewPoolUsageCollector(conn Conn, cluster string) *PoolUsageCollector {
 			},
 			poolLabel,
 		),
+		QuotaMaxBytes: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Subsystem:   subSystem,
+				Name:        "quota_max_bytes",
+				Help:        "qutoa maximum bytes for the pool",
+				ConstLabels: labels,
+			},
+			poolLabel,
+		),
+		QuotaMaxObjects: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Subsystem:   subSystem,
+				Name:        "quota_max_objects",
+				Help:        "qutoa maximum objects for the pool",
+				ConstLabels: labels,
+			},
+			poolLabel,
+		),
 	}
 }
 
@@ -178,6 +204,8 @@ func (p *PoolUsageCollector) collectorList() []prometheus.Collector {
 		p.ReadBytes,
 		p.WriteIO,
 		p.WriteBytes,
+		p.QuotaMaxBytes,
+		p.QuotaMaxObjects,
 	}
 }
 
@@ -195,6 +223,8 @@ type cephPoolStats struct {
 			ReadBytes    float64 `json:"rd_bytes"`
 			WriteIO      float64 `json:"wr"`
 			WriteBytes   float64 `json:"wr_bytes"`
+			QuotaMaxBytes   float64 `json:"quota_bytes"`
+			QuotaMaxObjects   float64 `json:"quota_objects"`
 		} `json:"stats"`
 	} `json:"pools"`
 }
@@ -225,6 +255,8 @@ func (p *PoolUsageCollector) collect() error {
 		p.ReadBytes.WithLabelValues(pool.Name).Set(pool.Stats.ReadBytes)
 		p.WriteIO.WithLabelValues(pool.Name).Set(pool.Stats.WriteIO)
 		p.WriteBytes.WithLabelValues(pool.Name).Set(pool.Stats.WriteBytes)
+		p.QuotaMaxBytes.WithLabelValues(pool.Name).Set(pool.Stats.QuotaMaxBytes)
+		p.QuotaMaxObjects.WithLabelValues(pool.Name).Set(pool.Stats.QuotaMaxObjects)
 	}
 
 	return nil
