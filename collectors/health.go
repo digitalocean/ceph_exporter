@@ -738,15 +738,15 @@ func (c *ClusterHealthCollector) collectRecoveryClientIO() error {
 		line := strings.TrimSpace(sc.Text())
 
 		switch {
-		case strings.HasPrefix(line, "recovery io"):
+		case strings.HasPrefix(line, "recovery"):
 			if err := c.collectRecoveryIO(line); err != nil {
 				return err
 			}
-		case strings.HasPrefix(line, "client io"):
+		case strings.HasPrefix(line, "client"):
 			if err := c.collectClientIO(line); err != nil {
 				return err
 			}
-		case strings.HasPrefix(line, "cache io"):
+		case strings.HasPrefix(line, "cache"):
 			if err := c.collectCacheIO(line); err != nil {
 				return err
 			}
