@@ -16,7 +16,6 @@ package collectors
 
 import (
 	"encoding/json"
-	"errors"
 	"log"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -209,10 +208,6 @@ func (p *PoolUsageCollector) collect() error {
 	stats := &cephPoolStats{}
 	if err := json.Unmarshal(buf, stats); err != nil {
 		return err
-	}
-
-	if len(stats.Pools) < 1 {
-		return errors.New("no pools found in the cluster to report stats on")
 	}
 
 	for _, pool := range stats.Pools {
