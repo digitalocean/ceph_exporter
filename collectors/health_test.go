@@ -388,6 +388,24 @@ $ sudo ceph -s
 				regexp.MustCompile(`slow_requests{cluster="ceph"} 6`),
 			},
 		},
+		{
+			input: `
+{
+  "health": {
+    "checks": {
+      "REQUEST_SLOW": {
+        "severity": "HEALTH_WARN",
+        "summary": {
+          "message": "6 slow requests are blocked > 32 sec"
+        }
+      }
+    }
+  }
+}`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`slow_requests{cluster="ceph"} 6`),
+			},
+		},
 	} {
 		func() {
 			collector := NewClusterHealthCollector(NewNoopConn(tt.input), "ceph")
