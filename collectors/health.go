@@ -477,6 +477,12 @@ type cephHealthStats struct {
 			Summary  string `json:"summary"`
 		} `json:"summary"`
 		OverallStatus string `json:"overall_status"`
+		Checks        map[string]struct {
+			Severity string `json:"severity"`
+			Summary  struct {
+				Message string `json:"message"`
+			} `json:"summary"`
+		} `json:"checks"`
 	} `json:"health"`
 	OSDMap struct {
 		OSDMap struct {
@@ -525,17 +531,18 @@ func (c *ClusterHealthCollector) collect() error {
 	}
 
 	var (
-		degradedRegex         = regexp.MustCompile(`([\d]+) pgs degraded`)
-		stuckDegradedRegex    = regexp.MustCompile(`([\d]+) pgs stuck degraded`)
-		uncleanRegex          = regexp.MustCompile(`([\d]+) pgs unclean`)
-		stuckUncleanRegex     = regexp.MustCompile(`([\d]+) pgs stuck unclean`)
-		undersizedRegex       = regexp.MustCompile(`([\d]+) pgs undersized`)
-		stuckUndersizedRegex  = regexp.MustCompile(`([\d]+) pgs stuck undersized`)
-		staleRegex            = regexp.MustCompile(`([\d]+) pgs stale`)
-		stuckStaleRegex       = regexp.MustCompile(`([\d]+) pgs stuck stale`)
-		slowRequestRegex      = regexp.MustCompile(`([\d]+) requests are blocked`)
-		degradedObjectsRegex  = regexp.MustCompile(`recovery ([\d]+)/([\d]+) objects degraded`)
-		misplacedObjectsRegex = regexp.MustCompile(`recovery ([\d]+)/([\d]+) objects misplaced`)
+		degradedRegex            = regexp.MustCompile(`([\d]+) pgs degraded`)
+		stuckDegradedRegex       = regexp.MustCompile(`([\d]+) pgs stuck degraded`)
+		uncleanRegex             = regexp.MustCompile(`([\d]+) pgs unclean`)
+		stuckUncleanRegex        = regexp.MustCompile(`([\d]+) pgs stuck unclean`)
+		undersizedRegex          = regexp.MustCompile(`([\d]+) pgs undersized`)
+		stuckUndersizedRegex     = regexp.MustCompile(`([\d]+) pgs stuck undersized`)
+		staleRegex               = regexp.MustCompile(`([\d]+) pgs stale`)
+		stuckStaleRegex          = regexp.MustCompile(`([\d]+) pgs stuck stale`)
+		slowRequestRegex         = regexp.MustCompile(`([\d]+) requests are blocked`)
+		slowRequestRegexLuminous = regexp.MustCompile(`([\d]+) slow requests are blocked`)
+		degradedObjectsRegex     = regexp.MustCompile(`recovery ([\d]+)/([\d]+) objects degraded`)
+		misplacedObjectsRegex    = regexp.MustCompile(`recovery ([\d]+)/([\d]+) objects misplaced`)
 	)
 
 	for _, s := range stats.Health.Summary {
@@ -639,6 +646,19 @@ func (c *ClusterHealthCollector) collect() error {
 		}
 	}
 
+	for k, check := range stats.Health.Checks {
+		if k == "REQUEST_SLOW" {
+			matched := slowRequestRegexLuminous.FindStringSubmatch(check.Summary.Message)
+			if len(matched) == 2 {
+				v, err := strconv.Atoi(matched[1])
+				if err != nil {
+					return err
+				}
+				c.SlowRequests.Set(float64(v))
+			}
+		}
+	}
+
 	osdsUp, err := stats.OSDMap.OSDMap.NumUpOSDs.Float64()
 	if err != nil {
 		return err
@@ -667,7 +687,7 @@ func (c *ClusterHealthCollector) collect() error {
 	}
 	c.RemappedPGs.Set(remappedPGs)
 
-	scrubbingPGs     := float64(0)
+	scrubbingPGs := float64(0)
 	deepScrubbingPGs := float64(0)
 	for _, pg := range stats.PGMap.PGsByState {
 		if strings.Contains(pg.StateName, "scrubbing") {
