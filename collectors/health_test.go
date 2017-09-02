@@ -304,6 +304,41 @@ $ sudo ceph -s
 		{
 			input: `
 $ sudo ceph -s
+  cluster:
+    id:     eff51be8-938a-4afa-b0d1-7a580b4ceb37
+    health: HEALTH_OK
+
+  services:
+    mon:        3 daemons, quorum mon01,mon02,mon03
+    mgr:        mgr01 (active), standbys: mgr02, mgr03
+    osd:        84 osds: 83 up, 83 in
+    rbd-mirror: 1 daemon active
+    rgw:        2 daemons active
+
+  data:
+    pools:   19 pools, 3392 pgs
+    objects: 845k objects, 3285 GB
+    usage:   8271 GB used, 294 TB / 302 TB avail
+    pgs:     3392 active+clean
+
+  io:
+    client:   4273 kB/s rd, 2740 MB/s wr, 2863 op/s rd, 1318 op/s wr
+    recovery: 5779 MB/s, 4 keys/s, 1522 objects/s
+`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`recovery_io_bytes{cluster="ceph"} 5.779e`),
+				regexp.MustCompile(`recovery_io_keys{cluster="ceph"} 4`),
+				regexp.MustCompile(`recovery_io_objects{cluster="ceph"} 1522`),
+				regexp.MustCompile(`client_io_read_ops{cluster="ceph"} 2863`),
+				regexp.MustCompile(`client_io_write_ops{cluster="ceph"} 1318`),
+				regexp.MustCompile(`client_io_ops{cluster="ceph"} 4181`),
+				regexp.MustCompile(`client_io_read_bytes{cluster="ceph"} 4.273e`),
+				regexp.MustCompile(`client_io_write_bytes{cluster="ceph"} 2.74e`),
+			},
+		},
+		{
+			input: `
+$ sudo ceph -s
     cluster eff51be8-938a-4afa-b0d1-7a580b4ceb37
      health HEALTH_OK
      monmap e3: 3 mons at {mon01,mon02,mon03}
