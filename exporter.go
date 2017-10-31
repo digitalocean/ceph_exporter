@@ -24,7 +24,7 @@ import (
 	"github.com/ceph/go-ceph/rados"
 	"github.com/digitalocean/ceph_exporter/collectors"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	//"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // CephExporter wraps all the ceph collectors and provides a single global
@@ -140,7 +140,7 @@ func main() {
 		prometheus.MustRegister(NewCephExporter(conn, "ceph"))
 	}
 
-	http.Handle(*metricsPath, promhttp.Handler())
+	http.Handle(*metricsPath, prometheus.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html>
 			<head><title>Ceph Exporter</title></head>
