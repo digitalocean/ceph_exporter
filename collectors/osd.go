@@ -308,6 +308,18 @@ type cephOSDDump struct {
 	} `json:"osds"`
 }
 
+type cephOSDTree struct {
+	OSDNodes []strict {
+		ID       json.Number `json:"id"`
+		Name     json.String `json:"name"`
+		Type     json.String `json:"type"`
+		TypeID   json.Number `json:"type_id"`
+		Children []int       `json:"children"`
+		Exists   json.Number `json:"exists"`
+		Status   json.String `json:"status"`
+	} `json:"nodes"`
+}
+
 func (o *OSDCollector) collect() error {
 	cmd := o.cephOSDDFCommand()
 
@@ -500,6 +512,22 @@ func (o *OSDCollector) collectOSDDump() error {
 
 }
 
+func (o *OSDCollector) collectOSDTree() error {
+	osdTreeCmd := o.cephOSDTreeCommand()
+	buff, _, err := o.conn.MonCommand(osdTreeCmd)
+	if err != nil {
+		log.Println("[ERROR] Unable to collect data from ceph osd tree", err)
+		return err
+	}
+
+	osdTree := &cephOSDTree{}
+	if err := json.Unmarshal(buff, osdTree); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (o *OSDCollector) cephOSDDump() []byte {
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix": "osd dump",
@@ -533,6 +561,17 @@ func (o *OSDCollector) cephOSDPerfCommand() []byte {
 	return cmd
 }
 
+func (o *OSDCollector) cephOSDTreeCommand() []byte {
+	cmd, err := json.Marshal(map[string]interface{}{
+		"prefix": "osd tree",
+		"format": "json",
+	})
+	if err != nil {
+		panic(err)
+	}
+	return cmd
+}
+
 // Describe sends the descriptors of each OSDCollector related metrics we have defined
 // to the provided prometheus channel.
 func (o *OSDCollector) Describe(ch chan<- *prometheus.Desc) {
@@ -545,6 +584,10 @@ func (o *OSDCollector) Describe(ch chan<- *prometheus.Desc) {
 // Collect sends all the collected metrics to the provided prometheus channel.
 // It requires the caller to handle synchronization.
 func (o *OSDCollector) Collect(ch chan<- prometheus.Metric) {
+
+	if err := o.collectOSDTree(); err != nil {
+		log.Println("failed collecting osd tree stats:", err)
+	}
 
 	if err := o.collectOSDPerf(); err != nil {
 		log.Println("failed collecting osd perf stats:", err)
