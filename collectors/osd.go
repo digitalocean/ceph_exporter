@@ -57,6 +57,9 @@ type OSDCollector struct {
 	// OSDUp displays the Up state of the OSD
 	OSDUp *prometheus.GaugeVec
 
+	// OSDExists used to display the location of the OSD in the CRUSH tree
+	OSDExists *prometheus.GaugeVec
+
 	// TotalBytes displays total bytes in all OSDs
 	TotalBytes prometheus.Gauge
 
@@ -243,6 +246,20 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 			},
 			[]string{"osd"},
 		),
+
+		OSDExists: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "osd_exists",
+				Help:        "OSD Exists in tree",
+				ConstLabels: labels,
+			},
+			[]string{
+				"osd",
+				"topology",
+			},
+		),
+
 	}
 }
 
@@ -265,6 +282,7 @@ func (o *OSDCollector) collectorList() []prometheus.Collector {
 		o.ApplyLatency,
 		o.OSDIn,
 		o.OSDUp,
+		o.OSDExists,
 	}
 }
 
@@ -308,16 +326,18 @@ type cephOSDDump struct {
 	} `json:"osds"`
 }
 
+type cephOSDTreeNode struct {
+	ID       json.Number `json:"id"`
+	Name     string      `json:"name"`
+	Type     string      `json:"type"`
+	TypeID   json.Number `json:"type_id"`
+	Children []int64     `json:"children"`
+	Exists   json.Number `json:"exists"`
+	Status   string      `json:"status"`
+}
+
 type cephOSDTree struct {
-	OSDNodes []strict {
-		ID       json.Number `json:"id"`
-		Name     json.String `json:"name"`
-		Type     json.String `json:"type"`
-		TypeID   json.Number `json:"type_id"`
-		Children []int       `json:"children"`
-		Exists   json.Number `json:"exists"`
-		Status   json.String `json:"status"`
-	} `json:"nodes"`
+	OSDNodes []cephOSDTreeNode `json:"nodes"`
 }
 
 func (o *OSDCollector) collect() error {
@@ -525,6 +545,58 @@ func (o *OSDCollector) collectOSDTree() error {
 		return err
 	}
 
+	// We need to build a lookup table first as the results returned by ceph
+	// are not properly indexed.
+	// We also need to keep track of all the children so we can identify the roots
+
+	nodes := make(map[int64]int)
+	is_child := make(map[int64]bool)
+	for addr, osdTreeNode := range osdTree.OSDNodes {
+		id, err := osdTreeNode.ID.Int64()
+		if err != nil {
+			return err
+		}
+		nodes[id] = addr
+		if len(osdTreeNode.Children) > 0 {
+			for _, child := range osdTreeNode.Children {
+				is_child[child] = true
+			}
+		}
+	}
+	for id, addr := range nodes {
+		if (!is_child[id]) {
+			// We have a root so we need to walk it
+			labels := make(prometheus.Labels)
+			labels[osdTree.OSDNodes[addr].Type] = osdTree.OSDNodes[addr].Name
+			for _, child_id := range osdTree.OSDNodes[addr].Children {
+				o.recurseOSDTreeWalk(nodes, osdTree.OSDNodes, child_id, labels)
+			}
+		}
+	}
+
+	return nil
+}
+
+func (o *OSDCollector) recurseOSDTreeWalk(nodes map[int64]int, osdNodes []cephOSDTreeNode, id int64, labels prometheus.Labels) error {
+	addr := nodes[id]
+	node := osdNodes[addr]
+	if len(node.Children) > 0 {
+		for _, child_id := range osdNodes[addr].Children {
+			labels[node.Type] = node.Name
+			o.recurseOSDTreeWalk(nodes, osdNodes, child_id, labels)
+		}
+	} else {
+		val, err := node.Exists.Float64()
+		if err != nil {
+			return err
+		}
+		// Format the topology between commas so it is easy to parse and relabel by prometheus
+		topology := ""
+		for label, value := range labels {
+			topology = fmt.Sprintf("%s,%s=%s", topology, label, value)
+		}
+		o.OSDExists.WithLabelValues(node.Name, fmt.Sprintf("%s,", topology)).Set(val)
+	}
 	return nil
 }
 
