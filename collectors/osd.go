@@ -568,9 +568,7 @@ func (o *OSDCollector) collectOSDTree() error {
 			// We have a root so we need to walk it
 			labels := make(prometheus.Labels)
 			labels[osdTree.OSDNodes[addr].Type] = osdTree.OSDNodes[addr].Name
-			for _, child_id := range osdTree.OSDNodes[addr].Children {
-				o.recurseOSDTreeWalk(nodes, osdTree.OSDNodes, child_id, labels)
-			}
+			o.recurseOSDTreeWalk(nodes, osdTree.OSDNodes, id, labels)
 		}
 	}
 
