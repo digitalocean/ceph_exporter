@@ -1,4 +1,4 @@
-FROM ubuntu:14.04
+FROM ubuntu:16.04 as builder
 MAINTAINER Vaibhav Bhembre <vaibhav@digitalocean.com>
 
 ENV GOROOT /goroot
@@ -9,7 +9,7 @@ ENV APPLOC $GOPATH/src/github.com/digitalocean/ceph_exporter
 RUN apt-get update && \
     apt-get install -y apt-transport-https build-essential git curl
 
-RUN echo "deb https://download.ceph.com/debian-jewel trusty main" >> /etc/apt/sources.list
+RUN echo "deb https://download.ceph.com/debian-jewel xenial main" >> /etc/apt/sources.list
 
 RUN apt-get update && \
     apt-get install -y --force-yes librados-dev librbd-dev
@@ -22,6 +22,21 @@ ADD . $APPLOC
 WORKDIR $APPLOC
 RUN go get -d && \
     go build -o /bin/ceph_exporter
+
+
+FROM ubuntu:16.04
+MAINTAINER Vaibhav Bhembre <vaibhav@digitalocean.com>
+
+RUN apt-get update && \
+    apt-get install -y apt-transport-https curl && \
+    echo "deb https://download.ceph.com/debian-jewel xenial main" >> /etc/apt/sources.list && \
+    apt-get update && \
+    apt-get install -y --force-yes librados2 librbd1 && \
+    rm -rf /var/lib/apt/lists/*
+
+
+COPY --from=builder /bin/ceph_exporter /bin/ceph_exporter
+RUN chmod +x /bin/ceph_exporter
 
 EXPOSE 9128
 ENTRYPOINT ["/bin/ceph_exporter"]
