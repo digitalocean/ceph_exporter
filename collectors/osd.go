@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"bytes"
+	"sort"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -588,10 +589,17 @@ func (o *OSDCollector) recurseOSDTreeWalk(nodes map[int64]int, osdNodes []cephOS
 		if err != nil {
 			return err
 		}
-		// Format the topology between commas so it is easy to parse and relabel by prometheus
+		// Format the topology between commas so it is easy to parse and relabel by prometheus.
+		// Golang maps have an undefined order so we will make it easy for prometheus and
+		// sort the labels first before composing the topology label
 		topology := ""
-		for label, value := range labels {
-			topology = fmt.Sprintf("%s,%s=%s", topology, label, value)
+		var keys []string
+		for label := range labels {
+			keys = append(keys, label)
+		}
+		sort.Strings(keys)
+		for _, key := range keys {
+			topology = fmt.Sprintf("%s,%s=%s", topology, key, labels[key])
 		}
 		o.OSDExists.WithLabelValues(node.Name, fmt.Sprintf("%s,", topology)).Set(val)
 	}
