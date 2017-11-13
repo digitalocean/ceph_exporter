@@ -762,7 +762,15 @@ func (c *ClusterHealthCollector) collectRecoveryClientIO() error {
 			if err := c.collectRecoveryIO(line); err != nil {
 				return err
 			}
+		case strings.HasPrefix(line, "recovery:"):
+			if err := c.collectRecoveryIO(line); err != nil {
+				return err
+			}
 		case strings.HasPrefix(line, "client io"):
+			if err := c.collectClientIO(line); err != nil {
+				return err
+			}
+		case strings.HasPrefix(line, "client:"):
 			if err := c.collectClientIO(line); err != nil {
 				return err
 			}
