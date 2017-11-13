@@ -33,8 +33,8 @@ var (
 	recoveryIOObjectsRegex      = regexp.MustCompile(`(\d+) objects/s`)
 	clientReadBytesPerSecRegex  = regexp.MustCompile(`(\d+) ([kKmMgG][bB])/s rd`)
 	clientWriteBytesPerSecRegex = regexp.MustCompile(`(\d+) ([kKmMgG][bB])/s wr`)
-	ClientIOReadOpsRegex        = regexp.MustCompile(`(\d+) op/s rd`)
-	ClientIOWriteOpsRegex       = regexp.MustCompile(`(\d+) op/s wr`)
+	clientIOReadOpsRegex        = regexp.MustCompile(`(\d+) op/s rd`)
+	clientIOWriteOpsRegex       = regexp.MustCompile(`(\d+) op/s wr`)
 	cacheFlushRateRegex         = regexp.MustCompile(`(\d+) ([kKmMgG][bB])/s flush`)
 	cacheEvictRateRegex         = regexp.MustCompile(`(\d+) ([kKmMgG][bB])/s evict`)
 	cachePromoteOpsRegex        = regexp.MustCompile(`(\d+) op/s promote`)
@@ -490,6 +490,7 @@ type cephHealthStats struct {
 			Summary  string `json:"summary"`
 		} `json:"summary"`
 		OverallStatus string `json:"overall_status"`
+		Status        string `json:"status"`
 		Checks        map[string]struct {
 			Severity string `json:"severity"`
 			Summary  struct {
@@ -552,6 +553,17 @@ func (c *ClusterHealthCollector) collect() error {
 	case CephHealthErr:
 		c.HealthStatus.Set(2)
 	default:
+		c.HealthStatus.Set(2)
+	}
+
+	// This will be set only if Luminous is running. Will be
+	// ignored otherwise.
+	switch stats.Health.Status {
+	case CephHealthOK:
+		c.HealthStatus.Set(0)
+	case CephHealthWarn:
+		c.HealthStatus.Set(1)
+	case CephHealthErr:
 		c.HealthStatus.Set(2)
 	}
 
@@ -887,7 +899,7 @@ func (c *ClusterHealthCollector) collectClientIO(clientStr string) error {
 	}
 
 	var ClientIOReadOps, ClientIOWriteOps float64
-	matched = ClientIOReadOpsRegex.FindStringSubmatch(clientStr)
+	matched = clientIOReadOpsRegex.FindStringSubmatch(clientStr)
 	if len(matched) == 2 {
 		v, err := strconv.Atoi(matched[1])
 		if err != nil {
@@ -898,7 +910,7 @@ func (c *ClusterHealthCollector) collectClientIO(clientStr string) error {
 		c.ClientIOReadOps.Set(ClientIOReadOps)
 	}
 
-	matched = ClientIOWriteOpsRegex.FindStringSubmatch(clientStr)
+	matched = clientIOWriteOpsRegex.FindStringSubmatch(clientStr)
 	if len(matched) == 2 {
 		v, err := strconv.Atoi(matched[1])
 		if err != nil {
