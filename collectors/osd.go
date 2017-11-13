@@ -58,8 +58,8 @@ type OSDCollector struct {
 	// OSDUp displays the Up state of the OSD
 	OSDUp *prometheus.GaugeVec
 
-	// OSDExists used to display the location of the OSD in the CRUSH tree
-	OSDExists *prometheus.GaugeVec
+	// OSDTree used to display the location of the OSD in the CRUSH tree
+	OSDTree *prometheus.GaugeVec
 
 	// TotalBytes displays total bytes in all OSDs
 	TotalBytes prometheus.Gauge
@@ -248,11 +248,11 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 			[]string{"osd"},
 		),
 
-		OSDExists: prometheus.NewGaugeVec(
+		OSDTree: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace:   cephNamespace,
-				Name:        "osd_exists",
-				Help:        "OSD Exists in tree",
+				Name:        "osd_tree",
+				Help:        "topology label points to where the osd exists in tree",
 				ConstLabels: labels,
 			},
 			[]string{
@@ -283,7 +283,7 @@ func (o *OSDCollector) collectorList() []prometheus.Collector {
 		o.ApplyLatency,
 		o.OSDIn,
 		o.OSDUp,
-		o.OSDExists,
+		o.OSDTree,
 	}
 }
 
@@ -601,7 +601,7 @@ func (o *OSDCollector) recurseOSDTreeWalk(nodes map[int64]int, osdNodes []cephOS
 		for _, key := range keys {
 			topology = fmt.Sprintf("%s,%s=%s", topology, key, labels[key])
 		}
-		o.OSDExists.WithLabelValues(node.Name, fmt.Sprintf("%s,", topology)).Set(val)
+		o.OSDTree.WithLabelValues(node.Name, fmt.Sprintf("%s,", topology)).Set(val)
 	}
 	return nil
 }
