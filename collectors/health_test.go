@@ -254,6 +254,19 @@ func TestClusterHealthCollector(t *testing.T) {
 		{
 			input: `
 {
+  "fsid": "88695E02-AC53-4907-89AC-256D33024958",
+  "health": {
+    "checks": {},
+    "status": "HEALTH_OK",
+    "overall_status": "HEALTH_WARN"
+  }`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`health_status{cluster="ceph"} 0`),
+			},
+		},
+		{
+			input: `
+{
 	"osdmap": {
 		"osdmap": {
 			"num_osds": 1200,
@@ -270,6 +283,26 @@ func TestClusterHealthCollector(t *testing.T) {
 		{
 			input: `
 {
+  "fsid": "88695E02-AC53-4907-89AC-256D33024958",
+  "health": {
+    "checks": {
+      "OSDMAP_FLAGS": {
+        "severity": "HEALTH_WARN",
+        "summary": {
+          "message": "nodown flag(s) set"
+        }
+      }
+    },
+    "status": "HEALTH_WARN",
+    "overall_status": "HEALTH_WARN"
+  }`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`health_status{cluster="ceph"} 1`),
+			},
+		},
+		{
+			input: `
+{
 	"osdmap": {
 		"osdmap": {
 			"num_osds": 1200,
@@ -279,6 +312,26 @@ func TestClusterHealthCollector(t *testing.T) {
 		}
 	},
 	"health": { "overall_status": "HEALTH_ERR" } }`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`health_status{cluster="ceph"} 2`),
+			},
+		},
+		{
+			input: `
+{
+  "fsid": "88695E02-AC53-4907-89AC-256D33024958",
+  "health": {
+    "checks": {
+      "OSDMAP_FLAGS": {
+        "severity": "HEALTH_ERR",
+        "summary": {
+          "message": "nodown flag(s) set"
+        }
+      }
+    },
+    "status": "HEALTH_ERR",
+    "overall_status": "HEALTH_WARN"
+  }`,
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 2`),
 			},

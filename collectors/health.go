@@ -477,6 +477,7 @@ type cephHealthStats struct {
 			Summary  string `json:"summary"`
 		} `json:"summary"`
 		OverallStatus string `json:"overall_status"`
+		ClusterStatus string `json:"status"`
 		Checks        map[string]struct {
 			Severity string `json:"severity"`
 			Summary  struct {
@@ -519,15 +520,28 @@ func (c *ClusterHealthCollector) collect() error {
 		}
 	}
 
-	switch stats.Health.OverallStatus {
-	case CephHealthOK:
-		c.HealthStatus.Set(0)
-	case CephHealthWarn:
-		c.HealthStatus.Set(1)
-	case CephHealthErr:
-		c.HealthStatus.Set(2)
-	default:
-		c.HealthStatus.Set(2)
+	if stats.Health.ClusterStatus != nil {
+		switch stats.Health.ClusterStatus {
+		case CephHealthOK:
+			c.HealthStatus.Set(0)
+		case CephHealthWarn:
+			c.HealthStatus.Set(1)
+		case CephHealthErr:
+			c.HealthStatus.Set(2)
+		default:
+			c.HealthStatus.Set(2)
+		}
+	} else {
+		switch stats.Health.OverallStatus {
+		case CephHealthOK:
+			c.HealthStatus.Set(0)
+		case CephHealthWarn:
+			c.HealthStatus.Set(1)
+		case CephHealthErr:
+			c.HealthStatus.Set(2)
+		default:
+			c.HealthStatus.Set(2)
+		}
 	}
 
 	var (
