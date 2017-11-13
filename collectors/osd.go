@@ -72,6 +72,9 @@ type OSDCollector struct {
 
 	// AverageUtil displays average utilization in all OSDs
 	AverageUtil prometheus.Gauge
+
+	// Tree nodes utility variable
+	TreeNodes map[int64]int
 }
 
 //NewOSDCollector creates an instance of the OSDCollector and instantiates
@@ -260,6 +263,8 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				"topology",
 			},
 		),
+
+		TreeNodes: make(map[int64]int),
 
 	}
 }
@@ -550,39 +555,38 @@ func (o *OSDCollector) collectOSDTree() error {
 	// are not properly indexed.
 	// We also need to keep track of all the children so we can identify the roots
 
-	nodes := make(map[int64]int)
 	is_child := make(map[int64]bool)
 	for addr, osdTreeNode := range osdTree.OSDNodes {
 		id, err := osdTreeNode.ID.Int64()
 		if err != nil {
 			return err
 		}
-		nodes[id] = addr
+		o.TreeNodes[id] = addr
 		if len(osdTreeNode.Children) > 0 {
 			for _, child := range osdTreeNode.Children {
 				is_child[child] = true
 			}
 		}
 	}
-	for id, addr := range nodes {
+	for id, addr := range o.TreeNodes {
 		if (!is_child[id]) {
 			// We have a root so we need to walk it
 			labels := make(prometheus.Labels)
 			labels[osdTree.OSDNodes[addr].Type] = osdTree.OSDNodes[addr].Name
-			o.recurseOSDTreeWalk(nodes, osdTree.OSDNodes, id, labels)
+			o.recurseOSDTreeWalk(osdTree.OSDNodes, id, labels)
 		}
 	}
 
 	return nil
 }
 
-func (o *OSDCollector) recurseOSDTreeWalk(nodes map[int64]int, osdNodes []cephOSDTreeNode, id int64, labels prometheus.Labels) error {
-	addr := nodes[id]
+func (o *OSDCollector) recurseOSDTreeWalk(osdNodes []cephOSDTreeNode, id int64, labels prometheus.Labels) error {
+	addr := o.TreeNodes[id]
 	node := osdNodes[addr]
 	if len(node.Children) > 0 {
 		for _, child_id := range osdNodes[addr].Children {
 			labels[node.Type] = node.Name
-			o.recurseOSDTreeWalk(nodes, osdNodes, child_id, labels)
+			o.recurseOSDTreeWalk(osdNodes, child_id, labels)
 		}
 	} else {
 		val, err := node.Exists.Float64()
