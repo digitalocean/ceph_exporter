@@ -415,54 +415,63 @@ func (o *OSDCollector) collect() error {
 
 	osdDF := &cephOSDDF{}
 	if err := json.Unmarshal(buf, osdDF); err != nil {
+		log.Println("[ERROR] Failed to unmarshal osd df output", err)
 		return err
 	}
 
 	for _, node := range osdDF.OSDNodes {
 		crushWeight, err := node.CrushWeight.Float64()
 		if err != nil {
-			return err
+			log.Println("[WARNING] Failed to get crush_weight", err)
+			crushWeight = -1
 		}
 
 		depth, err := node.Depth.Float64()
 		if err != nil {
-
-			return err
+			log.Println("[WARNING] Failed to get depth", err)
+			depth = -1
 		}
 
 		reweight, err := node.Reweight.Float64()
 		if err != nil {
-			return err
+			log.Println("[WARNING] Failed to get reweight", err)
+			reweight = -1
 		}
 
 		osdKB, err := node.KB.Float64()
 		if err != nil {
-			return nil
+			log.Println("[WARNING] Failed to get kb", err)
+			osdKB = -1
 		}
 
 		usedKB, err := node.UsedKB.Float64()
 		if err != nil {
-			return err
+			log.Println("[WARNING] Failed to get used_kb", err)
+			usedKB = -1
 		}
 
 		availKB, err := node.AvailKB.Float64()
 		if err != nil {
-			return err
+			log.Println("[WARNING] Failed to get avail_kb", err)
+			availKB = -1
 		}
 
 		util, err := node.Utilization.Float64()
 		if err != nil {
-			return err
+			log.Println("[WARNING] Failed to get utilization", err)
+			util = -1
 		}
 
 		variance, err := node.Variance.Float64()
 		if err != nil {
-			return err
+			log.Println("[WARNING] Failed to get variance", err)
+			variance = -1
 		}
 
 		pgs, err := node.Pgs.Float64()
 		if err != nil {
-			continue
+			log.Println("[WARNING] Failed to get pgs", err)
+			pgs = -1
 		}
 
 		for topologyLabel := range o.getOsdTopology(node.Name) {
@@ -520,24 +529,28 @@ func (o *OSDCollector) collectOSDPerf() error {
 
 	osdPerf := &cephPerfStat{}
 	if err := json.Unmarshal(buf, osdPerf); err != nil {
+		log.Println("[ERROR] Failed to unmarshal osd perf output", err)
 		return err
 	}
 
 	for _, perfStat := range osdPerf.PerfInfo {
 		osdID, err := perfStat.ID.Int64()
 		if err != nil {
+			log.Println("[ERROR] Failed to parse osd id", err)
 			return err
 		}
 		osdName := fmt.Sprintf("osd.%v", osdID)
 
 		commitLatency, err := perfStat.Stats.CommitLatency.Float64()
 		if err != nil {
-			return err
+			log.Println("[WARNING] Failed to parse commit_latency", err)
+			commitLatency = -1
 		}
 
 		applyLatency, err := perfStat.Stats.ApplyLatency.Float64()
 		if err != nil {
-			return err
+			log.Println("[WARNING] Failed to parse apply_latency", err)
+			applyLatency = -1
 		}
 
 		for topologyLabel := range o.getOsdTopology(osdName) {
@@ -599,6 +612,7 @@ func (o *OSDCollector) collectOSDTree() error {
 
 	osdTree := &cephOSDTree{}
 	if err := json.Unmarshal(buff, osdTree); err != nil {
+		log.Println("[ERROR] Failed to unmarshal osd tree output", err)
 		return err
 	}
 
