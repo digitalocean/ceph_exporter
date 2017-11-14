@@ -262,6 +262,38 @@ func TestClusterHealthCollector(t *testing.T) {
 			"num_remapped_pgs": 10
 		}
 	},
+	"health": { "overall_status": "HEALTH_WARN", "status": "HEALTH_OK } }`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`health_status{cluster="ceph"} 0`),
+			},
+		},
+		{
+			input: `
+{
+	"osdmap": {
+		"osdmap": {
+			"num_osds": 1200,
+			"num_up_osds": 1200,
+			"num_in_osds": 1190,
+			"num_remapped_pgs": 10
+		}
+	},
+	"health": { "status": "HEALTH_OK } }`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`health_status{cluster="ceph"} 0`),
+			},
+		},
+		{
+			input: `
+{
+	"osdmap": {
+		"osdmap": {
+			"num_osds": 1200,
+			"num_up_osds": 1200,
+			"num_in_osds": 1190,
+			"num_remapped_pgs": 10
+		}
+	},
 	"health": { "overall_status": "HEALTH_WARN" } }`,
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 1`),
@@ -297,41 +329,6 @@ $ sudo ceph -s
 				regexp.MustCompile(`recovery_io_keys{cluster="ceph"} 4`),
 				regexp.MustCompile(`recovery_io_objects{cluster="ceph"} 1522`),
 				regexp.MustCompile(`client_io_ops{cluster="ceph"} 2863`),
-				regexp.MustCompile(`client_io_read_bytes{cluster="ceph"} 4.273e`),
-				regexp.MustCompile(`client_io_write_bytes{cluster="ceph"} 2.74e`),
-			},
-		},
-		{
-			input: `
-$ sudo ceph -s
-  cluster:
-    id:     eff51be8-938a-4afa-b0d1-7a580b4ceb37
-    health: HEALTH_OK
-
-  services:
-    mon:        3 daemons, quorum mon01,mon02,mon03
-    mgr:        mgr01 (active), standbys: mgr02, mgr03
-    osd:        84 osds: 83 up, 83 in
-    rbd-mirror: 1 daemon active
-    rgw:        2 daemons active
-
-  data:
-    pools:   19 pools, 3392 pgs
-    objects: 845k objects, 3285 GB
-    usage:   8271 GB used, 294 TB / 302 TB avail
-    pgs:     3392 active+clean
-
-  io:
-    client:   4273 kB/s rd, 2740 MB/s wr, 2863 op/s rd, 1318 op/s wr
-    recovery: 5779 MB/s, 4 keys/s, 1522 objects/s
-`,
-			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`recovery_io_bytes{cluster="ceph"} 5.779e`),
-				regexp.MustCompile(`recovery_io_keys{cluster="ceph"} 4`),
-				regexp.MustCompile(`recovery_io_objects{cluster="ceph"} 1522`),
-				regexp.MustCompile(`client_io_read_ops{cluster="ceph"} 2863`),
-				regexp.MustCompile(`client_io_write_ops{cluster="ceph"} 1318`),
-				regexp.MustCompile(`client_io_ops{cluster="ceph"} 4181`),
 				regexp.MustCompile(`client_io_read_bytes{cluster="ceph"} 4.273e`),
 				regexp.MustCompile(`client_io_write_bytes{cluster="ceph"} 2.74e`),
 			},
@@ -439,6 +436,85 @@ $ sudo ceph -s
 }`,
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`slow_requests{cluster="ceph"} 6`),
+			},
+		},
+		{
+			input: `
+{
+	"pgmap": {
+		"write_op_per_sec": 500,
+		"read_op_per_sec": 1000,
+		"write_bytes_sec": 829694017,
+		"read_bytes_sec": 941980516,
+		"degraded_ratio": 0.213363,
+		"degraded_total": 7488077,
+		"degraded_objects": 1597678,
+		"pgs_by_state": [
+			{
+				"count": 10,
+				"state_name": "active+undersized+degraded"
+			},
+			{
+				"count": 20,
+				"state_name": "active+clean"
+			},
+			{
+				"count": 10,
+				"state_name": "undersized+degraded+peered"
+			},
+			{
+				"count": 20,
+				"state_name": "activating+undersized+degraded"
+			},
+			{
+				"count": 30,
+				"state_name": "activating+stale+unclean"
+			},
+			{
+				"count": 10,
+				"state_name": "peering"
+			},
+			{
+				"count": 20,
+				"state_name": "scrubbing"
+			},
+			{
+				"count": 10,
+				"state_name": "scrubbing+deep"
+			}
+		],
+		"num_pgs": 9208,
+		"num_pools": 29,
+		"num_objects": 1315631,
+		"data_bytes": 1230716754607,
+		"recovering_objects_per_sec": 140,
+		"recovering_bytes_per_sec": 65536,
+		"recovering_keys_per_sec": 25,
+		"flush_bytes_sec": 59300,
+		"evict_bytes_sec": 3000,
+		"promote_op_per_sec": 1000,
+		"bytes_used": 1861238087680,
+		"bytes_avail": 2535859327381504,
+		"bytes_total": 2537720565469184
+	}	
+}`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`degraded_pgs{cluster="ceph"} 40`),
+				regexp.MustCompile(`unclean_pgs{cluster="ceph"} 30`),
+				regexp.MustCompile(`undersized_pgs{cluster="ceph"} 40`),
+				regexp.MustCompile(`stale_pgs{cluster="ceph"} 30`),
+				regexp.MustCompile(`peering_pgs{cluster="ceph"} 10`),
+				regexp.MustCompile(`scrubbing_pgs{cluster="ceph"} 20`),
+				regexp.MustCompile(`deep_scrubbing_pgs{cluster="ceph"} 10`),
+				regexp.MustCompile(`recovery_io_bytes{cluster="ceph"} 65536`),
+				regexp.MustCompile(`recovery_io_keys{cluster="ceph"} 25`),
+				regexp.MustCompile(`recovery_io_objects{cluster="ceph"} 140`),
+				regexp.MustCompile(`client_io_ops{cluster="ceph"} 1500`),
+				regexp.MustCompile(`client_io_read_ops{cluster="ceph"} 1000`),
+				regexp.MustCompile(`client_io_write_ops{cluster="ceph"} 500`),
+				regexp.MustCompile(`cache_flush_io_bytes{cluster="ceph"} 59300`),
+				regexp.MustCompile(`cache_evict_io_bytes{cluster="ceph"} 3000`),
+				regexp.MustCompile(`cache_promote_io_ops{cluster="ceph"} 1000`),
 			},
 		},
 	} {

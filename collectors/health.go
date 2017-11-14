@@ -28,16 +28,16 @@ import (
 )
 
 var (
-	recoveryIORateRegex    = regexp.MustCompile(`(\d+) (\w{2})/s`)
-	recoveryIOKeysRegex    = regexp.MustCompile(`(\d+) keys/s`)
-	recoveryIOObjectsRegex = regexp.MustCompile(`(\d+) objects/s`)
-	clientIOReadRegex      = regexp.MustCompile(`(\d+) ([kKmMgG][bB])/s rd`)
-	clientIOWriteRegex     = regexp.MustCompile(`(\d+) ([kKmMgG][bB])/s wr`)
-	clientIOReadOpsRegex   = regexp.MustCompile(`(\d+) op/s rd`)
-	clientIOWriteOpsRegex  = regexp.MustCompile(`(\d+) op/s wr`)
-	cacheFlushRateRegex    = regexp.MustCompile(`(\d+) ([kKmMgG][bB])/s flush`)
-	cacheEvictRateRegex    = regexp.MustCompile(`(\d+) ([kKmMgG][bB])/s evict`)
-	cachePromoteOpsRegex   = regexp.MustCompile(`(\d+) op/s promote`)
+	recoveryIORateRegex         = regexp.MustCompile(`(\d+) (\w{2})/s`)
+	recoveryIOKeysRegex         = regexp.MustCompile(`(\d+) keys/s`)
+	recoveryIOObjectsRegex      = regexp.MustCompile(`(\d+) objects/s`)
+	clientReadBytesPerSecRegex  = regexp.MustCompile(`(\d+) ([kKmMgG][bB])/s rd`)
+	clientWriteBytesPerSecRegex = regexp.MustCompile(`(\d+) ([kKmMgG][bB])/s wr`)
+	clientIOReadOpsRegex        = regexp.MustCompile(`(\d+) op/s rd`)
+	clientIOWriteOpsRegex       = regexp.MustCompile(`(\d+) op/s wr`)
+	cacheFlushRateRegex         = regexp.MustCompile(`(\d+) ([kKmMgG][bB])/s flush`)
+	cacheEvictRateRegex         = regexp.MustCompile(`(\d+) ([kKmMgG][bB])/s evict`)
+	cachePromoteOpsRegex        = regexp.MustCompile(`(\d+) op/s promote`)
 
 	// Older versions of Ceph, hammer (v0.94) and below, support this format.
 	clientIOOpsRegex = regexp.MustCompile(`(\d+) op/s[^ \w]*$`)
@@ -89,6 +89,10 @@ type ClusterHealthCollector struct {
 	// in that state.
 	StuckStalePGs prometheus.Gauge
 
+	// PeeringPGs depicts no. of PGs that have one or more OSDs undergo state changes
+	// that need to be communicated to the remaining peers.
+	PeeringPGs prometheus.Gauge
+
 	// ScrubbingPGs depicts no. of PGs that are in scrubbing state.
 	// Light scrubbing checks the object size and attributes.
 	ScrubbingPGs prometheus.Gauge
@@ -137,11 +141,11 @@ type ClusterHealthCollector struct {
 	// RecoveryIOObjects shows the rate of rados objects being recovered.
 	RecoveryIOObjects prometheus.Gauge
 
-	// ClientIORead shows the total client read i/o on the cluster.
-	ClientIORead prometheus.Gauge
+	// ClientReadBytesPerSec shows the total client read i/o on the cluster.
+	ClientReadBytesPerSec prometheus.Gauge
 
-	// ClientIOWrite shows the total client write i/o on the cluster.
-	ClientIOWrite prometheus.Gauge
+	// ClientWriteBytesPerSec shows the total client write i/o on the cluster.
+	ClientWriteBytesPerSec prometheus.Gauge
 
 	// ClientIOOps shows the rate of total operations conducted by all clients on the cluster.
 	ClientIOOps prometheus.Gauge
@@ -287,6 +291,14 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 				ConstLabels: labels,
 			},
 		),
+		PeeringPGs: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "peering_pgs",
+				Help:        "No. of peering PGs in the cluster",
+				ConstLabels: labels,
+			},
+		),
 		DegradedObjectsCount: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace:   cephNamespace,
@@ -367,7 +379,7 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 				ConstLabels: labels,
 			},
 		),
-		ClientIORead: prometheus.NewGauge(
+		ClientReadBytesPerSec: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace:   cephNamespace,
 				Name:        "client_io_read_bytes",
@@ -375,7 +387,7 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 				ConstLabels: labels,
 			},
 		),
-		ClientIOWrite: prometheus.NewGauge(
+		ClientWriteBytesPerSec: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace:   cephNamespace,
 				Name:        "client_io_write_bytes",
@@ -446,6 +458,7 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.StuckUndersizedPGs,
 		c.StalePGs,
 		c.StuckStalePGs,
+		c.PeeringPGs,
 		c.ScrubbingPGs,
 		c.DeepScrubbingPGs,
 		c.SlowRequests,
@@ -459,8 +472,8 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.RecoveryIORate,
 		c.RecoveryIOKeys,
 		c.RecoveryIOObjects,
-		c.ClientIORead,
-		c.ClientIOWrite,
+		c.ClientReadBytesPerSec,
+		c.ClientWriteBytesPerSec,
 		c.ClientIOOps,
 		c.ClientIOReadOps,
 		c.ClientIOWriteOps,
@@ -477,6 +490,7 @@ type cephHealthStats struct {
 			Summary  string `json:"summary"`
 		} `json:"summary"`
 		OverallStatus string `json:"overall_status"`
+		Status        string `json:"status"`
 		Checks        map[string]struct {
 			Severity string `json:"severity"`
 			Summary  struct {
@@ -486,18 +500,30 @@ type cephHealthStats struct {
 	} `json:"health"`
 	OSDMap struct {
 		OSDMap struct {
-			NumOSDs        json.Number `json:"num_osds"`
-			NumUpOSDs      json.Number `json:"num_up_osds"`
-			NumInOSDs      json.Number `json:"num_in_osds"`
-			NumRemappedPGs json.Number `json:"num_remapped_pgs"`
+			NumOSDs        float64 `json:"num_osds"`
+			NumUpOSDs      float64 `json:"num_up_osds"`
+			NumInOSDs      float64 `json:"num_in_osds"`
+			NumRemappedPGs float64 `json:"num_remapped_pgs"`
 		} `json:"osdmap"`
 	} `json:"osdmap"`
 	PGMap struct {
-		PGsByState []struct {
-			StateName string      `json:"state_name"`
-			Count     json.Number `json:"count"`
+		NumPGs                  float64 `json:"num_pgs"`
+		WriteOpPerSec           float64 `json:"write_op_per_sec"`
+		ReadOpPerSec            float64 `json:"read_op_per_sec"`
+		WriteBytePerSec         float64 `json:"write_bytes_sec"`
+		ReadBytePerSec          float64 `json:"read_bytes_sec"`
+		RecoveringObjectsPerSec float64 `json:"recovering_objects_per_sec"`
+		RecoveringBytePerSec    float64 `json:"recovering_bytes_per_sec"`
+		RecoveringKeysPerSec    float64 `json:"recovering_keys_per_sec"`
+		CacheFlushBytePerSec    float64 `json:"flush_bytes_sec"`
+		CacheEvictBytePerSec    float64 `json:"evict_bytes_sec"`
+		CachePromoteOpPerSec    float64 `json:"promote_op_per_sec"`
+		DegradedObjects         float64 `json:"degraded_objects"`
+		MisplacedObjects        float64 `json:"misplaced_objects"`
+		PGsByState              []struct {
+			Count  float64 `json:"count"`
+			States string  `json:"state_name"`
 		} `json:"pgs_by_state"`
-		NumPGs json.Number `json:"num_pgs"`
 	} `json:"pgmap"`
 }
 
@@ -527,6 +553,17 @@ func (c *ClusterHealthCollector) collect() error {
 	case CephHealthErr:
 		c.HealthStatus.Set(2)
 	default:
+		c.HealthStatus.Set(2)
+	}
+
+	// This will be set only if Luminous is running. Will be
+	// ignored otherwise.
+	switch stats.Health.Status {
+	case CephHealthOK:
+		c.HealthStatus.Set(0)
+	case CephHealthWarn:
+		c.HealthStatus.Set(1)
+	case CephHealthErr:
 		c.HealthStatus.Set(2)
 	}
 
@@ -659,61 +696,78 @@ func (c *ClusterHealthCollector) collect() error {
 		}
 	}
 
-	osdsUp, err := stats.OSDMap.OSDMap.NumUpOSDs.Float64()
-	if err != nil {
-		return err
-	}
-	c.OSDsUp.Set(osdsUp)
+	var (
+		degradedPGs      float64
+		uncleanPGs       float64
+		undersizedPGs    float64
+		peeringPGs       float64
+		stalePGs         float64
+		scrubbingPGs     float64
+		deepScrubbingPGs float64
 
-	osdsIn, err := stats.OSDMap.OSDMap.NumInOSDs.Float64()
-	if err != nil {
-		return err
-	}
-	c.OSDsIn.Set(osdsIn)
+		pgStateMap = map[string]*float64{
+			"degraded":       &degradedPGs,
+			"unclean":        &uncleanPGs,
+			"undersized":     &undersizedPGs,
+			"peering":        &peeringPGs,
+			"stale":          &stalePGs,
+			"scrubbing":      &scrubbingPGs,
+			"scrubbing+deep": &deepScrubbingPGs,
+		}
+	)
 
-	osdsNum, err := stats.OSDMap.OSDMap.NumOSDs.Float64()
-	if err != nil {
-		return err
-	}
-	c.OSDsNum.Set(osdsNum)
-
-	// Ceph (until v10.2.3) doesn't expose the value of down OSDs
-	// from its status, which is why we have to compute it ourselves.
-	c.OSDsDown.Set(osdsNum - osdsUp)
-
-	remappedPGs, err := stats.OSDMap.OSDMap.NumRemappedPGs.Float64()
-	if err != nil {
-		return err
-	}
-	c.RemappedPGs.Set(remappedPGs)
-
-	scrubbingPGs := float64(0)
-	deepScrubbingPGs := float64(0)
-	for _, pg := range stats.PGMap.PGsByState {
-		if strings.Contains(pg.StateName, "scrubbing") {
-			if strings.Contains(pg.StateName, "deep") {
-				deepScrubbingCount, err := pg.Count.Float64()
-				if err != nil {
-					return err
-				}
-				deepScrubbingPGs += deepScrubbingCount
-			} else {
-				scrubbingCount, err := pg.Count.Float64()
-				if err != nil {
-					return err
-				}
-				scrubbingPGs += scrubbingCount
+	for _, p := range stats.PGMap.PGsByState {
+		for pgState := range pgStateMap {
+			if strings.Contains(p.States, pgState) {
+				*pgStateMap[pgState] += p.Count
 			}
 		}
 	}
-	c.ScrubbingPGs.Set(scrubbingPGs)
-	c.DeepScrubbingPGs.Set(deepScrubbingPGs)
 
-	totalPGs, err := stats.PGMap.NumPGs.Float64()
-	if err != nil {
-		return err
+	if *pgStateMap["degraded"] > 0 {
+		c.DegradedPGs.Set(*pgStateMap["degraded"])
 	}
-	c.TotalPGs.Set(totalPGs)
+	if *pgStateMap["unclean"] > 0 {
+		c.UncleanPGs.Set(*pgStateMap["unclean"])
+	}
+	if *pgStateMap["undersized"] > 0 {
+		c.UndersizedPGs.Set(*pgStateMap["undersized"])
+	}
+	if *pgStateMap["peering"] > 0 {
+		c.PeeringPGs.Set(*pgStateMap["peering"])
+	}
+	if *pgStateMap["stale"] > 0 {
+		c.StalePGs.Set(*pgStateMap["stale"])
+	}
+	if *pgStateMap["scrubbing"] > 0 {
+		c.ScrubbingPGs.Set(*pgStateMap["scrubbing"] - *pgStateMap["scrubbing+deep"])
+	}
+	if *pgStateMap["scrubbing+deep"] > 0 {
+		c.DeepScrubbingPGs.Set(*pgStateMap["scrubbing+deep"])
+	}
+
+	c.ClientReadBytesPerSec.Set(stats.PGMap.ReadBytePerSec)
+	c.ClientWriteBytesPerSec.Set(stats.PGMap.WriteBytePerSec)
+	c.ClientIOOps.Set(stats.PGMap.ReadOpPerSec + stats.PGMap.WriteOpPerSec)
+	c.ClientIOReadOps.Set(stats.PGMap.ReadOpPerSec)
+	c.ClientIOWriteOps.Set(stats.PGMap.WriteOpPerSec)
+	c.RecoveryIOKeys.Set(stats.PGMap.RecoveringKeysPerSec)
+	c.RecoveryIOObjects.Set(stats.PGMap.RecoveringObjectsPerSec)
+	c.RecoveryIORate.Set(stats.PGMap.RecoveringBytePerSec)
+	c.CacheEvictIORate.Set(stats.PGMap.CacheEvictBytePerSec)
+	c.CacheFlushIORate.Set(stats.PGMap.CacheFlushBytePerSec)
+	c.CachePromoteIOOps.Set(stats.PGMap.CachePromoteOpPerSec)
+
+	c.OSDsUp.Set(stats.OSDMap.OSDMap.NumUpOSDs)
+	c.OSDsIn.Set(stats.OSDMap.OSDMap.NumInOSDs)
+	c.OSDsNum.Set(stats.OSDMap.OSDMap.NumOSDs)
+
+	// Ceph (until v10.2.3) doesn't expose the value of down OSDs
+	// from its status, which is why we have to compute it ourselves.
+	c.OSDsDown.Set(stats.OSDMap.OSDMap.NumOSDs - stats.OSDMap.OSDMap.NumUpOSDs)
+
+	c.RemappedPGs.Set(stats.OSDMap.OSDMap.NumRemappedPGs)
+	c.TotalPGs.Set(stats.PGMap.NumPGs)
 
 	return nil
 }
@@ -757,6 +811,13 @@ func (c *ClusterHealthCollector) collectRecoveryClientIO() error {
 	for sc.Scan() {
 		line := strings.TrimSpace(sc.Text())
 
+		// If we discover the health check is Luminous-specific
+		// we stop continuing extracting recovery/client I/O,
+		// because we already get it from health function.
+		if line == "cluster:" {
+			return nil
+		}
+
 		switch {
 		case strings.HasPrefix(line, "recovery io"):
 			if err := c.collectRecoveryIO(line); err != nil {
@@ -784,7 +845,7 @@ func (c *ClusterHealthCollector) collectRecoveryClientIO() error {
 }
 
 func (c *ClusterHealthCollector) collectClientIO(clientStr string) error {
-	matched := clientIOReadRegex.FindStringSubmatch(clientStr)
+	matched := clientReadBytesPerSecRegex.FindStringSubmatch(clientStr)
 	if len(matched) == 3 {
 		v, err := strconv.Atoi(matched[1])
 		if err != nil {
@@ -802,10 +863,10 @@ func (c *ClusterHealthCollector) collectClientIO(clientStr string) error {
 			return fmt.Errorf("can't parse units %q", matched[2])
 		}
 
-		c.ClientIORead.Set(float64(v))
+		c.ClientReadBytesPerSec.Set(float64(v))
 	}
 
-	matched = clientIOWriteRegex.FindStringSubmatch(clientStr)
+	matched = clientWriteBytesPerSecRegex.FindStringSubmatch(clientStr)
 	if len(matched) == 3 {
 		v, err := strconv.Atoi(matched[1])
 		if err != nil {
@@ -823,7 +884,7 @@ func (c *ClusterHealthCollector) collectClientIO(clientStr string) error {
 			return fmt.Errorf("can't parse units %q", matched[2])
 		}
 
-		c.ClientIOWrite.Set(float64(v))
+		c.ClientWriteBytesPerSec.Set(float64(v))
 	}
 
 	var clientIOOps float64
@@ -837,7 +898,7 @@ func (c *ClusterHealthCollector) collectClientIO(clientStr string) error {
 		clientIOOps = float64(v)
 	}
 
-	var clientIOReadOps, clientIOWriteOps float64
+	var ClientIOReadOps, ClientIOWriteOps float64
 	matched = clientIOReadOpsRegex.FindStringSubmatch(clientStr)
 	if len(matched) == 2 {
 		v, err := strconv.Atoi(matched[1])
@@ -845,8 +906,8 @@ func (c *ClusterHealthCollector) collectClientIO(clientStr string) error {
 			return err
 		}
 
-		clientIOReadOps = float64(v)
-		c.ClientIOReadOps.Set(clientIOReadOps)
+		ClientIOReadOps = float64(v)
+		c.ClientIOReadOps.Set(ClientIOReadOps)
 	}
 
 	matched = clientIOWriteOpsRegex.FindStringSubmatch(clientStr)
@@ -856,8 +917,8 @@ func (c *ClusterHealthCollector) collectClientIO(clientStr string) error {
 			return err
 		}
 
-		clientIOWriteOps = float64(v)
-		c.ClientIOWriteOps.Set(clientIOWriteOps)
+		ClientIOWriteOps = float64(v)
+		c.ClientIOWriteOps.Set(ClientIOWriteOps)
 	}
 
 	// In versions older than Jewel, we directly get access to total
@@ -865,7 +926,7 @@ func (c *ClusterHealthCollector) collectClientIO(clientStr string) error {
 	// separately display read and write IOPs. In such a case, we
 	// compute and set the total IOPs ourselves.
 	if clientIOOps == 0 {
-		clientIOOps = clientIOReadOps + clientIOWriteOps
+		clientIOOps = ClientIOReadOps + ClientIOWriteOps
 	}
 
 	c.ClientIOOps.Set(clientIOOps)
