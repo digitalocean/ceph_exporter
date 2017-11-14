@@ -68,9 +68,6 @@ type OSDCollector struct {
 	// OSDUp displays the Up state of the OSD
 	OSDUp *prometheus.GaugeVec
 
-	// OSDTree used to display the location of the OSD in the CRUSH tree
-	OSDTree *prometheus.GaugeVec
-
 	// TotalBytes displays total bytes in all OSDs
 	TotalBytes prometheus.Gauge
 
@@ -304,19 +301,6 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 			},
 		),
 
-		OSDTree: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Namespace:   cephNamespace,
-				Name:        "osd_tree",
-				Help:        "topology label points to where the osd exists in tree",
-				ConstLabels: labels,
-			},
-			[]string{
-				"osd",
-				"topology",
-			},
-		),
-
 		TreeNodes: make(NodeTree),
 
 		Topology: make(TopologyMap),
@@ -343,7 +327,6 @@ func (o *OSDCollector) collectorList() []prometheus.Collector {
 		o.ApplyLatency,
 		o.OSDIn,
 		o.OSDUp,
-		o.OSDTree,
 	}
 }
 
@@ -654,10 +637,6 @@ func (o *OSDCollector) recurseOSDTreeWalk(osdNodes []cephOSDTreeNode, id int64, 
 			o.recurseOSDTreeWalk(osdNodes, child_id, labels)
 		}
 	} else {
-		val, err := node.Exists.Float64()
-		if err != nil {
-			return err
-		}
 		// Format the topology between commas so it is easy to parse and relabel by prometheus.
 		// Golang maps have an undefined order so we will make it easy for prometheus and
 		// sort the labels first before composing the topology label
@@ -675,7 +654,6 @@ func (o *OSDCollector) recurseOSDTreeWalk(osdNodes []cephOSDTreeNode, id int64, 
 		}
 		topology = fmt.Sprintf("%s,", topology)
 		o.Topology[node.Name][topology] = true
-		o.OSDTree.WithLabelValues(node.Name, topology).Set(val)
 	}
 	return nil
 }
