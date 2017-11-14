@@ -520,7 +520,7 @@ func (c *ClusterHealthCollector) collect() error {
 		}
 	}
 
-	if stats.Health.ClusterStatus != nil {
+	if stats.Health.ClusterStatus != "" {
 		switch stats.Health.ClusterStatus {
 		case CephHealthOK:
 			c.HealthStatus.Set(0)
