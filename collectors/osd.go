@@ -10,6 +10,16 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+// NodeTree holds an inverted index to osd locations
+// in the OSD tree
+type NodeTree map[int64]int
+
+// Set simulates a set by using a map of bool
+type Set map[string]bool
+
+// TopologyMap holds the mapping of osds to their topology
+type TopologyMap map[string]Set
+
 // OSDCollector displays statistics about OSD in the ceph cluster.
 // An important aspect of monitoring OSDs is to ensure that when the cluster is up and
 // running that all OSDs that are in the cluster are up and running, too
@@ -74,7 +84,11 @@ type OSDCollector struct {
 	AverageUtil prometheus.Gauge
 
 	// Tree nodes utility variable
-	TreeNodes map[int64]int
+	TreeNodes NodeTree
+
+	// Topology holds osd to topology label association
+	// Used as an utility variable
+	Topology TopologyMap
 }
 
 //NewOSDCollector creates an instance of the OSDCollector and instantiates
@@ -93,7 +107,10 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Crush Weight",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			[]string{
+				"osd",
+				"topology",
+			},
 		),
 
 		Depth: prometheus.NewGaugeVec(
@@ -103,7 +120,10 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Depth",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			[]string{
+				"osd",
+				"topology",
+			},
 		),
 
 		Reweight: prometheus.NewGaugeVec(
@@ -113,7 +133,10 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Reweight",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			[]string{
+				"osd",
+				"topology",
+			},
 		),
 
 		Bytes: prometheus.NewGaugeVec(
@@ -123,7 +146,10 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Total Bytes",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			[]string{
+				"osd",
+				"topology",
+			},
 		),
 
 		UsedBytes: prometheus.NewGaugeVec(
@@ -133,7 +159,10 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Used Storage in Bytes",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			[]string{
+				"osd",
+				"topology",
+			},
 		),
 
 		AvailBytes: prometheus.NewGaugeVec(
@@ -143,7 +172,10 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Available Storage in Bytes",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			[]string{
+				"osd",
+				"topology",
+			},
 		),
 
 		Utilization: prometheus.NewGaugeVec(
@@ -153,7 +185,10 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Utilization",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			[]string{
+				"osd",
+				"topology",
+			},
 		),
 
 		Variance: prometheus.NewGaugeVec(
@@ -163,7 +198,10 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Variance",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			[]string{
+				"osd",
+				"topology",
+			},
 		),
 
 		Pgs: prometheus.NewGaugeVec(
@@ -173,7 +211,10 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Placement Group Count",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			[]string{
+				"osd",
+				"topology",
+			},
 		),
 
 		TotalBytes: prometheus.NewGauge(
@@ -218,7 +259,10 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Perf Commit Latency",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			[]string{
+				"osd",
+				"topology",
+			},
 		),
 
 		ApplyLatency: prometheus.NewGaugeVec(
@@ -228,7 +272,10 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Perf Apply Latency",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			[]string{
+				"osd",
+				"topology",
+			},
 		),
 
 		OSDIn: prometheus.NewGaugeVec(
@@ -238,7 +285,10 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD In Status",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			[]string{
+				"osd",
+				"topology",
+			},
 		),
 
 		OSDUp: prometheus.NewGaugeVec(
@@ -248,7 +298,10 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Up Status",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			[]string{
+				"osd",
+				"topology",
+			},
 		),
 
 		OSDTree: prometheus.NewGaugeVec(
@@ -264,7 +317,9 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 			},
 		),
 
-		TreeNodes: make(map[int64]int),
+		TreeNodes: make(NodeTree),
+
+		Topology: make(TopologyMap),
 
 	}
 }
@@ -364,13 +419,10 @@ func (o *OSDCollector) collect() error {
 	}
 
 	for _, node := range osdDF.OSDNodes {
-
 		crushWeight, err := node.CrushWeight.Float64()
 		if err != nil {
 			return err
 		}
-
-		o.CrushWeight.WithLabelValues(node.Name).Set(crushWeight)
 
 		depth, err := node.Depth.Float64()
 		if err != nil {
@@ -378,57 +430,52 @@ func (o *OSDCollector) collect() error {
 			return err
 		}
 
-		o.Depth.WithLabelValues(node.Name).Set(depth)
-
 		reweight, err := node.Reweight.Float64()
 		if err != nil {
 			return err
 		}
-
-		o.Reweight.WithLabelValues(node.Name).Set(reweight)
 
 		osdKB, err := node.KB.Float64()
 		if err != nil {
 			return nil
 		}
 
-		o.Bytes.WithLabelValues(node.Name).Set(osdKB * 1e3)
-
 		usedKB, err := node.UsedKB.Float64()
 		if err != nil {
 			return err
 		}
-
-		o.UsedBytes.WithLabelValues(node.Name).Set(usedKB * 1e3)
 
 		availKB, err := node.AvailKB.Float64()
 		if err != nil {
 			return err
 		}
 
-		o.AvailBytes.WithLabelValues(node.Name).Set(availKB * 1e3)
-
 		util, err := node.Utilization.Float64()
 		if err != nil {
 			return err
 		}
-
-		o.Utilization.WithLabelValues(node.Name).Set(util)
 
 		variance, err := node.Variance.Float64()
 		if err != nil {
 			return err
 		}
 
-		o.Variance.WithLabelValues(node.Name).Set(variance)
-
 		pgs, err := node.Pgs.Float64()
 		if err != nil {
 			continue
 		}
 
-		o.Pgs.WithLabelValues(node.Name).Set(pgs)
-
+		for topologyLabel := range o.getOsdTopology(node.Name) {
+			o.CrushWeight.WithLabelValues(node.Name, topologyLabel).Set(crushWeight)
+			o.Depth.WithLabelValues(node.Name, topologyLabel).Set(depth)
+			o.Reweight.WithLabelValues(node.Name, topologyLabel).Set(reweight)
+			o.Bytes.WithLabelValues(node.Name, topologyLabel).Set(osdKB * 1e3)
+			o.UsedBytes.WithLabelValues(node.Name, topologyLabel).Set(usedKB * 1e3)
+			o.AvailBytes.WithLabelValues(node.Name, topologyLabel).Set(availKB * 1e3)
+			o.Utilization.WithLabelValues(node.Name, topologyLabel).Set(util)
+			o.Variance.WithLabelValues(node.Name, topologyLabel).Set(variance)
+			o.Pgs.WithLabelValues(node.Name, topologyLabel).Set(pgs)
+		}
 	}
 
 	totalKB, err := osdDF.Summary.TotalKB.Float64()
@@ -487,13 +534,16 @@ func (o *OSDCollector) collectOSDPerf() error {
 		if err != nil {
 			return err
 		}
-		o.CommitLatency.WithLabelValues(osdName).Set(commitLatency / 1e3)
 
 		applyLatency, err := perfStat.Stats.ApplyLatency.Float64()
 		if err != nil {
 			return err
 		}
-		o.ApplyLatency.WithLabelValues(osdName).Set(applyLatency / 1e3)
+
+		for topologyLabel := range o.getOsdTopology(osdName) {
+			o.CommitLatency.WithLabelValues(osdName, topologyLabel).Set(commitLatency / 1e3)
+			o.ApplyLatency.WithLabelValues(osdName, topologyLabel).Set(applyLatency / 1e3)
+		}
 	}
 
 	return nil
@@ -524,14 +574,15 @@ func (o *OSDCollector) collectOSDDump() error {
 			return err
 		}
 
-		o.OSDIn.WithLabelValues(osdName).Set(in)
-
 		up, err := dumpInfo.Up.Float64()
 		if err != nil {
 			return err
 		}
 
-		o.OSDUp.WithLabelValues(osdName).Set(up)
+		for topologyLabel := range o.getOsdTopology(osdName) {
+			o.OSDIn.WithLabelValues(osdName, topologyLabel).Set(in)
+			o.OSDUp.WithLabelValues(osdName, topologyLabel).Set(up)
+		}
 	}
 
 	return nil
@@ -605,7 +656,12 @@ func (o *OSDCollector) recurseOSDTreeWalk(osdNodes []cephOSDTreeNode, id int64, 
 		for _, key := range keys {
 			topology = fmt.Sprintf("%s,%s=%s", topology, key, labels[key])
 		}
-		o.OSDTree.WithLabelValues(node.Name, fmt.Sprintf("%s,", topology)).Set(val)
+		if _, ok := o.Topology[node.Name]; !ok {
+			o.Topology[node.Name] = make(Set)
+		}
+		topology = fmt.Sprintf("%s,", topology)
+		o.Topology[node.Name][topology] = true
+		o.OSDTree.WithLabelValues(node.Name, topology).Set(val)
 	}
 	return nil
 }
@@ -662,6 +718,19 @@ func (o *OSDCollector) Describe(ch chan<- *prometheus.Desc) {
 	}
 
 }
+
+// Helper function to get all places of an OSD in the topology
+func (o *OSDCollector) getOsdTopology(node string) Set {
+	topology := make(Set)
+	if _, ok := o.Topology[node]; ok {
+		topology = o.Topology[node]
+	} else {
+		// provide a fallback so we display a metrinc in the output
+		topology[",host=unknown,"] = true
+	}
+	return topology
+}
+
 
 // Collect sends all the collected metrics to the provided prometheus channel.
 // It requires the caller to handle synchronization.
