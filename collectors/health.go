@@ -567,47 +567,25 @@ func (c *ClusterHealthCollector) collect() error {
 		c.HealthStatus.Set(2)
 	}
 
+	c.DegradedObjectsCount.Set(stats.PGMap.DegradedObjects)
+	c.MisplacedObjectsCount.Set(stats.PGMap.MisplacedObjects)
 	var (
-		degradedRegex            = regexp.MustCompile(`([\d]+) pgs degraded`)
 		stuckDegradedRegex       = regexp.MustCompile(`([\d]+) pgs stuck degraded`)
-		uncleanRegex             = regexp.MustCompile(`([\d]+) pgs unclean`)
 		stuckUncleanRegex        = regexp.MustCompile(`([\d]+) pgs stuck unclean`)
-		undersizedRegex          = regexp.MustCompile(`([\d]+) pgs undersized`)
 		stuckUndersizedRegex     = regexp.MustCompile(`([\d]+) pgs stuck undersized`)
-		staleRegex               = regexp.MustCompile(`([\d]+) pgs stale`)
 		stuckStaleRegex          = regexp.MustCompile(`([\d]+) pgs stuck stale`)
 		slowRequestRegex         = regexp.MustCompile(`([\d]+) requests are blocked`)
 		slowRequestRegexLuminous = regexp.MustCompile(`([\d]+) slow requests are blocked`)
-		degradedObjectsRegex     = regexp.MustCompile(`recovery ([\d]+)/([\d]+) objects degraded`)
-		misplacedObjectsRegex    = regexp.MustCompile(`recovery ([\d]+)/([\d]+) objects misplaced`)
 	)
 
 	for _, s := range stats.Health.Summary {
-		matched := degradedRegex.FindStringSubmatch(s.Summary)
-		if len(matched) == 2 {
-			v, err := strconv.Atoi(matched[1])
-			if err != nil {
-				return err
-			}
-			c.DegradedPGs.Set(float64(v))
-		}
-
-		matched = stuckDegradedRegex.FindStringSubmatch(s.Summary)
+		matched := stuckDegradedRegex.FindStringSubmatch(s.Summary)
 		if len(matched) == 2 {
 			v, err := strconv.Atoi(matched[1])
 			if err != nil {
 				return err
 			}
 			c.StuckDegradedPGs.Set(float64(v))
-		}
-
-		matched = uncleanRegex.FindStringSubmatch(s.Summary)
-		if len(matched) == 2 {
-			v, err := strconv.Atoi(matched[1])
-			if err != nil {
-				return err
-			}
-			c.UncleanPGs.Set(float64(v))
 		}
 
 		matched = stuckUncleanRegex.FindStringSubmatch(s.Summary)
@@ -619,15 +597,6 @@ func (c *ClusterHealthCollector) collect() error {
 			c.StuckUncleanPGs.Set(float64(v))
 		}
 
-		matched = undersizedRegex.FindStringSubmatch(s.Summary)
-		if len(matched) == 2 {
-			v, err := strconv.Atoi(matched[1])
-			if err != nil {
-				return err
-			}
-			c.UndersizedPGs.Set(float64(v))
-		}
-
 		matched = stuckUndersizedRegex.FindStringSubmatch(s.Summary)
 		if len(matched) == 2 {
 			v, err := strconv.Atoi(matched[1])
@@ -635,15 +604,6 @@ func (c *ClusterHealthCollector) collect() error {
 				return err
 			}
 			c.StuckUndersizedPGs.Set(float64(v))
-		}
-
-		matched = staleRegex.FindStringSubmatch(s.Summary)
-		if len(matched) == 2 {
-			v, err := strconv.Atoi(matched[1])
-			if err != nil {
-				return err
-			}
-			c.StalePGs.Set(float64(v))
 		}
 
 		matched = stuckStaleRegex.FindStringSubmatch(s.Summary)
@@ -664,23 +624,6 @@ func (c *ClusterHealthCollector) collect() error {
 			c.SlowRequests.Set(float64(v))
 		}
 
-		matched = degradedObjectsRegex.FindStringSubmatch(s.Summary)
-		if len(matched) == 3 {
-			v, err := strconv.Atoi(matched[1])
-			if err != nil {
-				return err
-			}
-			c.DegradedObjectsCount.Set(float64(v))
-		}
-
-		matched = misplacedObjectsRegex.FindStringSubmatch(s.Summary)
-		if len(matched) == 3 {
-			v, err := strconv.Atoi(matched[1])
-			if err != nil {
-				return err
-			}
-			c.MisplacedObjectsCount.Set(float64(v))
-		}
 	}
 
 	for k, check := range stats.Health.Checks {

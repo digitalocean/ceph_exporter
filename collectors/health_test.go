@@ -40,44 +40,10 @@ func TestClusterHealthCollector(t *testing.T) {
 			"num_remapped_pgs": 0
 		}
 	},
-	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "5 pgs degraded"}]}
-}`,
-			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`degraded_pgs{cluster="ceph"} 5`),
-			},
-		},
-		{
-			input: `
-{
-	"osdmap": {
-		"osdmap": {
-			"num_osds": 0,
-			"num_up_osds": 0,
-			"num_in_osds": 0,
-			"num_remapped_pgs": 0
-		}
-	},
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "15 pgs stuck degraded"}]}
 }`,
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`stuck_degraded_pgs{cluster="ceph"} 15`),
-			},
-		},
-		{
-			input: `
-{
-	"osdmap": {
-		"osdmap": {
-			"num_osds": 0,
-			"num_up_osds": 0,
-			"num_in_osds": 0,
-			"num_remapped_pgs": 0
-		}
-	},
-	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "6 pgs unclean"}]}
-}`,
-			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`unclean_pgs{cluster="ceph"} 6`),
 			},
 		},
 		{
@@ -108,23 +74,6 @@ func TestClusterHealthCollector(t *testing.T) {
 			"num_remapped_pgs": 0
 		}
 	},
-	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "7 pgs undersized"}]}
-}`,
-			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`undersized_pgs{cluster="ceph"} 7`),
-			},
-		},
-		{
-			input: `
-{
-	"osdmap": {
-		"osdmap": {
-			"num_osds": 0,
-			"num_up_osds": 0,
-			"num_in_osds": 0,
-			"num_remapped_pgs": 0
-		}
-	},
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "17 pgs stuck undersized"}]}
 }`,
 			regexes: []*regexp.Regexp{
@@ -142,61 +91,10 @@ func TestClusterHealthCollector(t *testing.T) {
 			"num_remapped_pgs": 0
 		}
 	},
-	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "8 pgs stale"}]}
-}`,
-			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`stale_pgs{cluster="ceph"} 8`),
-			},
-		},
-		{
-			input: `
-{
-	"osdmap": {
-		"osdmap": {
-			"num_osds": 0,
-			"num_up_osds": 0,
-			"num_in_osds": 0,
-			"num_remapped_pgs": 0
-		}
-	},
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "18 pgs stuck stale"}]}
 }`,
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`stuck_stale_pgs{cluster="ceph"} 18`),
-			},
-		},
-		{
-			input: `
-{
-	"osdmap": {
-		"osdmap": {
-			"num_osds": 0,
-			"num_up_osds": 0,
-			"num_in_osds": 0,
-			"num_remapped_pgs": 0
-		}
-	},
-	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "recovery 10/20 objects degraded"}]}
-}`,
-			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`degraded_objects{cluster="ceph"} 10`),
-			},
-		},
-		{
-			input: `
-{
-	"osdmap": {
-		"osdmap": {
-			"num_osds": 0,
-			"num_up_osds": 0,
-			"num_in_osds": 0,
-			"num_remapped_pgs": 0
-		}
-	},
-	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "recovery 20/40 objects misplaced"}]}
-}`,
-			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`misplaced_objects{cluster="ceph"} 20`),
 			},
 		},
 		{
