@@ -476,7 +476,7 @@ type cephHealthStats struct {
 			Severity string `json:"severity"`
 			Summary  string `json:"summary"`
 		} `json:"summary"`
-		OverallStatus string `json:"overall_status"`
+		OverallStatus string `json:"status"`
 		Checks        map[string]struct {
 			Severity string `json:"severity"`
 			Summary  struct {

@@ -159,7 +159,7 @@ func TestMonitorCollector(t *testing.T) {
             ]
         },
         "summary": [],
-        "overall_status": "HEALTH_OK",
+        "status": "HEALTH_OK",
         "detail": []
     },
     "fsid": "6C9BF03E-044E-4EEB-9C5F-145A54ECF7DB",
