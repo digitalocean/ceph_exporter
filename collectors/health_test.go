@@ -246,7 +246,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			"num_remapped_pgs": 10
 		}
 	},
-	"health": { "overall_status": "HEALTH_OK" } }`,
+	"health": { "status": "HEALTH_OK" } }`,
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 0`),
 			},
@@ -262,7 +262,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			"num_remapped_pgs": 10
 		}
 	},
-	"health": { "overall_status": "HEALTH_WARN" } }`,
+	"health": { "status": "HEALTH_WARN" } }`,
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 1`),
 			},
@@ -278,7 +278,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			"num_remapped_pgs": 10
 		}
 	},
-	"health": { "overall_status": "HEALTH_ERR" } }`,
+	"health": { "status": "HEALTH_ERR" } }`,
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 2`),
 			},
