@@ -360,6 +360,14 @@ $ sudo ceph -s
 				"count": 10,
 				"state_name": "undersized+degraded+peered"
 			},
+		    {
+				"state_name": "active+remapped+backfilling",
+				"count": 6
+		    },
+		    {
+				"state_name": "active+remapped+backfill_wait",
+				"count": 7
+		    },
 			{
 				"count": 20,
 				"state_name": "activating+undersized+degraded"
@@ -397,6 +405,8 @@ $ sudo ceph -s
 	}	
 }`,
 			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`backfill_wait_pgs{cluster="ceph"} 7`),
+				regexp.MustCompile(`backfilling_pgs{cluster="ceph"} 6`),
 				regexp.MustCompile(`degraded_pgs{cluster="ceph"} 40`),
 				regexp.MustCompile(`unclean_pgs{cluster="ceph"} 30`),
 				regexp.MustCompile(`undersized_pgs{cluster="ceph"} 40`),

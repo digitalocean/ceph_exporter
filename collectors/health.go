@@ -101,6 +101,14 @@ type ClusterHealthCollector struct {
 	// Deep scrubbing reads the data and uses checksums to ensure data integrity.
 	DeepScrubbingPGs prometheus.Gauge
 
+	// BackfillingPGs depicts no. of PGs that are backfilling
+	// backfilling pgs have been remapped and are in the process of copying/recreating data in their new location
+	BackfillingPGs prometheus.Gauge
+
+	// BackfillWaitPGs depicts no. of PGs that are waiting to backfill
+	// backfilling pgs have been remapped and are being prevented from backfilling by the max_backfills setting
+	BackfillWaitPGs prometheus.Gauge
+
 	// SlowRequests depicts no. of total slow requests in the cluster
 	SlowRequests prometheus.Gauge
 
@@ -216,6 +224,22 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 				Namespace:   cephNamespace,
 				Name:        "deep_scrubbing_pgs",
 				Help:        "No. of deep scrubbing PGs in the cluster",
+				ConstLabels: labels,
+			},
+		),
+		BackfillingPGs: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "backfilling_pgs",
+				Help:        "No. of backfilling PGs in the cluster",
+				ConstLabels: labels,
+			},
+		),
+		BackfillWaitPGs: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "backfill_wait_pgs",
+				Help:        "No. of backfill waiting PGs in the cluster",
 				ConstLabels: labels,
 			},
 		),
@@ -461,6 +485,8 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.PeeringPGs,
 		c.ScrubbingPGs,
 		c.DeepScrubbingPGs,
+		c.BackfillingPGs,
+		c.BackfillWaitPGs,
 		c.SlowRequests,
 		c.DegradedObjectsCount,
 		c.MisplacedObjectsCount,
@@ -647,6 +673,8 @@ func (c *ClusterHealthCollector) collect() error {
 		stalePGs         float64
 		scrubbingPGs     float64
 		deepScrubbingPGs float64
+		backfillingPGs   float64
+		backfillWaitPGs  float64
 
 		pgStateMap = map[string]*float64{
 			"degraded":       &degradedPGs,
@@ -656,6 +684,8 @@ func (c *ClusterHealthCollector) collect() error {
 			"stale":          &stalePGs,
 			"scrubbing":      &scrubbingPGs,
 			"scrubbing+deep": &deepScrubbingPGs,
+			"backfilling":    &backfillingPGs,
+			"backfill_wait":  &backfillWaitPGs,
 		}
 	)
 
@@ -687,6 +717,12 @@ func (c *ClusterHealthCollector) collect() error {
 	}
 	if *pgStateMap["scrubbing+deep"] > 0 {
 		c.DeepScrubbingPGs.Set(*pgStateMap["scrubbing+deep"])
+	}
+	if *pgStateMap["backfilling"] > 0 {
+		c.BackfillingPGs.Set(*pgStateMap["backfilling"])
+	}
+	if *pgStateMap["backfill_wait"] > 0 {
+		c.BackfillWaitPGs.Set(*pgStateMap["backfill_wait"])
 	}
 
 	c.ClientReadBytesPerSec.Set(stats.PGMap.ReadBytePerSec)
