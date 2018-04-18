@@ -97,6 +97,12 @@ type ClusterHealthCollector struct {
 	// Deep scrubbing reads the data and uses checksums to ensure data integrity.
 	DeepScrubbingPGs prometheus.Gauge
 
+	// InconsistentPGs shows the no. of PGs that some pg appear inconsistent when scrub
+	InconsistentPGs prometheus.Gauge
+
+	// InconsistentPGs shows the no. of PGs that some pg errors while scrubbing
+	ScrubErrorPGs prometheus.Gauge
+
 	// SlowRequests depicts no. of total slow requests in the cluster
 	SlowRequests prometheus.Gauge
 
@@ -287,6 +293,22 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 				ConstLabels: labels,
 			},
 		),
+		InconsistentPGs: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "inconsistent_pgs",
+				Help:        "No. of inconsistent PGs in the cluster",
+				ConstLabels: labels,
+			},
+		),
+		ScrubErrorPGs: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "scrub_errors_pgs",
+				Help:        "No. of scrub errors PGs in the cluster",
+				ConstLabels: labels,
+			},
+		),
 		DegradedObjectsCount: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace:   cephNamespace,
@@ -448,6 +470,8 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.StuckStalePGs,
 		c.ScrubbingPGs,
 		c.DeepScrubbingPGs,
+		c.InconsistentPGs,
+		c.ScrubErrorPGs,
 		c.SlowRequests,
 		c.DegradedObjectsCount,
 		c.MisplacedObjectsCount,
@@ -539,6 +563,8 @@ func (c *ClusterHealthCollector) collect() error {
 		stuckUndersizedRegex     = regexp.MustCompile(`([\d]+) pgs stuck undersized`)
 		staleRegex               = regexp.MustCompile(`([\d]+) pgs stale`)
 		stuckStaleRegex          = regexp.MustCompile(`([\d]+) pgs stuck stale`)
+		inconsistentRegex        = regexp.MustCompile(`([\d]+) pgs inconsistent`)
+		scrubErrorRegex          = regexp.MustCompile(`([\d]+) scrub errors`)
 		slowRequestRegex         = regexp.MustCompile(`([\d]+) requests are blocked`)
 		slowRequestRegexLuminous = regexp.MustCompile(`([\d]+) slow requests are blocked`)
 		degradedObjectsRegex     = regexp.MustCompile(`recovery ([\d]+)/([\d]+) objects degraded`)
@@ -616,6 +642,24 @@ func (c *ClusterHealthCollector) collect() error {
 				return err
 			}
 			c.StuckStalePGs.Set(float64(v))
+		}
+
+		matched = inconsistentRegex.FindStringSubmatch(s.Summary)
+		if len(matched) == 2 {
+			v, err := strconv.Atoi(matched[1])
+			if err != nil {
+				return err
+			}
+			c.InconsistentPGs.Set(float64(v))
+		}
+
+		matched = scrubErrorRegex.FindStringSubmatch(s.Summary)
+		if len(matched) == 2 {
+			v, err := strconv.Atoi(matched[1])
+			if err != nil {
+				return err
+			}
+			c.ScrubErrorPGs.Set(float64(v))
 		}
 
 		matched = slowRequestRegex.FindStringSubmatch(s.Summary)
