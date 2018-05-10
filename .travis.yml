@@ -9,6 +9,8 @@ env:
   - DOCKER_TAG=$TRAVIS_TAG
 
 before_install:
+  - wget -q -O- 'https://download.ceph.com/keys/release.asc' | sudo apt-key add -
+  - echo deb https://download.ceph.com/debian-luminous/ $(lsb_release -sc) main | sudo tee /etc/apt/sources.list.d/ceph.list
   - sudo apt-get update
   - sudo apt-get install -y librados-dev librbd-dev
 

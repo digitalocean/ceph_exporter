@@ -441,6 +441,88 @@ $ sudo ceph -s
 		{
 			input: `
 {
+  	"checks": {
+    	"REQUEST_SLOW": {
+			"severity": "HEALTH_WARN",
+			"summary": {
+				"message": "286 slow requests are blocked > 32 sec"
+			},
+			"detail": [
+				{
+					"message": "102 ops are blocked > 524.288 sec"
+				},
+				{
+					"message": "84 ops are blocked > 262.144 sec"
+				},
+				{
+					"message": "53 ops are blocked > 131.072 sec"
+				},
+				{
+					"message": "33 ops are blocked > 65.536 sec"
+				},
+				{
+					"message": "14 ops are blocked > 32.768 sec"
+				},
+				{
+					"message": "osds 363,463 have blocked requests > 32.768 sec"
+				},
+				{
+					"message": "osd.349 has blocked requests > 524.288 sec"
+				}
+			]
+      	}
+    }
+}`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`slow_requests_osd{cluster="ceph",osd="363"} 14`),
+				regexp.MustCompile(`slow_requests_osd{cluster="ceph",osd="463"} 14`),
+				regexp.MustCompile(`slow_requests_osd{cluster="ceph",osd="349"} 272`),
+			},
+		},
+		{
+			input: `
+{
+  	"checks": {
+    	"REQUEST_SLOW": {
+			"severity": "HEALTH_WARN",
+			"summary": {
+				"message": "286 slow requests are blocked > 32 sec"
+			},
+			"detail": [
+				{
+					"message": "102 ops are blocked > 524.288 sec"
+				},
+				{
+					"message": "84 ops are blocked > 262.144 sec"
+				},
+				{
+					"message": "53 ops are blocked > 131.072 sec"
+				},
+				{
+					"message": "33 ops are blocked > 65.536 sec"
+				},
+				{
+					"message": "14 ops are blocked > 32.768 sec"
+				},
+				{
+					"message": "osds 363,463 have blocked requests > 131.072 sec"
+				},
+				{
+					"message": "osd.349 has blocked requests > 524.288 sec"
+				}
+			]
+      	}
+    }
+}`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`slow_requests_osd{cluster="ceph",osd="363"} 100`),
+				regexp.MustCompile(`slow_requests_osd{cluster="ceph",osd="463"} 100`),
+				regexp.MustCompile(`slow_requests_osd{cluster="ceph",osd="349"} 186`),
+			},
+		},
+		{
+			input: `
+{
 	"pgmap": {
 		"write_op_per_sec": 500,
 		"read_op_per_sec": 1000,
