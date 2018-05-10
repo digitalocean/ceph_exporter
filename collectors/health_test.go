@@ -442,6 +442,20 @@ $ sudo ceph -s
 			input: `
 {
   	"checks": {
+		"REQUEST_STUCK": {
+			"detail": [
+				{
+					"message": "413 ops are blocked > 4194.3 sec"
+				},
+				{
+					"message": "osd.131 has stuck requests > 4194.3 sec"
+				}
+			],
+			"summary": {
+				"message": "413 stuck requests are blocked > 4096 sec"
+			},
+			"severity": "HEALTH_ERR"
+		},
     	"REQUEST_SLOW": {
 			"severity": "HEALTH_WARN",
 			"summary": {
@@ -477,6 +491,7 @@ $ sudo ceph -s
 				regexp.MustCompile(`slow_requests_osd{cluster="ceph",osd="363"} 14`),
 				regexp.MustCompile(`slow_requests_osd{cluster="ceph",osd="463"} 14`),
 				regexp.MustCompile(`slow_requests_osd{cluster="ceph",osd="349"} 272`),
+				regexp.MustCompile(`slow_requests_osd{cluster="ceph",osd="131"} 413`),
 			},
 		},
 		{

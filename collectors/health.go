@@ -106,9 +106,9 @@ type ClusterHealthCollector struct {
 	// This stat exists only for backwards compatbility.
 	SlowRequests prometheus.Gauge
 
-	// SlowRequestsByOSD depicts no. of total slow requests in the cluster
-	// labelled by OSD
-	SlowRequestsByOSD *prometheus.GaugeVec
+	// SlowRequestsByOSDDesc depicts no. of total slow requests in the cluster
+	// labelled by OSD.
+	SlowRequestsByOSDDesc *prometheus.Desc
 
 	// DegradedObjectsCount gives the no. of RADOS objects are constitute the degraded PGs.
 	// This includes object replicas in its count.
@@ -233,14 +233,11 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 				ConstLabels: labels,
 			},
 		),
-		SlowRequestsByOSD: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Namespace:   cephNamespace,
-				Name:        "slow_requests_osd",
-				Help:        "No. of slow requests",
-				ConstLabels: labels,
-			},
+		SlowRequestsByOSDDesc: prometheus.NewDesc(
+			fmt.Sprintf("%s_slow_requests_osd", cephNamespace),
+			"No. of slow requests per OSD",
 			[]string{"osd"},
+			labels,
 		),
 		DegradedPGs: prometheus.NewGauge(
 			prometheus.GaugeOpts{
@@ -461,12 +458,6 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 	}
 }
 
-func (c *ClusterHealthCollector) collectorList() []prometheus.Collector {
-	return []prometheus.Collector{
-		c.SlowRequestsByOSD,
-	}
-}
-
 func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 	return []prometheus.Metric{
 		c.HealthStatus,
@@ -560,7 +551,7 @@ type cephHealthDetailStats struct {
 	} `json:"checks"`
 }
 
-func (c *ClusterHealthCollector) collect() error {
+func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 	cmd := c.cephJSONUsage()
 	buf, _, err := c.conn.MonCommand(cmd)
 	if err != nil {
@@ -802,8 +793,30 @@ func (c *ClusterHealthCollector) collect() error {
 	c.RemappedPGs.Set(stats.OSDMap.OSDMap.NumRemappedPGs)
 	c.TotalPGs.Set(stats.PGMap.NumPGs)
 
-	cmd = c.cephHealthDetailCommand()
-	buf, _, err = c.conn.MonCommand(cmd)
+	for _, checkType := range []string{"REQUEST_SLOW", "REQUEST_STUCK"} {
+		if err := c.calculateSlowRequestsPerOSD(ch, checkType); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (c *ClusterHealthCollector) calculateSlowRequestsPerOSD(ch chan<- prometheus.Metric, checkType string) error {
+	var (
+		slowOpsBlockedRegex         = regexp.MustCompile(`([\d]+) ops are blocked > ([\d\.]+) sec`)
+		slowRequestSingleOSDRegex   = regexp.MustCompile(`osd.([\d]+) has blocked requests > ([\d\.]+) sec`)
+		slowRequestMultipleOSDRegex = regexp.MustCompile(`osds ([\d,]+) have blocked requests > ([\d\.]+) sec`)
+
+		slowRequestStuckSingleOSDRegex   = regexp.MustCompile(`osd.([\d]+) has stuck requests > ([\d\.]+) sec`)
+		slowRequestStuckMultipleOSDRegex = regexp.MustCompile(`osds ([\d,]+) have stuck requests > ([\d\.]+) sec`)
+
+		secToOpsBlocked     = make(map[float64]int)
+		osdToSecondsBlocked = make(map[int]float64)
+	)
+
+	cmd := c.cephHealthDetailCommand()
+	buf, _, err := c.conn.MonCommand(cmd)
 	if err != nil {
 		return err
 	}
@@ -813,17 +826,8 @@ func (c *ClusterHealthCollector) collect() error {
 		return err
 	}
 
-	var (
-		slowOpsBlockedRegex         = regexp.MustCompile(`([\d]+) ops are blocked > ([\d\.]+) sec`)
-		slowRequestSingleOSDRegex   = regexp.MustCompile(`osd.([\d]+) has blocked requests > ([\d\.]+) sec`)
-		slowRequestMultipleOSDRegex = regexp.MustCompile(`osds ([\d,]+) have blocked requests > ([\d\.]+) sec`)
-
-		secToOpsBlocked     = make(map[float64]int)
-		osdToSecondsBlocked = make(map[int]float64)
-	)
-
 	for key, check := range hdstats.Checks {
-		if key == "REQUEST_SLOW" {
+		if key == checkType {
 			for _, detail := range check.Details {
 				matched := slowOpsBlockedRegex.FindStringSubmatch(detail.Message)
 				if len(matched) == 3 {
@@ -874,6 +878,40 @@ func (c *ClusterHealthCollector) collect() error {
 					}
 					continue
 				}
+
+				matched = slowRequestStuckSingleOSDRegex.FindStringSubmatch(detail.Message)
+				if len(matched) == 3 {
+					v, err := strconv.Atoi(matched[1])
+					if err != nil {
+						return err
+					}
+
+					f, err := strconv.ParseFloat(matched[2], 64)
+					if err != nil {
+						return err
+					}
+
+					osdToSecondsBlocked[v] = f
+					continue
+				}
+
+				matched = slowRequestStuckMultipleOSDRegex.FindStringSubmatch(detail.Message)
+				if len(matched) == 3 {
+					f, err := strconv.ParseFloat(matched[2], 64)
+					if err != nil {
+						return err
+					}
+
+					for _, osdID := range strings.Split(matched[1], ",") {
+						oid, err := strconv.Atoi(osdID)
+						if err != nil {
+							return err
+						}
+
+						osdToSecondsBlocked[oid] = f
+					}
+					continue
+				}
 			}
 		}
 	}
@@ -890,7 +928,7 @@ func (c *ClusterHealthCollector) collect() error {
 		totalOpsUntilNow += secToOpsBlocked[sec]
 		for osd, osec := range osdToSecondsBlocked {
 			if sec == osec {
-				c.SlowRequestsByOSD.WithLabelValues(strconv.Itoa(osd)).Set(float64(totalOpsUntilNow))
+				ch <- prometheus.MustNewConstMetric(c.SlowRequestsByOSDDesc, prometheus.GaugeValue, float64(totalOpsUntilNow), strconv.Itoa(osd))
 				totalOpsSet = true
 			}
 		}
@@ -1182,9 +1220,7 @@ func (c *ClusterHealthCollector) collectCacheIO(clientStr string) error {
 // Describe sends all the descriptions of individual metrics of ClusterHealthCollector
 // to the provided prometheus channel.
 func (c *ClusterHealthCollector) Describe(ch chan<- *prometheus.Desc) {
-	for _, metric := range c.collectorList() {
-		metric.Describe(ch)
-	}
+	ch <- c.SlowRequestsByOSDDesc
 
 	for _, metric := range c.metricsList() {
 		ch <- metric.Desc()
@@ -1194,16 +1230,12 @@ func (c *ClusterHealthCollector) Describe(ch chan<- *prometheus.Desc) {
 // Collect sends all the collected metrics to the provided prometheus channel.
 // It requires the caller to handle synchronization.
 func (c *ClusterHealthCollector) Collect(ch chan<- prometheus.Metric) {
-	if err := c.collect(); err != nil {
+	if err := c.collect(ch); err != nil {
 		log.Println("failed collecting cluster health metrics:", err)
 	}
 
 	if err := c.collectRecoveryClientIO(); err != nil {
 		log.Println("failed collecting cluster recovery/client io:", err)
-	}
-
-	for _, metric := range c.collectorList() {
-		metric.Collect(ch)
 	}
 
 	for _, metric := range c.metricsList() {
