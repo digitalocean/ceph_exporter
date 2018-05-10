@@ -7,9 +7,10 @@ ENV PATH $GOROOT/bin:$PATH
 ENV APPLOC $GOPATH/src/github.com/digitalocean/ceph_exporter
 
 RUN apt-get update && \
-    apt-get install -y apt-transport-https build-essential git curl
+    apt-get install -y apt-transport-https build-essential git curl wget
 
-RUN echo "deb https://download.ceph.com/debian-jewel xenial main" >> /etc/apt/sources.list
+RUN wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add -
+RUN echo "deb https://download.ceph.com/debian-luminous xenial main" >> /etc/apt/sources.list
 
 RUN apt-get update && \
     apt-get install -y --force-yes librados-dev librbd-dev
@@ -28,8 +29,9 @@ FROM ubuntu:16.04
 MAINTAINER Vaibhav Bhembre <vaibhav@digitalocean.com>
 
 RUN apt-get update && \
-    apt-get install -y apt-transport-https curl && \
-    echo "deb https://download.ceph.com/debian-jewel xenial main" >> /etc/apt/sources.list && \
+    apt-get install -y apt-transport-https curl wget
+RUN wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add -
+RUN echo "deb https://download.ceph.com/debian-luminous xenial main" >> /etc/apt/sources.list && \
     apt-get update && \
     apt-get install -y --force-yes librados2 librbd1 && \
     rm -rf /var/lib/apt/lists/*

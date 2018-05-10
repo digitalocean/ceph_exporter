@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -102,7 +103,12 @@ type ClusterHealthCollector struct {
 	DeepScrubbingPGs prometheus.Gauge
 
 	// SlowRequests depicts no. of total slow requests in the cluster
+	// This stat exists only for backwards compatbility.
 	SlowRequests prometheus.Gauge
+
+	// SlowRequestsByOSD depicts no. of total slow requests in the cluster
+	// labelled by OSD
+	SlowRequestsByOSD *prometheus.GaugeVec
 
 	// DegradedObjectsCount gives the no. of RADOS objects are constitute the degraded PGs.
 	// This includes object replicas in its count.
@@ -226,6 +232,15 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 				Help:        "No. of slow requests",
 				ConstLabels: labels,
 			},
+		),
+		SlowRequestsByOSD: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "slow_requests_osd",
+				Help:        "No. of slow requests",
+				ConstLabels: labels,
+			},
+			[]string{"osd"},
 		),
 		DegradedPGs: prometheus.NewGauge(
 			prometheus.GaugeOpts{
@@ -446,6 +461,12 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 	}
 }
 
+func (c *ClusterHealthCollector) collectorList() []prometheus.Collector {
+	return []prometheus.Collector{
+		c.SlowRequestsByOSD,
+	}
+}
+
 func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 	return []prometheus.Metric{
 		c.HealthStatus,
@@ -525,6 +546,18 @@ type cephHealthStats struct {
 			States string  `json:"state_name"`
 		} `json:"pgs_by_state"`
 	} `json:"pgmap"`
+}
+
+type cephHealthDetailStats struct {
+	Checks map[string]struct {
+		Details []struct {
+			Message string `json:"message"`
+		} `json:"detail"`
+		Summary struct {
+			Message string `json:"message"`
+		} `json:"summary"`
+		Severity string `json:"severity"`
+	} `json:"checks"`
 }
 
 func (c *ClusterHealthCollector) collect() error {
@@ -769,6 +802,105 @@ func (c *ClusterHealthCollector) collect() error {
 	c.RemappedPGs.Set(stats.OSDMap.OSDMap.NumRemappedPGs)
 	c.TotalPGs.Set(stats.PGMap.NumPGs)
 
+	cmd = c.cephHealthDetailCommand()
+	buf, _, err = c.conn.MonCommand(cmd)
+	if err != nil {
+		return err
+	}
+
+	hdstats := &cephHealthDetailStats{}
+	if err := json.Unmarshal(buf, hdstats); err != nil {
+		return err
+	}
+
+	var (
+		slowOpsBlockedRegex         = regexp.MustCompile(`([\d]+) ops are blocked > ([\d\.]+) sec`)
+		slowRequestSingleOSDRegex   = regexp.MustCompile(`osd.([\d]+) has blocked requests > ([\d\.]+) sec`)
+		slowRequestMultipleOSDRegex = regexp.MustCompile(`osds ([\d,]+) have blocked requests > ([\d\.]+) sec`)
+
+		secToOpsBlocked     = make(map[float64]int)
+		osdToSecondsBlocked = make(map[int]float64)
+	)
+
+	for key, check := range hdstats.Checks {
+		if key == "REQUEST_SLOW" {
+			for _, detail := range check.Details {
+				matched := slowOpsBlockedRegex.FindStringSubmatch(detail.Message)
+				if len(matched) == 3 {
+					v, err := strconv.Atoi(matched[1])
+					if err != nil {
+						return err
+					}
+
+					f, err := strconv.ParseFloat(matched[2], 64)
+					if err != nil {
+						return err
+					}
+
+					secToOpsBlocked[f] = v
+					continue
+				}
+
+				matched = slowRequestSingleOSDRegex.FindStringSubmatch(detail.Message)
+				if len(matched) == 3 {
+					v, err := strconv.Atoi(matched[1])
+					if err != nil {
+						return err
+					}
+
+					f, err := strconv.ParseFloat(matched[2], 64)
+					if err != nil {
+						return err
+					}
+
+					osdToSecondsBlocked[v] = f
+					continue
+				}
+
+				matched = slowRequestMultipleOSDRegex.FindStringSubmatch(detail.Message)
+				if len(matched) == 3 {
+					f, err := strconv.ParseFloat(matched[2], 64)
+					if err != nil {
+						return err
+					}
+
+					for _, osdID := range strings.Split(matched[1], ",") {
+						oid, err := strconv.Atoi(osdID)
+						if err != nil {
+							return err
+						}
+
+						osdToSecondsBlocked[oid] = f
+					}
+					continue
+				}
+			}
+		}
+	}
+
+	secs := make([]float64, len(secToOpsBlocked))
+	for sec := range secToOpsBlocked {
+		secs = append(secs, sec)
+	}
+	sort.Float64s(secs)
+
+	totalOpsUntilNow := 0
+	totalOpsSet := false
+	for _, sec := range secs {
+		totalOpsUntilNow += secToOpsBlocked[sec]
+		for osd, osec := range osdToSecondsBlocked {
+			if sec == osec {
+				c.SlowRequestsByOSD.WithLabelValues(strconv.Itoa(osd)).Set(float64(totalOpsUntilNow))
+				totalOpsSet = true
+			}
+		}
+
+		if totalOpsSet {
+			totalOpsUntilNow = 0
+			totalOpsSet = false
+		}
+	}
+
 	return nil
 }
 
@@ -791,6 +923,20 @@ func (c *ClusterHealthCollector) cephUsageCommand(f format) []byte {
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix": "status",
 		"format": f,
+	})
+	if err != nil {
+		// panic! because ideally in no world this hard-coded input
+		// should fail.
+		panic(err)
+	}
+	return cmd
+}
+
+func (c *ClusterHealthCollector) cephHealthDetailCommand() []byte {
+	cmd, err := json.Marshal(map[string]interface{}{
+		"prefix": "health",
+		"detail": "detail",
+		"format": jsonFormat,
 	})
 	if err != nil {
 		// panic! because ideally in no world this hard-coded input
@@ -1036,6 +1182,10 @@ func (c *ClusterHealthCollector) collectCacheIO(clientStr string) error {
 // Describe sends all the descriptions of individual metrics of ClusterHealthCollector
 // to the provided prometheus channel.
 func (c *ClusterHealthCollector) Describe(ch chan<- *prometheus.Desc) {
+	for _, metric := range c.collectorList() {
+		metric.Describe(ch)
+	}
+
 	for _, metric := range c.metricsList() {
 		ch <- metric.Desc()
 	}
@@ -1050,6 +1200,10 @@ func (c *ClusterHealthCollector) Collect(ch chan<- prometheus.Metric) {
 
 	if err := c.collectRecoveryClientIO(); err != nil {
 		log.Println("failed collecting cluster recovery/client io:", err)
+	}
+
+	for _, metric := range c.collectorList() {
+		metric.Collect(ch)
 	}
 
 	for _, metric := range c.metricsList() {
