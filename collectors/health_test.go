@@ -400,6 +400,7 @@ $ sudo ceph -s
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "7 pgs undersized"}]}
 }`,
 			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`active_pgs{cluster="ceph"} 7`),
 				regexp.MustCompile(`scrubbing_pgs{cluster="ceph"} 2`),
 				regexp.MustCompile(`deep_scrubbing_pgs{cluster="ceph"} 5`),
 			},
@@ -596,6 +597,7 @@ $ sudo ceph -s
 	}	
 }`,
 			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`active_pgs{cluster="ceph"} 30`),
 				regexp.MustCompile(`degraded_pgs{cluster="ceph"} 40`),
 				regexp.MustCompile(`unclean_pgs{cluster="ceph"} 30`),
 				regexp.MustCompile(`undersized_pgs{cluster="ceph"} 40`),
