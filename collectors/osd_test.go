@@ -264,43 +264,41 @@ func TestOSDCollector(t *testing.T) {
 		},
 		{
 			input: `
-{
-    "pg_stats": [
-        {
-            "acting": [
-                1,
-                2,
-                3,
-                4
-            ],
-            "acting_primary": 1,
-            "pgid": "81.1fff",
-			"state": "active+clean"
-		},
-        {
-            "acting": [
-                10,
-                11,
-                12,
-                13
-            ],
-            "acting_primary": 10,
-            "pgid": "82.1fff",
-			"state": "active+clean+scrubbing"
-		},
-        {
-            "acting": [
-                20,
-                21,
-                22,
-                23
-            ],
-            "acting_primary": 20,
-            "pgid": "83.1fff",
-			"state": "active+clean+scrubbing+deep"
-		}
-	]
-}`,
+[
+	{
+		"acting": [
+			1,
+			2,
+			3,
+			4
+		],
+		"acting_primary": 1,
+		"pgid": "81.1fff",
+		"state": "active+clean"
+	},
+	{
+		"acting": [
+			10,
+			11,
+			12,
+			13
+		],
+		"acting_primary": 10,
+		"pgid": "82.1fff",
+		"state": "active+clean+scrubbing"
+	},
+	{
+		"acting": [
+			20,
+			21,
+			22,
+			23
+		],
+		"acting_primary": 20,
+		"pgid": "83.1fff",
+		"state": "active+clean+scrubbing+deep"
+	}
+]`,
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",osd="osd.10"} 1`),
 				regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",osd="osd.11"} 1`),
