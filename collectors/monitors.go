@@ -210,6 +210,14 @@ func (m *MonitorCollector) metricsList() []prometheus.Metric {
 	}
 }
 
+type cephTimeSyncStatus struct {
+	TimeChecks map[string]struct {
+		Health  string      `json:"health"`
+		Latency json.Number `json:"latency"`
+		Skew    json.Number `json:"skew"`
+	} `json:"time_skew_status"`
+}
+
 type cephMonitorStats struct {
 	Health struct {
 		Health struct {
@@ -249,6 +257,17 @@ func (m *MonitorCollector) collect() error {
 
 	stats := &cephMonitorStats{}
 	if err := json.Unmarshal(buf, stats); err != nil {
+		return err
+	}
+
+	cmd = m.cephTimeSyncStatusCommand()
+	buf, _, err = m.conn.MonCommand(cmd)
+	if err != nil {
+		return err
+	}
+
+	timeStats := &cephTimeSyncStatus{}
+	if err := json.Unmarshal(buf, timeStats); err != nil {
 		return err
 	}
 
@@ -318,6 +337,20 @@ func (m *MonitorCollector) collect() error {
 		m.Latency.WithLabelValues(monstat.Name).Set(latency)
 	}
 
+	for monNode, tstat := range timeStats.TimeChecks {
+		skew, err := tstat.Skew.Float64()
+		if err != nil {
+			return err
+		}
+		m.ClockSkew.WithLabelValues(monNode).Set(skew)
+
+		latency, err := tstat.Latency.Float64()
+		if err != nil {
+			return err
+		}
+		m.Latency.WithLabelValues(monNode).Set(latency)
+	}
+
 	m.NodesinQuorum.Set(float64(len(stats.Quorum)))
 
 	return nil
@@ -326,6 +359,19 @@ func (m *MonitorCollector) collect() error {
 func (m *MonitorCollector) cephUsageCommand() []byte {
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix": "status",
+		"format": "json",
+	})
+	if err != nil {
+		// panic! because ideally in no world this hard-coded input
+		// should fail.
+		panic(err)
+	}
+	return cmd
+}
+
+func (m *MonitorCollector) cephTimeSyncStatusCommand() []byte {
+	cmd, err := json.Marshal(map[string]interface{}{
+		"prefix": "time-sync-status",
 		"format": "json",
 	})
 	if err != nil {
