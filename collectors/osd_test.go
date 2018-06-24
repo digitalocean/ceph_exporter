@@ -310,6 +310,181 @@ func TestOSDCollector(t *testing.T) {
 				regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",osd="osd.23"} 2`),
 			},
 		},
+		{
+			input: `
+			{
+				"nodes": [],
+				"stray": [
+					{
+						"id": 524,
+						"name": "osd.524",
+						"type": "osd",
+						"type_id": 0,
+						"crush_weight": 0.000000,
+						"depth": 0,
+						"exists": 1,
+						"status": "destroyed",
+						"reweight": 0.000000,
+						"primary_affinity": 1.000000
+					}
+				]
+			}`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_osd_down{cluster="ceph",osd="osd.524",status="destroyed"} 1`),
+			},
+		},
+		{
+			input: `
+			{
+				"nodes": [],
+				"stray": [
+					{
+						"id": 524,
+						"name": "osd.524",
+						"type": "osd",
+						"type_id": 0,
+						"crush_weight": 0.000000,
+						"depth": 0,
+						"exists": 1,
+						"status": "down",
+						"reweight": 0.000000,
+						"primary_affinity": 1.000000
+					}
+				]
+			}`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_osd_down{cluster="ceph",osd="osd.524",status="down"} 1`),
+			},
+		},
+		{
+			input: `
+			{
+				"nodes": [
+					{
+						"id": -18,
+						"name": "data",
+						"type": "root",
+						"type_id": 10,
+						"children": [
+							-20
+						]
+					},
+					{
+						"id": -20,
+						"name": "R1-data",
+						"type": "rack",
+						"type_id": 3,
+						"pool_weights": {},
+						"children": [
+							-8
+						]
+					},
+					{
+						"id": -8,
+						"name": "test-data03-object01",
+						"type": "host",
+						"type_id": 1,
+						"pool_weights": {},
+						"children": [
+							97
+						]
+					},
+					{
+						"id": 524,
+						"device_class": "hdd",
+						"name": "osd.524",
+						"type": "osd",
+						"type_id": 0,
+						"crush_weight": 7.265991,
+						"depth": 3,
+						"pool_weights": {},
+						"exists": 1,
+						"status": "destroyed",
+						"reweight": 0.000000,
+						"primary_affinity": 1.000000
+					}
+				],
+				"stray": []
+			}`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_osd_down{cluster="ceph",osd="osd.524",status="destroyed"} 1`),
+			},
+		},
+		{
+			input: `
+			{
+				"nodes": [
+					{
+						"id": -18,
+						"name": "data",
+						"type": "root",
+						"type_id": 10,
+						"children": [
+							-20
+						]
+					},
+					{
+						"id": -20,
+						"name": "R1-data",
+						"type": "rack",
+						"type_id": 3,
+						"pool_weights": {},
+						"children": [
+							-8
+						]
+					},
+					{
+						"id": -8,
+						"name": "test-data03-object01",
+						"type": "host",
+						"type_id": 1,
+						"pool_weights": {},
+						"children": [
+							97
+						]
+					},
+					{
+						"id": 524,
+						"device_class": "hdd",
+						"name": "osd.524",
+						"type": "osd",
+						"type_id": 0,
+						"crush_weight": 7.265991,
+						"depth": 3,
+						"pool_weights": {},
+						"exists": 1,
+						"status": "destroyed",
+						"reweight": 0.000000,
+						"primary_affinity": 1.000000
+					}
+				],
+				"stray": [
+					{
+						"id": 525,
+						"name": "osd.525",
+						"type": "osd",
+						"type_id": 0,
+						"crush_weight": 0.000000,
+						"depth": 0,
+						"exists": 1,
+						"status": "down",
+						"reweight": 0.000000,
+						"primary_affinity": 1.000000
+					}
+				]
+			}`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_osd_down{cluster="ceph",osd="osd.524",status="destroyed"} 1`),
+				regexp.MustCompile(`ceph_osd_down{cluster="ceph",osd="osd.525",status="down"} 1`),
+			},
+		},
+		{
+			input: `
+			{
+				"nodes": []}}
+			}`,
+			regexes: []*regexp.Regexp{},
+		},
 	} {
 		func() {
 			collector := NewOSDCollector(NewNoopConn(tt.input), "ceph")
