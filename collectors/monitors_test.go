@@ -290,3 +290,124 @@ func TestMonitorCollector(t *testing.T) {
 		}()
 	}
 }
+
+func TestMonitorTimeSyncStats(t *testing.T) {
+	for _, tt := range []struct {
+		input   string
+		regexes []*regexp.Regexp
+	}{
+		{`
+            {
+                "time_skew_status": {
+                    "test-mon01": {
+                        "skew": 0.000022,
+                        "latency": 0.000677,
+                        "health": "HEALTH_OK"
+                    },
+                    "test-mon02": {
+                        "skew": 0.001051,
+                        "latency": 0.000682,
+                        "health": "HEALTH_OK"
+                    },
+                    "test-mon03": {
+                        "skew": 0.003029,
+                        "latency": 0.000582,
+                        "health": "HEALTH_OK"
+                    },
+                    "test-mon04": {
+                        "skew": 0.000330,
+                        "latency": 0.000667,
+                        "health": "HEALTH_OK"
+                    },
+                    "test-mon05": {
+                        "skew": 0.003682,
+                        "latency": 0.000667,
+                        "health": "HEALTH_OK"
+                    }
+                },
+                "timechecks": {
+                    "epoch": 84,
+                    "round": 69600,
+                    "round_status": "finished"
+                }
+            }            
+`,
+			[]*regexp.Regexp{
+				regexp.MustCompile(`ceph_monitor_clock_skew_seconds{cluster="ceph",monitor="test-mon01"} 2.2e\-05`),
+				regexp.MustCompile(`ceph_monitor_clock_skew_seconds{cluster="ceph",monitor="test-mon02"} 0.001051`),
+				regexp.MustCompile(`ceph_monitor_clock_skew_seconds{cluster="ceph",monitor="test-mon03"} 0.003029`),
+				regexp.MustCompile(`ceph_monitor_clock_skew_seconds{cluster="ceph",monitor="test-mon04"} 0.00033`),
+				regexp.MustCompile(`ceph_monitor_clock_skew_seconds{cluster="ceph",monitor="test-mon05"} 0.003682`),
+				regexp.MustCompile(`ceph_monitor_latency_seconds{cluster="ceph",monitor="test-mon01"} 0.000677`),
+				regexp.MustCompile(`ceph_monitor_latency_seconds{cluster="ceph",monitor="test-mon02"} 0.000682`),
+				regexp.MustCompile(`ceph_monitor_latency_seconds{cluster="ceph",monitor="test-mon03"} 0.000582`),
+				regexp.MustCompile(`ceph_monitor_latency_seconds{cluster="ceph",monitor="test-mon04"} 0.000667`),
+				regexp.MustCompile(`ceph_monitor_latency_seconds{cluster="ceph",monitor="test-mon05"} 0.000667`),
+			},
+		},
+		{`
+            {
+                "time_skew_status": {
+                    "test-mon01": {
+                        "skew": "wrong!",
+                        "latency": 0.000677,
+                        "health": "HEALTH_OK"
+                }
+            }            
+`,
+			[]*regexp.Regexp{},
+		},
+		{`
+            {
+                "time_skew_status": {
+                    "test-mon01": {
+                        "skew": 0.000334,
+                        "latency": "wrong!",
+                        "health": "HEALTH_OK"
+                }
+            }            
+`,
+			[]*regexp.Regexp{},
+		},
+		{`
+            {
+                "time_skew_status": {
+                    "test-mon01": {
+                        "skew"::: "0.000334",
+                        "latency"::: "0.000677",
+                        "health": "HEALTH_OK"
+                }
+            }            
+`,
+			[]*regexp.Regexp{},
+		},
+	} {
+		func() {
+			collector := NewMonitorCollector(NewNoopConn(tt.input), "ceph")
+			if err := prometheus.Register(collector); err != nil {
+				t.Fatalf("collector failed to register: %s", err)
+			}
+			defer prometheus.Unregister(collector)
+
+			server := httptest.NewServer(prometheus.Handler())
+			defer server.Close()
+
+			resp, err := http.Get(server.URL)
+			if err != nil {
+				t.Fatalf("unexpected failed response from prometheus: %s", err)
+			}
+			defer resp.Body.Close()
+
+			buf, err := ioutil.ReadAll(resp.Body)
+			if err != nil {
+				t.Fatalf("failed reading server response: %s", err)
+			}
+
+			for _, re := range tt.regexes {
+				if !re.Match(buf) {
+					t.Errorf("failed matching: %q", re)
+				}
+			}
+		}()
+	}
+}
