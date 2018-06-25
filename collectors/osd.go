@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"strings"
+
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 const (
@@ -77,6 +78,9 @@ type OSDCollector struct {
 
 	// OSDUp displays the Up state of the OSD
 	OSDUp *prometheus.GaugeVec
+
+	// OSDDownDesc displays OSDs present in the cluster in "down" state
+	OSDDownDesc *prometheus.Desc
 
 	// TotalBytes displays total bytes in all OSDs
 	TotalBytes prometheus.Gauge
@@ -269,6 +273,12 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 			},
 			[]string{"osd"},
 		),
+		OSDDownDesc: prometheus.NewDesc(
+			fmt.Sprintf("%s_osd_down", cephNamespace),
+			"No. of OSDs down in the cluster",
+			[]string{"osd", "status"},
+			labels,
+		),
 		ScrubbingStateDesc: prometheus.NewDesc(
 			fmt.Sprintf("%s_osd_scrub_state", cephNamespace),
 			"State of OSDs involved in a scrub",
@@ -340,7 +350,22 @@ type cephOSDDump struct {
 	} `json:"osds"`
 }
 
-func (o *OSDCollector) collect() error {
+type cephOSDTreeDown struct {
+	Nodes []struct {
+		ID     int64  `json:"id"`
+		Name   string `json:"name"`
+		Type   string `json:"type"`
+		Status string `json:"status"`
+	} `json:"nodes"`
+	Stray []struct {
+		ID     int64  `json:"id"`
+		Name   string `json:"name"`
+		Type   string `json:"type"`
+		Status string `json:"status"`
+	} `json:"stray"`
+}
+
+func (o *OSDCollector) collectOSDDF() error {
 	cmd := o.cephOSDDFCommand()
 
 	buf, _, err := o.conn.MonCommand(cmd)
@@ -493,6 +518,34 @@ func (o *OSDCollector) collectOSDPerf() error {
 	return nil
 }
 
+func (o *OSDCollector) collectOSDTreeDown(ch chan<- prometheus.Metric) error {
+	osdDownCmd := o.cephOSDTreeCommand("down")
+	buff, _, err := o.conn.MonCommand(osdDownCmd)
+	if err != nil {
+		log.Println("[ERROR] Unable to collect data from ceph osd tree down", err)
+		return err
+	}
+
+	osdDown := &cephOSDTreeDown{}
+	if err := json.Unmarshal(buff, osdDown); err != nil {
+		return err
+	}
+
+	downItems := append(osdDown.Nodes, osdDown.Stray...)
+
+	for _, downItem := range downItems {
+		if downItem.Type != "osd" {
+			continue
+		}
+
+		osdName := downItem.Name
+
+		ch <- prometheus.MustNewConstMetric(o.OSDDownDesc, prometheus.GaugeValue, 1, osdName, downItem.Status)
+	}
+
+	return nil
+}
+
 func (o *OSDCollector) collectOSDDump() error {
 	osdDumpCmd := o.cephOSDDump()
 	buff, _, err := o.conn.MonCommand(osdDumpCmd)
@@ -541,7 +594,6 @@ func (o *OSDCollector) collectOSDScrubState(ch chan<- prometheus.Metric) error {
 
 	stats := cephPGDumpBriefResponse{}
 	if err := json.Unmarshal(buf, &stats); err != nil {
-		log.Println("Unmarshal:", string(buf[:100]))
 		return err
 	}
 
@@ -610,6 +662,18 @@ func (o *OSDCollector) cephOSDPerfCommand() []byte {
 	return cmd
 }
 
+func (o *OSDCollector) cephOSDTreeCommand(states ...string) []byte {
+	cmd, err := json.Marshal(map[string]interface{}{
+		"prefix": "osd tree",
+		"states": states,
+		"format": "json",
+	})
+	if err != nil {
+		panic(err)
+	}
+	return cmd
+}
+
 func (o *OSDCollector) cephPGDumpCommand() []byte {
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix":       "pg dump",
@@ -644,7 +708,11 @@ func (o *OSDCollector) Collect(ch chan<- prometheus.Metric) {
 		log.Println("failed collecting osd dump:", err)
 	}
 
-	if err := o.collect(); err != nil {
+	if err := o.collectOSDDF(); err != nil {
+		log.Println("failed collecting osd metrics:", err)
+	}
+
+	if err := o.collectOSDTreeDown(ch); err != nil {
 		log.Println("failed collecting osd metrics:", err)
 	}
 
