@@ -33,7 +33,7 @@ RUN apt-get update && \
 RUN wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add -
 RUN echo "deb https://download.ceph.com/debian-luminous xenial main" >> /etc/apt/sources.list && \
     apt-get update && \
-    apt-get install -y --force-yes librados2 librbd1 && \
+    apt-get install -y --force-yes librados2 librbd1 ceph-common && \
     rm -rf /var/lib/apt/lists/*
 
 
