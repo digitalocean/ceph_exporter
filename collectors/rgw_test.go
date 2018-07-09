@@ -1,6 +1,7 @@
 package collectors
 
 import (
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -12,8 +13,9 @@ import (
 
 func TestRGWCollector(t *testing.T) {
 	for _, tt := range []struct {
-		input   []byte
-		regexes []*regexp.Regexp
+		input     []byte
+		reMatch   []*regexp.Regexp
+		reUnmatch []*regexp.Regexp
 	}{
 		{
 			input: []byte(`
@@ -80,7 +82,7 @@ func TestRGWCollector(t *testing.T) {
 	}
 ]
 `),
-			regexes: []*regexp.Regexp{
+			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_rgw_gc_active_tasks{cluster="ceph"} 2`),
 				regexp.MustCompile(`ceph_rgw_gc_active_objects{cluster="ceph"} 4`),
 				regexp.MustCompile(`ceph_rgw_gc_pending_tasks{cluster="ceph"} 1`),
@@ -89,18 +91,35 @@ func TestRGWCollector(t *testing.T) {
 		},
 		{
 			input: []byte(`[]`),
-			regexes: []*regexp.Regexp{
+			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_rgw_gc_active_tasks{cluster="ceph"} 0`),
 				regexp.MustCompile(`ceph_rgw_gc_active_objects{cluster="ceph"} 0`),
 				regexp.MustCompile(`ceph_rgw_gc_pending_tasks{cluster="ceph"} 0`),
 				regexp.MustCompile(`ceph_rgw_gc_pending_objects{cluster="ceph"} 0`),
 			},
 		},
+		{
+			// force an error return json deserialization
+			input: []byte(`[ { "bad-object": 17,,, ]`),
+			reUnmatch: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_rgw_gc`),
+			},
+		},
+		{
+			// force an error return from getRGWGCTaskList
+			input: nil,
+			reUnmatch: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_rgw_gc`),
+			},
+		},
 	} {
 		func() {
 			collector := NewRGWCollector("ceph", "")
 			collector.getRGWGCTaskList = func(cluster string) ([]byte, error) {
-				return tt.input, nil
+				if tt.input != nil {
+					return tt.input, nil
+				}
+				return nil, errors.New("fake error")
 			}
 
 			if err := prometheus.Register(collector); err != nil {
@@ -122,9 +141,15 @@ func TestRGWCollector(t *testing.T) {
 				t.Fatalf("failed reading server response: %s", err)
 			}
 
-			for _, re := range tt.regexes {
+			for _, re := range tt.reMatch {
 				if !re.Match(buf) {
 					t.Errorf("failed matching: %q", re)
+				}
+			}
+
+			for _, re := range tt.reUnmatch {
+				if re.Match(buf) {
+					t.Errorf("should not have matched %q", re)
 				}
 			}
 		}()

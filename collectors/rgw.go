@@ -10,8 +10,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-const RGWGCTimeFormat = "2006-01-02 15:04:05"
-const RAGOSGWAdminPath = "/usr/bin/radosgw-admin"
+const rgwGCTimeFormat = "2006-01-02 15:04:05"
+const radosgwAdminPath = "/usr/bin/radosgw-admin"
 
 type rgwTaskGC struct {
 	Tag     string `json:"tag"`
@@ -25,10 +25,10 @@ type rgwTaskGC struct {
 }
 
 // Expires returns the timestamp that this task will expire and become active
-func (gc rgwTaskGC) Expires() time.Time {
+func (gc rgwTaskGC) ExpiresAt() time.Time {
 	tmp := strings.SplitN(gc.Time, ".", 2)
 
-	last, err := time.Parse(RGWGCTimeFormat, tmp[0])
+	last, err := time.Parse(rgwGCTimeFormat, tmp[0])
 	if err != nil {
 		return time.Now()
 	}
@@ -42,12 +42,7 @@ func rgwGetGCTaskList(config string) ([]byte, error) {
 		err error
 	)
 
-	if out, err = exec.Command(RAGOSGWAdminPath, "-c", config, "gc", "list", "--include-all").Output(); err != nil {
-		if out != nil {
-			log.Println("out:", string(out))
-		} else {
-			log.Println("out: > nil")
-		}
+	if out, err = exec.Command(radosgwAdminPath, "-c", config, "gc", "list", "--include-all").Output(); err != nil {
 		return nil, err
 	}
 
@@ -59,12 +54,12 @@ type RGWCollector struct {
 	config string
 
 	// ActiveTasks reports the number of (expired) RGW GC tasks
-	ActiveTasks   *prometheus.GaugeVec
-	// ActiveTasks reports the total number of RGW GC objects contained in active tasks
+	ActiveTasks *prometheus.GaugeVec
+	// ActiveObjects reports the total number of RGW GC objects contained in active tasks
 	ActiveObjects *prometheus.GaugeVec
 
 	// PendingTasks reports the number of RGW GC tasks queued but not yet expired
-	PendingTasks   *prometheus.GaugeVec
+	PendingTasks *prometheus.GaugeVec
 	// PendingObjects reports the total number of RGW GC objects contained in pending tasks
 	PendingObjects *prometheus.GaugeVec
 
@@ -147,7 +142,7 @@ func (r *RGWCollector) collect() error {
 
 	now := time.Now()
 	for _, task := range tasks {
-		if now.Sub(task.Expires()) > 0 {
+		if now.Sub(task.ExpiresAt()) > 0 {
 			// timer expired these are active
 			activeTaskCount += 1
 			activeObjectCount += len(task.Objects)
