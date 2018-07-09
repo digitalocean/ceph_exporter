@@ -35,6 +35,8 @@ import (
 // specifically check if it hits EMFILE when doing an accept, and if so,
 // terminate the process.
 
+const keepAlive time.Duration = 3 * time.Minute
+
 type emfileAwareTcpListener struct {
 	*net.TCPListener
 }
@@ -52,7 +54,7 @@ func (ln emfileAwareTcpListener) Accept() (c net.Conn, err error) {
 		return
 	}
 	tc.SetKeepAlive(true)
-	tc.SetKeepAlivePeriod(3 * time.Minute)
+	tc.SetKeepAlivePeriod(keepAlive)
 	return tc, nil
 }
 
