@@ -57,6 +57,10 @@ type ClusterHealthCollector struct {
 	// TotalPGs shows the total no. of PGs the cluster constitutes of.
 	TotalPGs prometheus.Gauge
 
+	// ActivePGs shows the no. of PGs the cluster is actively serving data
+	// from.
+	ActivePGs prometheus.Gauge
+
 	// DegradedPGs shows the no. of PGs that have some of the replicas
 	// missing.
 	DegradedPGs prometheus.Gauge
@@ -206,6 +210,14 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 				Namespace:   cephNamespace,
 				Name:        "total_pgs",
 				Help:        "Total no. of PGs in the cluster",
+				ConstLabels: labels,
+			},
+		),
+		ActivePGs: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "active_pgs",
+				Help:        "No. of active PGs in the cluster",
 				ConstLabels: labels,
 			},
 		),
@@ -463,6 +475,7 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.HealthStatus,
 		c.TotalPGs,
 		c.DegradedPGs,
+		c.ActivePGs,
 		c.StuckDegradedPGs,
 		c.UncleanPGs,
 		c.StuckUncleanPGs,
@@ -722,6 +735,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 
 	var (
 		degradedPGs      float64
+		activePGs        float64
 		uncleanPGs       float64
 		undersizedPGs    float64
 		peeringPGs       float64
@@ -731,6 +745,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 
 		pgStateMap = map[string]*float64{
 			"degraded":       &degradedPGs,
+			"active":         &activePGs,
 			"unclean":        &uncleanPGs,
 			"undersized":     &undersizedPGs,
 			"peering":        &peeringPGs,
@@ -750,6 +765,9 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 
 	if *pgStateMap["degraded"] > 0 {
 		c.DegradedPGs.Set(*pgStateMap["degraded"])
+	}
+	if *pgStateMap["active"] > 0 {
+		c.ActivePGs.Set(*pgStateMap["active"])
 	}
 	if *pgStateMap["unclean"] > 0 {
 		c.UncleanPGs.Set(*pgStateMap["unclean"])

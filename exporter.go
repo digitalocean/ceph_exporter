@@ -18,8 +18,12 @@ package main
 import (
 	"flag"
 	"log"
+	"net"
 	"net/http"
+	"os"
 	"sync"
+	"syscall"
+	"time"
 
 	"github.com/ceph/go-ceph/rados"
 	"github.com/digitalocean/ceph_exporter/collectors"
@@ -31,6 +35,33 @@ const (
 	defaultCephClusterLabel = "ceph"
 	defaultCephConfigPath   = "/etc/ceph/ceph.conf"
 )
+
+// This horrible thing is a copy of tcpKeepAliveListener, tweaked to
+// specifically check if it hits EMFILE when doing an accept, and if so,
+// terminate the process.
+
+const keepAlive time.Duration = 3 * time.Minute
+
+type emfileAwareTcpListener struct {
+	*net.TCPListener
+}
+
+func (ln emfileAwareTcpListener) Accept() (c net.Conn, err error) {
+	tc, err := ln.AcceptTCP()
+	if err != nil {
+		if oerr, ok := err.(*net.OpError); ok {
+			if serr, ok := oerr.Err.(*os.SyscallError); ok && serr.Err == syscall.EMFILE {
+				// This calls os.Exit(1) and terminates the process
+				log.Fatalf("%v", err)
+			}
+		}
+		// Default return
+		return
+	}
+	tc.SetKeepAlive(true)
+	tc.SetKeepAlivePeriod(keepAlive)
+	return tc, nil
+}
 
 // CephExporter wraps all the ceph collectors and provides a single global
 // exporter to extracts metrics out of. It also ensures that the collection
@@ -167,7 +198,16 @@ func main() {
 	})
 
 	log.Printf("Starting ceph exporter on %q", *addr)
-	if err := http.ListenAndServe(*addr, nil); err != nil {
-		log.Fatalf("cannot start ceph exporter: %s", err)
+	// Below is essentially http.ListenAndServe(), but using our custom
+	// emfileAwareTcpListener that will die if we run out of file descriptors
+	ln, err := net.Listen("tcp", *addr)
+	if err == nil {
+		err := http.Serve(emfileAwareTcpListener{ln.(*net.TCPListener)}, nil)
+		if err != nil {
+			log.Fatalf("unable to serve requests: %s", err)
+		}
+	}
+	if err != nil {
+		log.Fatalf("unable to create listener: %s", err)
 	}
 }
