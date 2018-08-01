@@ -31,6 +31,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+const (
+	defaultCephClusterLabel = "ceph"
+	defaultCephConfigPath   = "/etc/ceph/ceph.conf"
+)
+
 // This horrible thing is a copy of tcpKeepAliveListener, tweaked to
 // specifically check if it hits EMFILE when doing an accept, and if so,
 // terminate the process.
@@ -74,8 +79,8 @@ var _ prometheus.Collector = &CephExporter{}
 // NewCephExporter creates an instance to CephExporter and returns a reference
 // to it. We can choose to enable a collector to extract stats out of by adding
 // it to the list of collectors.
-func NewCephExporter(conn *rados.Conn, cluster string) *CephExporter {
-	return &CephExporter{
+func NewCephExporter(conn *rados.Conn, cluster string, config string, withRGW bool) *CephExporter {
+	c := &CephExporter{
 		collectors: []prometheus.Collector{
 			collectors.NewClusterUsageCollector(conn, cluster),
 			collectors.NewPoolUsageCollector(conn, cluster),
@@ -84,6 +89,14 @@ func NewCephExporter(conn *rados.Conn, cluster string) *CephExporter {
 			collectors.NewOSDCollector(conn, cluster),
 		},
 	}
+
+	if withRGW {
+		c.collectors = append(c.collectors,
+			collectors.NewRGWCollector(cluster, config),
+		)
+	}
+
+	return c
 }
 
 // Describe sends all the descriptors of the collectors included to
@@ -112,6 +125,8 @@ func main() {
 		metricsPath = flag.String("telemetry.path", "/metrics", "URL path for surfacing collected metrics")
 		cephConfig  = flag.String("ceph.config", "", "path to ceph config file")
 		cephUser    = flag.String("ceph.user", "admin", "Ceph user to connect to cluster.")
+
+		withRGW = flag.Bool("with-rgw", false, "Enable collection of stats from RGW")
 
 		exporterConfig = flag.String("exporter.config", "/etc/ceph/exporter.yml", "Path to ceph exporter config.")
 	)
@@ -143,7 +158,7 @@ func main() {
 			defer conn.Shutdown()
 
 			log.Printf("Starting ceph exporter for cluster: %s", cluster.ClusterLabel)
-			err = prometheus.Register(NewCephExporter(conn, cluster.ClusterLabel))
+			err = prometheus.Register(NewCephExporter(conn, cluster.ClusterLabel, cluster.ConfigFile, *withRGW))
 			if err != nil {
 				log.Fatalf("cannot export cluster: %s error: %v", cluster.ClusterLabel, err)
 			}
@@ -168,7 +183,7 @@ func main() {
 		}
 		defer conn.Shutdown()
 
-		prometheus.MustRegister(NewCephExporter(conn, "ceph"))
+		prometheus.MustRegister(NewCephExporter(conn, defaultCephClusterLabel, defaultCephConfigPath, *withRGW))
 	}
 
 	http.Handle(*metricsPath, promhttp.Handler())
