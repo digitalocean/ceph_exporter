@@ -92,7 +92,7 @@ func NewCephExporter(conn *rados.Conn, cluster string, config string, withRGW bo
 
 	if withRGW {
 		c.collectors = append(c.collectors,
-			collectors.NewRGWCollector(cluster, config),
+			collectors.NewRGWCollector(cluster, config, true),
 		)
 	}
 

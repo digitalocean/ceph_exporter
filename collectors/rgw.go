@@ -51,7 +51,8 @@ func rgwGetGCTaskList(config string) ([]byte, error) {
 
 // RGWCollector collects metrics from the RGW service
 type RGWCollector struct {
-	config string
+	config     string
+	background bool
 
 	// ActiveTasks reports the number of (expired) RGW GC tasks
 	ActiveTasks *prometheus.GaugeVec
@@ -68,11 +69,12 @@ type RGWCollector struct {
 
 // NewRGWCollector creates an instance of the RGWCollector and instantiates
 // the individual metrics that we can collect from the RGW service
-func NewRGWCollector(cluster string, config string) *RGWCollector {
+func NewRGWCollector(cluster string, config string, background bool) *RGWCollector {
 	labels := make(prometheus.Labels)
 	labels["cluster"] = cluster
-	return &RGWCollector{
+	rgw := &RGWCollector{
 		config:           config,
+		background:       background,
 		getRGWGCTaskList: rgwGetGCTaskList,
 
 		ActiveTasks: prometheus.NewGaugeVec(
@@ -112,6 +114,14 @@ func NewRGWCollector(cluster string, config string) *RGWCollector {
 			[]string{},
 		),
 	}
+
+	if rgw.background {
+		// rgw stats need to be collected in the background as this can take a while
+		// if we have a large backlog
+		go rgw.backgroundCollect()
+	}
+
+	return rgw
 }
 
 func (r *RGWCollector) collectorList() []prometheus.Collector {
@@ -120,6 +130,16 @@ func (r *RGWCollector) collectorList() []prometheus.Collector {
 		r.ActiveObjects,
 		r.PendingTasks,
 		r.PendingObjects,
+	}
+}
+
+func (r *RGWCollector) backgroundCollect() error {
+	for {
+		err := r.collect()
+		if err != nil {
+			log.Println("Failed to collect RGW GC stats", err)
+		}
+		time.Sleep(time.Minute * 5)
 	}
 }
 
@@ -172,9 +192,11 @@ func (r *RGWCollector) Describe(ch chan<- *prometheus.Desc) {
 // Collect sends all the collected metrics to the provided prometheus channel.
 // It requires the caller to handle synchronization.
 func (r *RGWCollector) Collect(ch chan<- prometheus.Metric) {
-	err := r.collect()
-	if err != nil {
-		log.Println("Failed to collect RGW GC stats", err)
+	if !r.background {
+		err := r.collect()
+		if err != nil {
+			log.Println("Failed to collect RGW GC stats", err)
+		}
 	}
 
 	for _, metric := range r.collectorList() {
