@@ -12,6 +12,7 @@ import (
 
 const rgwGCTimeFormat = "2006-01-02 15:04:05"
 const radosgwAdminPath = "/usr/bin/radosgw-admin"
+const backgroundCollectInterval = time.Duration(5 * time.Minute)
 
 type rgwTaskGC struct {
 	Tag     string `json:"tag"`
@@ -139,7 +140,7 @@ func (r *RGWCollector) backgroundCollect() error {
 		if err != nil {
 			log.Println("Failed to collect RGW GC stats", err)
 		}
-		time.Sleep(time.Minute * 5)
+		time.Sleep(backgroundCollectInterval)
 	}
 }
 
