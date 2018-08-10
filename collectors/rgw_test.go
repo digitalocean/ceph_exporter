@@ -114,7 +114,7 @@ func TestRGWCollector(t *testing.T) {
 		},
 	} {
 		func() {
-			collector := NewRGWCollector("ceph", "")
+			collector := NewRGWCollector("ceph", "", false) // run in foreground for testing
 			collector.getRGWGCTaskList = func(cluster string) ([]byte, error) {
 				if tt.input != nil {
 					return tt.input, nil
