@@ -14,6 +14,12 @@ const rgwGCTimeFormat = "2006-01-02 15:04:05"
 const radosgwAdminPath = "/usr/bin/radosgw-admin"
 const backgroundCollectInterval = time.Duration(5 * time.Minute)
 
+const (
+	RGWModeDisabled   = 0
+	RGWModeForeground = 1
+	RGWModeBackground = 2
+)
+
 type rgwTaskGC struct {
 	Tag     string `json:"tag"`
 	Time    string `json:"time"`
