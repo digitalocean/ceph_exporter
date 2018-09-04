@@ -25,6 +25,9 @@ Name | Description | Default
 telemetry.addr | Host:Port pair to run exporter on | `*:9128`
 telemetry.path | URL Path for surfacing metrics to prometheus | `/metrics`
 ceph.config | Path to ceph configuration file | ""
+ceph.user | Ceph user to connect to cluster | `admin`
+exporter.config | Path to ceph_exporter configuration file | `/etc/ceph/exporter.yml`
+rgw.mode | Enable collection of stats from RGW (0:disabled 1:enabled 2:background) | `0`
 
 ## Installation
 
