@@ -700,6 +700,22 @@ func (o *OSDCollector) Describe(ch chan<- *prometheus.Desc) {
 // Collect sends all the collected metrics to the provided prometheus channel.
 // It requires the caller to handle synchronization.
 func (o *OSDCollector) Collect(ch chan<- prometheus.Metric) {
+
+        // Reset daemon specifc metrics; daemons can leave the cluster
+        o.CrushWeight.Reset()
+        o.Depth.Reset()
+        o.Reweight.Reset()
+        o.Bytes.Reset()
+        o.UsedBytes.Reset()
+        o.AvailBytes.Reset()
+        o.Utilization.Reset()
+        o.Variance.Reset()
+        o.Pgs.Reset()
+        o.CommitLatency.Reset()
+        o.ApplyLatency.Reset()
+        o.OSDIn.Reset()
+        o.OSDUp.Reset()
+
 	if err := o.collectOSDPerf(); err != nil {
 		log.Println("failed collecting osd perf stats:", err)
 	}

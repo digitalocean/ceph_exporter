@@ -210,6 +210,17 @@ func (p *PoolUsageCollector) collect() error {
 		return err
 	}
 
+        // Reset pool specfic metrics, pools can be removed
+        p.UsedBytes.Reset()
+        p.RawUsedBytes.Reset()
+        p.MaxAvail.Reset()
+        p.Objects.Reset()
+        p.DirtyObjects.Reset()
+        p.ReadIO.Reset()
+        p.ReadBytes.Reset()
+        p.WriteIO.Reset()
+        p.WriteBytes.Reset()
+
 	for _, pool := range stats.Pools {
 		p.UsedBytes.WithLabelValues(pool.Name).Set(pool.Stats.BytesUsed)
 		p.RawUsedBytes.WithLabelValues(pool.Name).Set(pool.Stats.RawBytesUsed)
