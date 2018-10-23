@@ -442,6 +442,42 @@ $ sudo ceph -s
 		{
 			input: `
 {
+  "health": {
+    "checks": {
+      "PG_DEGRADED": {
+        "severity": "HEALTH_WARN",
+        "summary": {
+          "message": "Degraded data redundancy: 154443937/17497658377 objects degraded (0.883%), 4886 pgs unclean, 4317 pgs degraded, 516 pgs undersized"
+        }
+      }
+    }
+  }
+}`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`degraded_objects{cluster="ceph"} 1.54443937e\+08`),
+			},
+		},
+		{
+			input: `
+{
+  "health": {
+    "checks": {
+      "OBJECT_MISPLACED": {
+        "severity": "HEALTH_WARN",
+        "summary": {
+          "message": "431295341/17497658377 objects misplaced (2.465%)"
+        }
+      }
+    }
+  }
+}`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`misplaced_objects{cluster="ceph"} 4.31295341e\+08`),
+			},
+		},
+		{
+			input: `
+{
   	"checks": {
 		"REQUEST_STUCK": {
 			"detail": [

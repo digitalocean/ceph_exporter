@@ -615,8 +615,8 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 		stuckStaleRegex          = regexp.MustCompile(`([\d]+) pgs stuck stale`)
 		slowRequestRegex         = regexp.MustCompile(`([\d]+) requests are blocked`)
 		slowRequestRegexLuminous = regexp.MustCompile(`([\d]+) slow requests are blocked`)
-		degradedObjectsRegex     = regexp.MustCompile(`recovery ([\d]+)/([\d]+) objects degraded`)
-		misplacedObjectsRegex    = regexp.MustCompile(`recovery ([\d]+)/([\d]+) objects misplaced`)
+		degradedObjectsRegex     = regexp.MustCompile(`([\d]+)/([\d]+) objects degraded`)
+		misplacedObjectsRegex    = regexp.MustCompile(`([\d]+)/([\d]+) objects misplaced`)
 	)
 
 	for _, s := range stats.Health.Summary {
@@ -729,6 +729,28 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 					return err
 				}
 				c.SlowRequests.Set(float64(v))
+			}
+		}
+
+		if k == "PG_DEGRADED" {
+			matched := degradedObjectsRegex.FindStringSubmatch(check.Summary.Message)
+			if len(matched) == 3 {
+				v, err := strconv.Atoi(matched[1])
+				if err != nil {
+					return err
+				}
+				c.DegradedObjectsCount.Set(float64(v))
+			}
+		}
+
+		if k == "OBJECT_MISPLACED" {
+			matched := misplacedObjectsRegex.FindStringSubmatch(check.Summary.Message)
+			if len(matched) == 3 {
+				v, err := strconv.Atoi(matched[1])
+				if err != nil {
+					return err
+				}
+				c.MisplacedObjectsCount.Set(float64(v))
 			}
 		}
 	}
