@@ -615,7 +615,35 @@ $ sudo ceph -s
 			{
 				"count": 10,
 				"state_name": "scrubbing+deep"
-			}
+			},
+            {
+                "state_name": "remapped+recovering",
+                "count": 5
+            },
+            {
+                "state_name": "active+remapped+backfilling",
+                "count": 2
+            },
+            {
+                "state_name": "recovery_wait+inconsistent",
+                "count": 2
+            },
+            {
+                "state_name": "recovery_wait+remapped",
+                "count": 1
+            },
+            {
+                "state_name": "active+undersized+remapped+backfill_wait",
+                "count": 1
+            },
+            {
+                "state_name": "active+undersized+remapped+backfill_wait+forced_backfill",
+                "count": 10
+            },
+            {
+                "state_name": "active+forced_recovery+undersized",
+                "count": 1
+            }
 		],
 		"num_pgs": 9208,
 		"num_pools": 29,
@@ -633,14 +661,20 @@ $ sudo ceph -s
 	}	
 }`,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`active_pgs{cluster="ceph"} 30`),
+				regexp.MustCompile(`active_pgs{cluster="ceph"} 44`),
 				regexp.MustCompile(`degraded_pgs{cluster="ceph"} 40`),
 				regexp.MustCompile(`unclean_pgs{cluster="ceph"} 30`),
-				regexp.MustCompile(`undersized_pgs{cluster="ceph"} 40`),
+				regexp.MustCompile(`undersized_pgs{cluster="ceph"} 52`),
 				regexp.MustCompile(`stale_pgs{cluster="ceph"} 30`),
 				regexp.MustCompile(`peering_pgs{cluster="ceph"} 10`),
 				regexp.MustCompile(`scrubbing_pgs{cluster="ceph"} 20`),
 				regexp.MustCompile(`deep_scrubbing_pgs{cluster="ceph"} 10`),
+				regexp.MustCompile(`recovering_pgs{cluster="ceph"} 5`),
+				regexp.MustCompile(`recovery_wait_pgs{cluster="ceph"} 3`),
+				regexp.MustCompile(`backfilling_pgs{cluster="ceph"} 2`),
+				regexp.MustCompile(`backfill_wait_pgs{cluster="ceph"} 11`),
+				regexp.MustCompile(`forced_recovery_pgs{cluster="ceph"} 1`),
+				regexp.MustCompile(`forced_backfill_pgs{cluster="ceph"} 10`),
 				regexp.MustCompile(`recovery_io_bytes{cluster="ceph"} 65536`),
 				regexp.MustCompile(`recovery_io_keys{cluster="ceph"} 25`),
 				regexp.MustCompile(`recovery_io_objects{cluster="ceph"} 140`),

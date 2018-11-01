@@ -106,6 +106,30 @@ type ClusterHealthCollector struct {
 	// Deep scrubbing reads the data and uses checksums to ensure data integrity.
 	DeepScrubbingPGs prometheus.Gauge
 
+	// RecoveringPGs depicts no. of PGs that are in recovering state.
+	// The PGs in this state have been dequeued from recovery_wait queue and are
+	// actively undergoing recovery.
+	RecoveringPGs prometheus.Gauge
+
+	// RecoveryWaitPGs depicts no. of PGs that are in recovery_wait state.
+	// The PGs in this state are still in queue to start recovery on them.
+	RecoveryWaitPGs prometheus.Gauge
+
+	// BackfillingPGs depicts no. of PGs that are in backfilling state.
+	// The PGs in this state have been dequeued from backfill_wait queue and are
+	// actively undergoing recovery.
+	BackfillingPGs prometheus.Gauge
+
+	// BackfillWaitPGs depicts no. of PGs that are in backfill_wait state.
+	// The PGs in this state are still in queue to start backfill on them.
+	BackfillWaitPGs prometheus.Gauge
+
+	// ForcedRecoveryPGs depicts no. of PGs that are undergoing forced recovery.
+	ForcedRecoveryPGs prometheus.Gauge
+
+	// ForcedBackfillPGs depicts no. of PGs that are undergoing forced backfill.
+	ForcedBackfillPGs prometheus.Gauge
+
 	// SlowRequests depicts no. of total slow requests in the cluster
 	// This stat exists only for backwards compatbility.
 	SlowRequests prometheus.Gauge
@@ -234,6 +258,54 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 				Namespace:   cephNamespace,
 				Name:        "deep_scrubbing_pgs",
 				Help:        "No. of deep scrubbing PGs in the cluster",
+				ConstLabels: labels,
+			},
+		),
+		RecoveringPGs: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "recovering_pgs",
+				Help:        "No. of recovering PGs in the cluster",
+				ConstLabels: labels,
+			},
+		),
+		RecoveryWaitPGs: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "recovery_wait_pgs",
+				Help:        "No. of PGs in the cluster with recovery_wait state",
+				ConstLabels: labels,
+			},
+		),
+		BackfillingPGs: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "backfilling_pgs",
+				Help:        "No. of backfilling PGs in the cluster",
+				ConstLabels: labels,
+			},
+		),
+		BackfillWaitPGs: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "backfill_wait_pgs",
+				Help:        "No. of PGs in the cluster with backfill_wait state",
+				ConstLabels: labels,
+			},
+		),
+		ForcedRecoveryPGs: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "forced_recovery_pgs",
+				Help:        "No. of PGs in the cluster with forced_recovery state",
+				ConstLabels: labels,
+			},
+		),
+		ForcedBackfillPGs: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "forced_backfill_pgs",
+				Help:        "No. of PGs in the cluster with forced_backfill state",
 				ConstLabels: labels,
 			},
 		),
@@ -486,6 +558,12 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.PeeringPGs,
 		c.ScrubbingPGs,
 		c.DeepScrubbingPGs,
+		c.RecoveringPGs,
+		c.RecoveryWaitPGs,
+		c.BackfillingPGs,
+		c.BackfillWaitPGs,
+		c.ForcedRecoveryPGs,
+		c.ForcedBackfillPGs,
 		c.SlowRequests,
 		c.DegradedObjectsCount,
 		c.MisplacedObjectsCount,
@@ -756,24 +834,36 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 	}
 
 	var (
-		degradedPGs      float64
-		activePGs        float64
-		uncleanPGs       float64
-		undersizedPGs    float64
-		peeringPGs       float64
-		stalePGs         float64
-		scrubbingPGs     float64
-		deepScrubbingPGs float64
+		degradedPGs       float64
+		activePGs         float64
+		uncleanPGs        float64
+		undersizedPGs     float64
+		peeringPGs        float64
+		stalePGs          float64
+		scrubbingPGs      float64
+		deepScrubbingPGs  float64
+		recoveringPGs     float64
+		recoveryWaitPGs   float64
+		backfillingPGs    float64
+		backfillWaitPGs   float64
+		forcedRecoveryPGs float64
+		forcedBackfillPGs float64
 
 		pgStateMap = map[string]*float64{
-			"degraded":       &degradedPGs,
-			"active":         &activePGs,
-			"unclean":        &uncleanPGs,
-			"undersized":     &undersizedPGs,
-			"peering":        &peeringPGs,
-			"stale":          &stalePGs,
-			"scrubbing":      &scrubbingPGs,
-			"scrubbing+deep": &deepScrubbingPGs,
+			"degraded":        &degradedPGs,
+			"active":          &activePGs,
+			"unclean":         &uncleanPGs,
+			"undersized":      &undersizedPGs,
+			"peering":         &peeringPGs,
+			"stale":           &stalePGs,
+			"scrubbing":       &scrubbingPGs,
+			"scrubbing+deep":  &deepScrubbingPGs,
+			"recovering":      &recoveringPGs,
+			"recovery_wait":   &recoveryWaitPGs,
+			"backfilling":     &backfillingPGs,
+			"backfill_wait":   &backfillWaitPGs,
+			"forced_recovery": &forcedRecoveryPGs,
+			"forced_backfill": &forcedBackfillPGs,
 		}
 	)
 
@@ -808,6 +898,24 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 	}
 	if *pgStateMap["scrubbing+deep"] > 0 {
 		c.DeepScrubbingPGs.Set(*pgStateMap["scrubbing+deep"])
+	}
+	if *pgStateMap["recovering"] > 0 {
+		c.RecoveringPGs.Set(*pgStateMap["recovering"])
+	}
+	if *pgStateMap["recovery_wait"] > 0 {
+		c.RecoveryWaitPGs.Set(*pgStateMap["recovery_wait"])
+	}
+	if *pgStateMap["backfilling"] > 0 {
+		c.BackfillingPGs.Set(*pgStateMap["backfilling"])
+	}
+	if *pgStateMap["backfill_wait"] > 0 {
+		c.BackfillWaitPGs.Set(*pgStateMap["backfill_wait"])
+	}
+	if *pgStateMap["forced_recovery"] > 0 {
+		c.ForcedRecoveryPGs.Set(*pgStateMap["forced_recovery"])
+	}
+	if *pgStateMap["forced_backfill"] > 0 {
+		c.ForcedBackfillPGs.Set(*pgStateMap["forced_backfill"])
 	}
 
 	c.ClientReadBytesPerSec.Set(stats.PGMap.ReadBytePerSec)
