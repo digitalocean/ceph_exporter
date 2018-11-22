@@ -641,6 +641,14 @@ $ sudo ceph -s
                 "count": 10
             },
             {
+                "state_name": "down",
+                "count": 6
+            },
+            {
+                "state_name": "down+remapped",
+                "count": 31
+            },
+            {
                 "state_name": "active+forced_recovery+undersized",
                 "count": 1
             }
@@ -675,6 +683,7 @@ $ sudo ceph -s
 				regexp.MustCompile(`backfill_wait_pgs{cluster="ceph"} 11`),
 				regexp.MustCompile(`forced_recovery_pgs{cluster="ceph"} 1`),
 				regexp.MustCompile(`forced_backfill_pgs{cluster="ceph"} 10`),
+				regexp.MustCompile(`down_pgs{cluster="ceph"} 37`),
 				regexp.MustCompile(`recovery_io_bytes{cluster="ceph"} 65536`),
 				regexp.MustCompile(`recovery_io_keys{cluster="ceph"} 25`),
 				regexp.MustCompile(`recovery_io_objects{cluster="ceph"} 140`),
