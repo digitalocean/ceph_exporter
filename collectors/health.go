@@ -130,6 +130,9 @@ type ClusterHealthCollector struct {
 	// ForcedBackfillPGs depicts no. of PGs that are undergoing forced backfill.
 	ForcedBackfillPGs prometheus.Gauge
 
+	// DownPGs depicts no. of PGs that are currently down and not able to serve traffic.
+	DownPGs prometheus.Gauge
+
 	// SlowRequests depicts no. of total slow requests in the cluster
 	// This stat exists only for backwards compatbility.
 	SlowRequests prometheus.Gauge
@@ -306,6 +309,14 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 				Namespace:   cephNamespace,
 				Name:        "forced_backfill_pgs",
 				Help:        "No. of PGs in the cluster with forced_backfill state",
+				ConstLabels: labels,
+			},
+		),
+		DownPGs: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "down_pgs",
+				Help:        "No. of PGs in the cluster in down state",
 				ConstLabels: labels,
 			},
 		),
@@ -564,6 +575,7 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.BackfillWaitPGs,
 		c.ForcedRecoveryPGs,
 		c.ForcedBackfillPGs,
+		c.DownPGs,
 		c.SlowRequests,
 		c.DegradedObjectsCount,
 		c.MisplacedObjectsCount,
@@ -848,6 +860,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 		backfillWaitPGs   float64
 		forcedRecoveryPGs float64
 		forcedBackfillPGs float64
+		downPGs           float64
 
 		pgStateMap = map[string]*float64{
 			"degraded":        &degradedPGs,
@@ -864,6 +877,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 			"backfill_wait":   &backfillWaitPGs,
 			"forced_recovery": &forcedRecoveryPGs,
 			"forced_backfill": &forcedBackfillPGs,
+			"down":            &downPGs,
 		}
 	)
 
@@ -916,6 +930,9 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 	}
 	if *pgStateMap["forced_backfill"] > 0 {
 		c.ForcedBackfillPGs.Set(*pgStateMap["forced_backfill"])
+	}
+	if *pgStateMap["down"] > 0 {
+		c.DownPGs.Set(*pgStateMap["down"])
 	}
 
 	c.ClientReadBytesPerSec.Set(stats.PGMap.ReadBytePerSec)
