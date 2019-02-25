@@ -152,6 +152,21 @@ type ClusterHealthCollector struct {
 	// This includes object replicas in its count.
 	MisplacedObjectsCount prometheus.Gauge
 
+	// OSDMapFlags
+	OSDMapFlagFull        prometheus.Gauge
+	OSDMapFlagPauseRd     prometheus.Gauge
+	OSDMapFlagPauseWr     prometheus.Gauge
+	OSDMapFlagNoUp        prometheus.Gauge
+	OSDMapFlagNoDown      prometheus.Gauge
+	OSDMapFlagNoIn        prometheus.Gauge
+	OSDMapFlagNoOut       prometheus.Gauge
+	OSDMapFlagNoBackfill  prometheus.Gauge
+	OSDMapFlagNoRecover   prometheus.Gauge
+	OSDMapFlagNoRebalance prometheus.Gauge
+	OSDMapFlagNoScrub     prometheus.Gauge
+	OSDMapFlagNoDeepScrub prometheus.Gauge
+	OSDMapFlagNoTierAgent prometheus.Gauge
+
 	// OSDsDown show the no. of OSDs that are in the DOWN state.
 	OSDsDown prometheus.Gauge
 
@@ -422,6 +437,110 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 				ConstLabels: labels,
 			},
 		),
+		OSDMapFlagFull: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "osdmap_flag_full",
+				Help:        "The cluster is flagged as full and cannot service writes",
+				ConstLabels: labels,
+			},
+		),
+		OSDMapFlagPauseRd: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "osdmap_flag_pauserd",
+				Help:        "Reads are paused",
+				ConstLabels: labels,
+			},
+		),
+		OSDMapFlagPauseWr: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "osdmap_flag_pausewr",
+				Help:        "Writes are paused",
+				ConstLabels: labels,
+			},
+		),
+		OSDMapFlagNoUp: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "osdmap_flag_noup",
+				Help:        "OSDs are not allowed to start",
+				ConstLabels: labels,
+			},
+		),
+		OSDMapFlagNoDown: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "osdmap_flag_nodown",
+				Help:        "OSD failure reports are ignored, OSDs will not be marked as down",
+				ConstLabels: labels,
+			},
+		),
+		OSDMapFlagNoIn: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "osdmap_flag_noin",
+				Help:        "OSDs that are out will not be automatically marked in",
+				ConstLabels: labels,
+			},
+		),
+		OSDMapFlagNoOut: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "osdmap_flag_noout",
+				Help:        "OSDs will not be automatically marked out after the configured interval",
+				ConstLabels: labels,
+			},
+		),
+		OSDMapFlagNoBackfill: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "osdmap_flag_nobackfill",
+				Help:        "OSDs will not be backfilled",
+				ConstLabels: labels,
+			},
+		),
+		OSDMapFlagNoRecover: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "osdmap_flag_norecover",
+				Help:        "Recovery is suspended",
+				ConstLabels: labels,
+			},
+		),
+		OSDMapFlagNoRebalance: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "osdmap_flag_norebalance",
+				Help:        "Data rebalancing is suspended",
+				ConstLabels: labels,
+			},
+		),
+		OSDMapFlagNoScrub: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "osdmap_flag_noscrub",
+				Help:        "Scrubbing is disabled",
+				ConstLabels: labels,
+			},
+		),
+		OSDMapFlagNoDeepScrub: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "osdmap_flag_nodeep_scrub",
+				Help:        "Deep scrubbing is disabled",
+				ConstLabels: labels,
+			},
+		),
+		OSDMapFlagNoTierAgent: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "osdmap_flag_notieragent",
+				Help:        "Cache tiering activity is suspended",
+				ConstLabels: labels,
+			},
+		),
 		OSDsDown: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace:   cephNamespace,
@@ -579,6 +698,19 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.SlowRequests,
 		c.DegradedObjectsCount,
 		c.MisplacedObjectsCount,
+		c.OSDMapFlagFull,
+		c.OSDMapFlagPauseRd,
+		c.OSDMapFlagPauseWr,
+		c.OSDMapFlagNoUp,
+		c.OSDMapFlagNoDown,
+		c.OSDMapFlagNoIn,
+		c.OSDMapFlagNoOut,
+		c.OSDMapFlagNoBackfill,
+		c.OSDMapFlagNoRecover,
+		c.OSDMapFlagNoRebalance,
+		c.OSDMapFlagNoScrub,
+		c.OSDMapFlagNoDeepScrub,
+		c.OSDMapFlagNoTierAgent,
 		c.OSDsDown,
 		c.OSDsUp,
 		c.OSDsIn,
@@ -707,6 +839,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 		slowRequestRegexLuminous = regexp.MustCompile(`([\d]+) slow requests are blocked`)
 		degradedObjectsRegex     = regexp.MustCompile(`([\d]+)/([\d]+) objects degraded`)
 		misplacedObjectsRegex    = regexp.MustCompile(`([\d]+)/([\d]+) objects misplaced`)
+		osdmapFlagsRegex         = regexp.MustCompile(`([^ ]+) flag\(s\) set`)
 	)
 
 	for _, s := range stats.Health.Summary {
@@ -841,6 +974,43 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 					return err
 				}
 				c.MisplacedObjectsCount.Set(float64(v))
+			}
+		}
+
+		if k == "OSDMAP_FLAGS" {
+			matched := osdmapFlagsRegex.FindStringSubmatch(check.Summary.Message)
+			if len(matched) > 0 {
+				flags := strings.Split(matched[1], ",")
+				for _, f := range flags {
+					switch f {
+					case "full":
+						c.OSDMapFlagFull.Set(1)
+					case "pauserd":
+						c.OSDMapFlagPauseRd.Set(1)
+					case "pausewr":
+						c.OSDMapFlagPauseWr.Set(1)
+					case "noup":
+						c.OSDMapFlagNoUp.Set(1)
+					case "nodown":
+						c.OSDMapFlagNoDown.Set(1)
+					case "noin":
+						c.OSDMapFlagNoIn.Set(1)
+					case "noout":
+						c.OSDMapFlagNoOut.Set(1)
+					case "nobackfill":
+						c.OSDMapFlagNoBackfill.Set(1)
+					case "norecover":
+						c.OSDMapFlagNoRecover.Set(1)
+					case "norebalance":
+						c.OSDMapFlagNoRebalance.Set(1)
+					case "noscrub":
+						c.OSDMapFlagNoScrub.Set(1)
+					case "nodeep_scrub":
+						c.OSDMapFlagNoDeepScrub.Set(1)
+					case "notieragent":
+						c.OSDMapFlagNoTierAgent.Set(1)
+					}
+				}
 			}
 		}
 	}

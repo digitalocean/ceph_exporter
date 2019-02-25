@@ -575,6 +575,36 @@ $ sudo ceph -s
 		{
 			input: `
 {
+  "health": {
+    "checks": {
+      "OSDMAP_FLAGS": {
+        "severity": "HEALTH_WARN",
+        "summary": {
+            "message": "pauserd,pausewr,noout,noin,norecover,noscrub,notieragent flag(s) set; mon 482f68d873d2 is low on available space"
+	}
+      }
+    }
+  }
+}`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`osdmap_flag_full{cluster="ceph"} 0`),
+				regexp.MustCompile(`osdmap_flag_pauserd{cluster="ceph"} 1`),
+				regexp.MustCompile(`osdmap_flag_pausewr{cluster="ceph"} 1`),
+				regexp.MustCompile(`osdmap_flag_noup{cluster="ceph"} 0`),
+				regexp.MustCompile(`osdmap_flag_nodown{cluster="ceph"} 0`),
+				regexp.MustCompile(`osdmap_flag_noin{cluster="ceph"} 1`),
+				regexp.MustCompile(`osdmap_flag_noout{cluster="ceph"} 1`),
+				regexp.MustCompile(`osdmap_flag_nobackfill{cluster="ceph"} 0`),
+				regexp.MustCompile(`osdmap_flag_norecover{cluster="ceph"} 1`),
+				regexp.MustCompile(`osdmap_flag_norebalance{cluster="ceph"} 0`),
+				regexp.MustCompile(`osdmap_flag_noscrub{cluster="ceph"} 1`),
+				regexp.MustCompile(`osdmap_flag_nodeep_scrub{cluster="ceph"} 0`),
+				regexp.MustCompile(`osdmap_flag_notieragent{cluster="ceph"} 1`),
+			},
+		},
+		{
+			input: `
+{
 	"pgmap": {
 		"write_op_per_sec": 500,
 		"read_op_per_sec": 1000,
