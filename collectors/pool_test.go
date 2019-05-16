@@ -35,7 +35,7 @@ func TestPoolInfoCollector(t *testing.T) {
 		{
 			input: `
 [
-	{"pool_name": "rbd", "size": 3, "min_size": 2, "pg_num": 8192, "pg_placement_num": 8192, "quota_max_bytes": 1024, "quota_max_bytes": 2048, "erasure_code_profile": "ec-4-2", "stripe_width": 4096}
+	{"pool_name": "rbd", "size": 3, "min_size": 2, "pg_num": 8192, "pg_placement_num": 8192, "quota_max_bytes": 1024, "quota_max_objects": 2048, "erasure_code_profile": "ec-4-2", "stripe_width": 4096}
 ]`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`pool_size{cluster="ceph",pool="rbd",profile="ec-4-2"} 3`),

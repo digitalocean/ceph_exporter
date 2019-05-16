@@ -9,10 +9,10 @@
 			"revisionTime": "2016-08-04T10:47:26Z"
 		},
 		{
-			"checksumSHA1": "OWGsuQJPoyM3SS3BiepIXF6OGE8=",
+			"checksumSHA1": "xtGHr0VKyiZ6ao/z7zOIDkCekpg=",
 			"path": "github.com/ceph/go-ceph/rados",
-			"revision": "25b1a318b3872325bccb2cd2afad001c11b9bf4f",
-			"revisionTime": "2017-01-20T17:47:55Z"
+			"revision": "e32f9f0f2e941422937c0a6c4f0a61b8f0c82995",
+			"revisionTime": "2018-12-17T22:15:54Z"
 		},
 		{
 			"checksumSHA1": "kBeNcaKk56FguvPSUCEaH6AxpRc=",
