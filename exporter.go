@@ -84,6 +84,7 @@ func NewCephExporter(conn *rados.Conn, cluster string, config string, rgwMode in
 		collectors: []prometheus.Collector{
 			collectors.NewClusterUsageCollector(conn, cluster),
 			collectors.NewPoolUsageCollector(conn, cluster),
+			collectors.NewPoolInfoCollector(conn, cluster),
 			collectors.NewClusterHealthCollector(conn, cluster),
 			collectors.NewMonitorCollector(conn, cluster),
 			collectors.NewOSDCollector(conn, cluster),
