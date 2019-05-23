@@ -137,6 +137,10 @@ type ClusterHealthCollector struct {
 	// This stat exists only for backwards compatbility.
 	SlowRequests prometheus.Gauge
 
+	// StuckRequests depicts no. of total requests in the cluster
+	// that haven't been served for over an hour.
+	StuckRequests prometheus.Gauge
+
 	// SlowRequestsByOSDDesc depicts no. of total slow requests in the cluster
 	// labelled by OSD.
 	SlowRequestsByOSDDesc *prometheus.Desc
@@ -340,6 +344,14 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 				Namespace:   cephNamespace,
 				Name:        "slow_requests",
 				Help:        "No. of slow requests",
+				ConstLabels: labels,
+			},
+		),
+		StuckRequests: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "stuck_requests",
+				Help:        "No. of stuck requests",
 				ConstLabels: labels,
 			},
 		),
@@ -696,6 +708,7 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.ForcedBackfillPGs,
 		c.DownPGs,
 		c.SlowRequests,
+		c.StuckRequests,
 		c.DegradedObjectsCount,
 		c.MisplacedObjectsCount,
 		c.OSDMapFlagFull,
@@ -827,19 +840,20 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 	}
 
 	var (
-		degradedRegex            = regexp.MustCompile(`([\d]+) pgs degraded`)
-		stuckDegradedRegex       = regexp.MustCompile(`([\d]+) pgs stuck degraded`)
-		uncleanRegex             = regexp.MustCompile(`([\d]+) pgs unclean`)
-		stuckUncleanRegex        = regexp.MustCompile(`([\d]+) pgs stuck unclean`)
-		undersizedRegex          = regexp.MustCompile(`([\d]+) pgs undersized`)
-		stuckUndersizedRegex     = regexp.MustCompile(`([\d]+) pgs stuck undersized`)
-		staleRegex               = regexp.MustCompile(`([\d]+) pgs stale`)
-		stuckStaleRegex          = regexp.MustCompile(`([\d]+) pgs stuck stale`)
-		slowRequestRegex         = regexp.MustCompile(`([\d]+) requests are blocked`)
-		slowRequestRegexLuminous = regexp.MustCompile(`([\d]+) slow requests are blocked`)
-		degradedObjectsRegex     = regexp.MustCompile(`([\d]+)/([\d]+) objects degraded`)
-		misplacedObjectsRegex    = regexp.MustCompile(`([\d]+)/([\d]+) objects misplaced`)
-		osdmapFlagsRegex         = regexp.MustCompile(`([^ ]+) flag\(s\) set`)
+		degradedRegex             = regexp.MustCompile(`([\d]+) pgs degraded`)
+		stuckDegradedRegex        = regexp.MustCompile(`([\d]+) pgs stuck degraded`)
+		uncleanRegex              = regexp.MustCompile(`([\d]+) pgs unclean`)
+		stuckUncleanRegex         = regexp.MustCompile(`([\d]+) pgs stuck unclean`)
+		undersizedRegex           = regexp.MustCompile(`([\d]+) pgs undersized`)
+		stuckUndersizedRegex      = regexp.MustCompile(`([\d]+) pgs stuck undersized`)
+		staleRegex                = regexp.MustCompile(`([\d]+) pgs stale`)
+		stuckStaleRegex           = regexp.MustCompile(`([\d]+) pgs stuck stale`)
+		slowRequestRegex          = regexp.MustCompile(`([\d]+) requests are blocked`)
+		slowRequestRegexLuminous  = regexp.MustCompile(`([\d]+) slow requests are blocked`)
+		stuckRequestRegexLuminous = regexp.MustCompile(`([\d]+) stuck requests are blocked`)
+		degradedObjectsRegex      = regexp.MustCompile(`([\d]+)/([\d]+) objects degraded`)
+		misplacedObjectsRegex     = regexp.MustCompile(`([\d]+)/([\d]+) objects misplaced`)
+		osdmapFlagsRegex          = regexp.MustCompile(`([^ ]+) flag\(s\) set`)
 	)
 
 	for _, s := range stats.Health.Summary {
@@ -952,6 +966,17 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 					return err
 				}
 				c.SlowRequests.Set(float64(v))
+			}
+		}
+
+		if k == "REQUEST_STUCK" {
+			matched := stuckRequestRegexLuminous.FindStringSubmatch(check.Summary.Message)
+			if len(matched) == 2 {
+				v, err := strconv.Atoi(matched[1])
+				if err != nil {
+					return err
+				}
+				c.StuckRequests.Set(float64(v))
 			}
 		}
 

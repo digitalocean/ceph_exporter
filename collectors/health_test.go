@@ -444,6 +444,24 @@ $ sudo ceph -s
 {
   "health": {
     "checks": {
+      "REQUEST_STUCK": {
+        "severity": "HEALTH_ERR",
+        "summary": {
+          "message": "125 stuck requests are blocked > 4194.3 sec"
+        }
+      }
+    }
+  }
+}`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`stuck_requests{cluster="ceph"} 125`),
+			},
+		},
+		{
+			input: `
+{
+  "health": {
+    "checks": {
       "PG_DEGRADED": {
         "severity": "HEALTH_WARN",
         "summary": {
