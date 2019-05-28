@@ -232,19 +232,35 @@ func TestOSDCollector(t *testing.T) {
             "osd": 2,
             "uuid": "ca9ab3de",
             "up": 1,
-            "in": 1
+            "in": 1,
+            "state": [
+                "nearfull",
+                "exists",
+                "up"
+            ]
         },
         {
             "osd": 3,
             "uuid": "bef98b10",
             "up": 1,
-            "in": 1
+            "in": 1,
+            "state": [
+                "full",
+                "backfillfull",
+                "exists",
+                "up"
+            ]
         },
         {
             "osd": 4,
             "uuid": "5936c9e8",
             "up": 0,
-            "in": 0
+            "in": 0,
+            "state": [
+                "backfillfull",
+                "exists",
+                "up"
+            ]
         }
     ]
 }
@@ -260,6 +276,21 @@ func TestOSDCollector(t *testing.T) {
 				regexp.MustCompile(`ceph_osd_up{cluster="ceph",osd="osd.2"} 1`),
 				regexp.MustCompile(`ceph_osd_up{cluster="ceph",osd="osd.3"} 1`),
 				regexp.MustCompile(`ceph_osd_up{cluster="ceph",osd="osd.4"} 0`),
+				regexp.MustCompile(`ceph_osd_full{cluster="ceph",osd="osd.0"} 0`),
+				regexp.MustCompile(`ceph_osd_full{cluster="ceph",osd="osd.1"} 0`),
+				regexp.MustCompile(`ceph_osd_full{cluster="ceph",osd="osd.2"} 0`),
+				regexp.MustCompile(`ceph_osd_full{cluster="ceph",osd="osd.3"} 1`),
+				regexp.MustCompile(`ceph_osd_full{cluster="ceph",osd="osd.4"} 0`),
+				regexp.MustCompile(`ceph_osd_near_full{cluster="ceph",osd="osd.0"} 0`),
+				regexp.MustCompile(`ceph_osd_near_full{cluster="ceph",osd="osd.1"} 0`),
+				regexp.MustCompile(`ceph_osd_near_full{cluster="ceph",osd="osd.2"} 1`),
+				regexp.MustCompile(`ceph_osd_near_full{cluster="ceph",osd="osd.3"} 0`),
+				regexp.MustCompile(`ceph_osd_near_full{cluster="ceph",osd="osd.4"} 0`),
+				regexp.MustCompile(`ceph_osd_backfill_full{cluster="ceph",osd="osd.0"} 0`),
+				regexp.MustCompile(`ceph_osd_backfill_full{cluster="ceph",osd="osd.1"} 0`),
+				regexp.MustCompile(`ceph_osd_backfill_full{cluster="ceph",osd="osd.2"} 0`),
+				regexp.MustCompile(`ceph_osd_backfill_full{cluster="ceph",osd="osd.3"} 1`),
+				regexp.MustCompile(`ceph_osd_backfill_full{cluster="ceph",osd="osd.4"} 1`),
 			},
 		},
 		{
