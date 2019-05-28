@@ -79,6 +79,15 @@ type OSDCollector struct {
 	// OSDUp displays the Up state of the OSD
 	OSDUp *prometheus.GaugeVec
 
+	// OSDFull flags if an osd is full
+	OSDFull *prometheus.GaugeVec
+
+	// OSDNearfull flags if an osd is near full
+	OSDNearFull *prometheus.GaugeVec
+
+	// OSDBackfillFull flags if an osd is backfill full
+	OSDBackfillFull *prometheus.GaugeVec
+
 	// OSDDownDesc displays OSDs present in the cluster in "down" state
 	OSDDownDesc *prometheus.Desc
 
@@ -273,6 +282,37 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 			},
 			[]string{"osd"},
 		),
+
+		OSDFull: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "osd_full",
+				Help:        "OSD Full Status",
+				ConstLabels: labels,
+			},
+			[]string{"osd"},
+		),
+
+		OSDNearFull: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "osd_near_full",
+				Help:        "OSD Near Full Status",
+				ConstLabels: labels,
+			},
+			[]string{"osd"},
+		),
+
+		OSDBackfillFull: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "osd_backfill_full",
+				Help:        "OSD Backfill Full Status",
+				ConstLabels: labels,
+			},
+			[]string{"osd"},
+		),
+
 		OSDDownDesc: prometheus.NewDesc(
 			fmt.Sprintf("%s_osd_down", cephNamespace),
 			"No. of OSDs down in the cluster",
@@ -307,6 +347,9 @@ func (o *OSDCollector) collectorList() []prometheus.Collector {
 		o.ApplyLatency,
 		o.OSDIn,
 		o.OSDUp,
+		o.OSDFull,
+		o.OSDNearFull,
+		o.OSDBackfillFull,
 	}
 }
 
@@ -344,9 +387,10 @@ type cephPerfStat struct {
 
 type cephOSDDump struct {
 	OSDs []struct {
-		OSD json.Number `json:"osd"`
-		Up  json.Number `json:"up"`
-		In  json.Number `json:"in"`
+		OSD   json.Number `json:"osd"`
+		Up    json.Number `json:"up"`
+		In    json.Number `json:"in"`
+		State []string    `json:"state"`
 	} `json:"osds"`
 }
 
@@ -579,6 +623,20 @@ func (o *OSDCollector) collectOSDDump() error {
 		}
 
 		o.OSDUp.WithLabelValues(osdName).Set(up)
+
+		o.OSDFull.WithLabelValues(osdName).Set(0)
+		o.OSDNearFull.WithLabelValues(osdName).Set(0)
+		o.OSDBackfillFull.WithLabelValues(osdName).Set(0)
+		for _, state := range dumpInfo.State {
+			switch state {
+			case "full":
+				o.OSDFull.WithLabelValues(osdName).Set(1)
+			case "nearfull":
+				o.OSDNearFull.WithLabelValues(osdName).Set(1)
+			case "backfillfull":
+				o.OSDBackfillFull.WithLabelValues(osdName).Set(1)
+			}
+		}
 	}
 
 	return nil
@@ -701,20 +759,20 @@ func (o *OSDCollector) Describe(ch chan<- *prometheus.Desc) {
 // It requires the caller to handle synchronization.
 func (o *OSDCollector) Collect(ch chan<- prometheus.Metric) {
 
-        // Reset daemon specifc metrics; daemons can leave the cluster
-        o.CrushWeight.Reset()
-        o.Depth.Reset()
-        o.Reweight.Reset()
-        o.Bytes.Reset()
-        o.UsedBytes.Reset()
-        o.AvailBytes.Reset()
-        o.Utilization.Reset()
-        o.Variance.Reset()
-        o.Pgs.Reset()
-        o.CommitLatency.Reset()
-        o.ApplyLatency.Reset()
-        o.OSDIn.Reset()
-        o.OSDUp.Reset()
+	// Reset daemon specifc metrics; daemons can leave the cluster
+	o.CrushWeight.Reset()
+	o.Depth.Reset()
+	o.Reweight.Reset()
+	o.Bytes.Reset()
+	o.UsedBytes.Reset()
+	o.AvailBytes.Reset()
+	o.Utilization.Reset()
+	o.Variance.Reset()
+	o.Pgs.Reset()
+	o.CommitLatency.Reset()
+	o.ApplyLatency.Reset()
+	o.OSDIn.Reset()
+	o.OSDUp.Reset()
 
 	if err := o.collectOSDPerf(); err != nil {
 		log.Println("failed collecting osd perf stats:", err)
