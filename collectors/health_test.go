@@ -473,6 +473,7 @@ $ sudo ceph -s
 }`,
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`degraded_objects{cluster="ceph"} 1.54443937e\+08`),
+				regexp.MustCompile(`unclean_pgs{cluster="ceph"} 4886`),
 			},
 		},
 		{
