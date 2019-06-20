@@ -989,6 +989,14 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 				}
 				c.DegradedObjectsCount.Set(float64(v))
 			}
+			matched = uncleanRegex.FindStringSubmatch(check.Summary.Message)
+			if len(matched) == 2 {
+				v, err := strconv.Atoi(matched[1])
+				if err != nil {
+					return err
+				}
+				c.UncleanPGs.Set(float64(v))
+			}
 		}
 
 		if k == "OBJECT_MISPLACED" {
