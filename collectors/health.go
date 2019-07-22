@@ -57,6 +57,9 @@ type ClusterHealthCollector struct {
 	// TotalPGs shows the total no. of PGs the cluster constitutes of.
 	TotalPGs prometheus.Gauge
 
+	// PGstate contains state of all PGs labelled with the name of states.
+	PGState *prometheus.GaugeVec
+
 	// ActivePGs shows the no. of PGs the cluster is actively serving data
 	// from.
 	ActivePGs prometheus.Gauge
@@ -258,6 +261,15 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 				Help:        "Total no. of PGs in the cluster",
 				ConstLabels: labels,
 			},
+		),
+		PGState: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "pg_state",
+				Help:        "State of PGs in the cluster",
+				ConstLabels: labels,
+			},
+			[]string{"state"},
 		),
 		ActivePGs: prometheus.NewGauge(
 			prometheus.GaugeOpts{
@@ -743,6 +755,12 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 	}
 }
 
+func (c *ClusterHealthCollector) collectorList() []prometheus.Collector {
+	return []prometheus.Collector{
+		c.PGState,
+	}
+}
+
 type cephHealthStats struct {
 	Health struct {
 		Summary []struct {
@@ -1094,48 +1112,64 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 
 	if *pgStateMap["degraded"] > 0 {
 		c.DegradedPGs.Set(*pgStateMap["degraded"])
+		c.PGState.WithLabelValues("degraded").Set(*pgStateMap["degraded"])
 	}
 	if *pgStateMap["active"] > 0 {
 		c.ActivePGs.Set(*pgStateMap["active"])
+		c.PGState.WithLabelValues("active").Set(*pgStateMap["active"])
 	}
 	if *pgStateMap["unclean"] > 0 {
 		c.UncleanPGs.Set(*pgStateMap["unclean"])
+		c.PGState.WithLabelValues("unclean").Set(*pgStateMap["unclean"])
 	}
 	if *pgStateMap["undersized"] > 0 {
 		c.UndersizedPGs.Set(*pgStateMap["undersized"])
+		c.PGState.WithLabelValues("undersized").Set(*pgStateMap["undersized"])
 	}
 	if *pgStateMap["peering"] > 0 {
 		c.PeeringPGs.Set(*pgStateMap["peering"])
+		c.PGState.WithLabelValues("peering").Set(*pgStateMap["peering"])
 	}
 	if *pgStateMap["stale"] > 0 {
 		c.StalePGs.Set(*pgStateMap["stale"])
+		c.PGState.WithLabelValues("stale").Set(*pgStateMap["stale"])
 	}
 	if *pgStateMap["scrubbing"] > 0 {
-		c.ScrubbingPGs.Set(*pgStateMap["scrubbing"] - *pgStateMap["scrubbing+deep"])
+		onlyScrubbing := *pgStateMap["scrubbing"] - *pgStateMap["scrubbing+deep"]
+		c.ScrubbingPGs.Set(onlyScrubbing)
+		c.PGState.WithLabelValues("scrubbing").Set(onlyScrubbing)
 	}
 	if *pgStateMap["scrubbing+deep"] > 0 {
 		c.DeepScrubbingPGs.Set(*pgStateMap["scrubbing+deep"])
+		c.PGState.WithLabelValues("deep_scrubbing").Set(*pgStateMap["scrubbing+deep"])
 	}
 	if *pgStateMap["recovering"] > 0 {
 		c.RecoveringPGs.Set(*pgStateMap["recovering"])
+		c.PGState.WithLabelValues("recovering").Set(*pgStateMap["recovering"])
 	}
 	if *pgStateMap["recovery_wait"] > 0 {
 		c.RecoveryWaitPGs.Set(*pgStateMap["recovery_wait"])
+		c.PGState.WithLabelValues("recovery_wait").Set(*pgStateMap["recovery_wait"])
 	}
 	if *pgStateMap["backfilling"] > 0 {
 		c.BackfillingPGs.Set(*pgStateMap["backfilling"])
+		c.PGState.WithLabelValues("backfilling").Set(*pgStateMap["backfilling"])
 	}
 	if *pgStateMap["backfill_wait"] > 0 {
 		c.BackfillWaitPGs.Set(*pgStateMap["backfill_wait"])
+		c.PGState.WithLabelValues("backfill_wait").Set(*pgStateMap["backfill_wait"])
 	}
 	if *pgStateMap["forced_recovery"] > 0 {
 		c.ForcedRecoveryPGs.Set(*pgStateMap["forced_recovery"])
+		c.PGState.WithLabelValues("forced_recovery").Set(*pgStateMap["forced_recovery"])
 	}
 	if *pgStateMap["forced_backfill"] > 0 {
 		c.ForcedBackfillPGs.Set(*pgStateMap["forced_backfill"])
+		c.PGState.WithLabelValues("forced_backfill").Set(*pgStateMap["forced_backfill"])
 	}
 	if *pgStateMap["down"] > 0 {
 		c.DownPGs.Set(*pgStateMap["down"])
+		c.PGState.WithLabelValues("down").Set(*pgStateMap["down"])
 	}
 
 	c.ClientReadBytesPerSec.Set(stats.PGMap.ReadBytePerSec)
@@ -1593,6 +1627,10 @@ func (c *ClusterHealthCollector) Describe(ch chan<- *prometheus.Desc) {
 	for _, metric := range c.metricsList() {
 		ch <- metric.Desc()
 	}
+
+	for _, metric := range c.collectorList() {
+		metric.Describe(ch)
+	}
 }
 
 // Collect sends all the collected metrics to the provided prometheus channel.
@@ -1608,5 +1646,9 @@ func (c *ClusterHealthCollector) Collect(ch chan<- prometheus.Metric) {
 
 	for _, metric := range c.metricsList() {
 		ch <- metric
+	}
+
+	for _, metric := range c.collectorList() {
+		metric.Collect(ch)
 	}
 }
