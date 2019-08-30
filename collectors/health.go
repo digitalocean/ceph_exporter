@@ -51,8 +51,16 @@ type ClusterHealthCollector struct {
 	// conn holds connection to the Ceph cluster
 	conn Conn
 
+	// healthChecksMap stores warnings and their criticality
+	healthChecksMap map[string]int
+
 	// HealthStatus shows the overall health status of a given cluster.
 	HealthStatus prometheus.Gauge
+
+	// HealthStatusInterpreter shows the overall health status of a given
+	// cluster, with a breakdown of the HEALTH_WARN status into two groups
+	// based on criticality.
+	HealthStatusInterpreter prometheus.Gauge
 
 	// TotalPGs shows the total no. of PGs the cluster constitutes of.
 	TotalPGs prometheus.Gauge
@@ -239,18 +247,28 @@ const (
 
 // NewClusterHealthCollector creates a new instance of ClusterHealthCollector to collect health
 // metrics on.
-func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollector {
+func NewClusterHealthCollector(conn Conn, cluster string, healthChecksMap map[string]int) *ClusterHealthCollector {
 	labels := make(prometheus.Labels)
 	labels["cluster"] = cluster
 
 	return &ClusterHealthCollector{
 		conn: conn,
 
+		healthChecksMap: healthChecksMap,
+
 		HealthStatus: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace:   cephNamespace,
 				Name:        "health_status",
 				Help:        "Health status of Cluster, can vary only between 3 states (err:2, warn:1, ok:0)",
+				ConstLabels: labels,
+			},
+		),
+		HealthStatusInterpreter: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "health_status_interp",
+				Help:        "Health status of Cluster, can vary only between 4 states (err:3, critical_warn:2, soft_warn:1, ok:0)",
 				ConstLabels: labels,
 			},
 		),
@@ -699,6 +717,7 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 	return []prometheus.Metric{
 		c.HealthStatus,
+		c.HealthStatusInterpreter,
 		c.TotalPGs,
 		c.DegradedPGs,
 		c.ActivePGs,
@@ -838,12 +857,16 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 	switch stats.Health.OverallStatus {
 	case CephHealthOK:
 		c.HealthStatus.Set(0)
+		c.HealthStatusInterpreter.Set(0)
 	case CephHealthWarn:
 		c.HealthStatus.Set(1)
+		c.HealthStatusInterpreter.Set(2)
 	case CephHealthErr:
 		c.HealthStatus.Set(2)
+		c.HealthStatusInterpreter.Set(3)
 	default:
 		c.HealthStatus.Set(2)
+		c.HealthStatusInterpreter.Set(3)
 	}
 
 	// This will be set only if Luminous is running. Will be
@@ -851,10 +874,13 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 	switch stats.Health.Status {
 	case CephHealthOK:
 		c.HealthStatus.Set(0)
+		c.HealthStatusInterpreter.Set(0)
 	case CephHealthWarn:
 		c.HealthStatus.Set(1)
+		c.HealthStatusInterpreter.Set(2)
 	case CephHealthErr:
 		c.HealthStatus.Set(2)
+		c.HealthStatusInterpreter.Set(3)
 	}
 
 	var (
@@ -1062,6 +1088,11 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 						c.OSDMapFlagNoTierAgent.Set(1)
 					}
 				}
+			}
+		}
+		if c.healthChecksMap != nil {
+			if val, present := c.healthChecksMap[k]; present {
+				c.HealthStatusInterpreter.Set(float64(val))
 			}
 		}
 	}

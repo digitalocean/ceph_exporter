@@ -15,6 +15,7 @@
 package collectors
 
 import (
+	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -22,6 +23,21 @@ import (
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
+)
+
+var (
+	healthChecksString = `health_check_criticality:
+      MON_DOWN: 2
+      MDR_DOWN: 2
+      OSD_DOWN: 1
+      OSD_FULL: 2
+      OSDMAP_FLAGS: 1
+      DEVICE_HEALTH: 1
+      PG_DEGRADED: 1
+      PG_DAMAGED: 2
+      SLOW_OPS: 1
+      RECENT_CRASH: 1
+      TELEMETRY_CHANGED: 1`
 )
 
 func TestClusterHealthCollector(t *testing.T) {
@@ -762,7 +778,15 @@ $ sudo ceph -s
 		},
 	} {
 		func() {
-			collector := NewClusterHealthCollector(NewNoopConn(tt.input), "ceph")
+			type WarningCategorization struct {
+				CheckNames map[string]int `yaml:"health_check_criticality"`
+			}
+			var healthChecksMap WarningCategorization
+			err := yaml.Unmarshal([]byte(healthChecksString), &healthChecksMap)
+			if err != nil {
+				t.Fatalf("failed to parse yaml of warning checks: %s", err)
+			}
+			collector := NewClusterHealthCollector(NewNoopConn(tt.input), "ceph", healthChecksMap.CheckNames)
 			if err := prometheus.Register(collector); err != nil {
 				t.Fatalf("collector failed to register: %s", err)
 			}
