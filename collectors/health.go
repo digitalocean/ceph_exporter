@@ -900,6 +900,8 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 		osdmapFlagsRegex          = regexp.MustCompile(`([^ ]+) flag\(s\) set`)
 	)
 
+	var mapEmpty = len(c.healthChecksMap) == 0
+
 	for _, s := range stats.Health.Summary {
 		matched := degradedRegex.FindStringSubmatch(s.Summary)
 		if len(matched) == 2 {
@@ -1090,7 +1092,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 				}
 			}
 		}
-		if c.healthChecksMap != nil {
+		if !mapEmpty {
 			if val, present := c.healthChecksMap[k]; present {
 				c.HealthStatusInterpreter.Set(float64(val))
 			}
