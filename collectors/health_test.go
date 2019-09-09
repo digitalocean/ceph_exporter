@@ -15,7 +15,6 @@
 package collectors
 
 import (
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -23,21 +22,6 @@ import (
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
-)
-
-var (
-	healthChecksString = `health_check_criticality:
-      MON_DOWN: 2
-      MDR_DOWN: 2
-      OSD_DOWN: 1
-      OSD_FULL: 2
-      OSDMAP_FLAGS: 1
-      DEVICE_HEALTH: 1
-      PG_DEGRADED: 1
-      PG_DAMAGED: 2
-      SLOW_OPS: 1
-      RECENT_CRASH: 1
-      TELEMETRY_CHANGED: 1`
 )
 
 func TestClusterHealthCollector(t *testing.T) {
@@ -281,6 +265,7 @@ func TestClusterHealthCollector(t *testing.T) {
 	"health": { "overall_status": "HEALTH_WARN", "status": "HEALTH_OK } }`,
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 0`),
+				regexp.MustCompile(`health_status_interp{cluster="ceph"} 0`),
 			},
 		},
 		{
@@ -297,6 +282,7 @@ func TestClusterHealthCollector(t *testing.T) {
 	"health": { "status": "HEALTH_OK } }`,
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 0`),
+				regexp.MustCompile(`health_status_interp{cluster="ceph"} 0`),
 			},
 		},
 		{
@@ -313,6 +299,7 @@ func TestClusterHealthCollector(t *testing.T) {
 	"health": { "overall_status": "HEALTH_WARN" } }`,
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 1`),
+				regexp.MustCompile(`health_status_interp{cluster="ceph"} 2`),
 			},
 		},
 		{
@@ -329,6 +316,7 @@ func TestClusterHealthCollector(t *testing.T) {
 	"health": { "overall_status": "HEALTH_ERR" } }`,
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 2`),
+				regexp.MustCompile(`health_status_interp{cluster="ceph"} 3`),
 			},
 		},
 		{
@@ -490,6 +478,7 @@ $ sudo ceph -s
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`degraded_objects{cluster="ceph"} 1.54443937e\+08`),
 				regexp.MustCompile(`unclean_pgs{cluster="ceph"} 4886`),
+				regexp.MustCompile(`health_status_interp{cluster="ceph"} 1`),
 			},
 		},
 		{
@@ -508,6 +497,25 @@ $ sudo ceph -s
 }`,
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`misplaced_objects{cluster="ceph"} 4.31295341e\+08`),
+				regexp.MustCompile(`health_status_interp{cluster="ceph"} 1`),
+			},
+		},
+		{
+			input: `
+{
+  "health": {
+    "checks": {
+      "POOL_APP_NOT_ENABLED": {
+        "severity": "HEALTH_WARN",
+        "summary": {
+          "message": "application not enabled on 1 pool(s)"
+        }
+      }
+    }
+  }
+}`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`health_status_interp{cluster="ceph"} 2`),
 			},
 		},
 		{
@@ -635,6 +643,7 @@ $ sudo ceph -s
 				regexp.MustCompile(`osdmap_flag_noscrub{cluster="ceph"} 1`),
 				regexp.MustCompile(`osdmap_flag_nodeep_scrub{cluster="ceph"} 0`),
 				regexp.MustCompile(`osdmap_flag_notieragent{cluster="ceph"} 1`),
+				regexp.MustCompile(`health_status_interp{cluster="ceph"} 1`),
 			},
 		},
 		{
@@ -778,15 +787,7 @@ $ sudo ceph -s
 		},
 	} {
 		func() {
-			type WarningCategorization struct {
-				CheckNames map[string]int `yaml:"health_check_criticality"`
-			}
-			var healthChecksMap WarningCategorization
-			err := yaml.Unmarshal([]byte(healthChecksString), &healthChecksMap)
-			if err != nil {
-				t.Fatalf("failed to parse yaml of warning checks: %s", err)
-			}
-			collector := NewClusterHealthCollector(NewNoopConn(tt.input), "ceph", healthChecksMap.CheckNames)
+			collector := NewClusterHealthCollector(NewNoopConn(tt.input), "ceph")
 			if err := prometheus.Register(collector); err != nil {
 				t.Fatalf("collector failed to register: %s", err)
 			}

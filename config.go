@@ -13,14 +13,9 @@ type ClusterConfig struct {
 	ConfigFile   string `yaml:"config_file"`
 }
 
-type WarningCategorization struct {
-	CheckNames map[string]int `yaml:"health_check_criticality"`
-}
-
 // Config is the top-level configuration for Metastord.
 type Config struct {
-	Cluster  []*ClusterConfig
-	Warnings *WarningCategorization
+	Cluster []*ClusterConfig
 }
 
 // fileExists returns true if the path exists and is a file.

@@ -79,14 +79,13 @@ var _ prometheus.Collector = &CephExporter{}
 // NewCephExporter creates an instance to CephExporter and returns a reference
 // to it. We can choose to enable a collector to extract stats out of by adding
 // it to the list of collectors.
-func NewCephExporter(conn *rados.Conn, cluster string, config string, rgwMode int,
-	healthChecksMap WarningCategorization) *CephExporter {
+func NewCephExporter(conn *rados.Conn, cluster string, config string, rgwMode int) *CephExporter {
 	c := &CephExporter{
 		collectors: []prometheus.Collector{
 			collectors.NewClusterUsageCollector(conn, cluster),
 			collectors.NewPoolUsageCollector(conn, cluster),
 			collectors.NewPoolInfoCollector(conn, cluster),
-			collectors.NewClusterHealthCollector(conn, cluster, healthChecksMap.CheckNames),
+			collectors.NewClusterHealthCollector(conn, cluster),
 			collectors.NewMonitorCollector(conn, cluster),
 			collectors.NewOSDCollector(conn, cluster),
 		},
@@ -172,7 +171,7 @@ func main() {
 			defer conn.Shutdown()
 
 			log.Printf("Starting ceph exporter for cluster: %s", cluster.ClusterLabel)
-			err = prometheus.Register(NewCephExporter(conn, cluster.ClusterLabel, cluster.ConfigFile, *rgwMode, *cfg.Warnings))
+			err = prometheus.Register(NewCephExporter(conn, cluster.ClusterLabel, cluster.ConfigFile, *rgwMode))
 			if err != nil {
 				log.Fatalf("cannot export cluster: %s error: %v", cluster.ClusterLabel, err)
 			}
@@ -197,7 +196,7 @@ func main() {
 		}
 		defer conn.Shutdown()
 
-		prometheus.MustRegister(NewCephExporter(conn, defaultCephClusterLabel, defaultCephConfigPath, *rgwMode, WarningCategorization{CheckNames: map[string]int{}}))
+		prometheus.MustRegister(NewCephExporter(conn, defaultCephClusterLabel, defaultCephConfigPath, *rgwMode))
 	}
 
 	http.Handle(*metricsPath, promhttp.Handler())
