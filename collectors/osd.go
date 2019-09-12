@@ -538,7 +538,7 @@ func (o *OSDCollector) collectOSDPerf() error {
 		return err
 	}
 
-	osdPerf := &CephOSDPerfStat{}
+	osdPerf := &cephOSDPerfStat{}
 	if err := json.Unmarshal(buf, osdPerf); err != nil {
 		return err
 	}
