@@ -329,7 +329,7 @@ func (c *Conn) monCommand(args, inputBuffer []byte) (buffer []byte, info string,
 	return
 }
 
-//PGCommand sends a command to one of the PGs
+// PGCommand sends a command to one of the PGs
 func (c *Conn) PGCommand(pgid, args []byte) (buffer []byte, info string, err error) {
 	return c.pgCommand(pgid, args, nil)
 }
@@ -377,5 +377,4 @@ func (c *Conn) pgCommand(pgid, args, inputBuffer []byte) (buffer []byte, info st
 	}
 
 	return
-
 }
