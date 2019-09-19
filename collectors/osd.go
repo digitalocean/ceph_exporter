@@ -24,32 +24,21 @@ const (
 	scrubStateDeepScrubbing = 2
 )
 
-// OSDCollector displays statistics about OSD in the Ceph cluster.
-// An important aspect of monitoring OSDs is to ensure that when the cluster is
-// up and running that all OSDs that are in the cluster are up and running, too
+type cephPGDumpBrief []struct {
+	PGID          string `json:"pgid"`
+	ActingPrimary int64  `json:"acting_primary"`
+	Acting        []int  `json:"acting"`
+	State         string `json:"state"`
+}
+
+// OSDCollector displays statistics about OSD in the ceph cluster.
+// An important aspect of monitoring OSDs is to ensure that when the cluster is up and
+// running that all OSDs that are in the cluster are up and running, too
 type OSDCollector struct {
 	conn Conn
 
 	// osdScrubCache holds the cache of previous PG scrubs
 	osdScrubCache map[int]int
-
-	// osdLabelsCache holds a cache of osd labels
-	osdLabelsCache map[int64]*cephOSDLabel
-
-	// osdObjectsBackfilledCache holds the cache of previous increase in number
-	// of objects backfilled of all OSDs
-	osdObjectsBackfilledCache map[int64]int64
-
-	// pgStateCache holds the cache of previous states of all PGs
-	pgStateCache map[string]string
-
-	// pgObjectsRecoveredCache holds the cache of previous number of objects
-	// recovered of all PGs
-	pgObjectsRecoveredCache map[string]int64
-
-	// pgBackfillTargetsCache holds the cache of previous backfill targets OSDs
-	// of all PGs
-	pgBackfillTargetsCache map[string]map[int64]int64
 
 	// pgDumpBrief holds the content of PG dump brief
 	pgDumpBrief cephPGDumpBrief
@@ -349,7 +338,7 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 		OSDDownDesc: prometheus.NewDesc(
 			fmt.Sprintf("%s_osd_down", cephNamespace),
 			"Number of OSDs down in the cluster",
-			append([]string{"status"}, osdLabels...),
+			[]string{"osd", "status"},
 			labels,
 		),
 
@@ -915,33 +904,16 @@ func (o *OSDCollector) performPGDumpBrief() error {
 	return nil
 }
 
-func (o *OSDCollector) performPGQuery(pgid string) (*cephPGQuery, error) {
-	cmd := o.cephPGQueryCommand(pgid)
-	buf, _, err := o.conn.PGCommand([]byte(pgid), cmd)
-	if err != nil {
-		log.Printf("failed sending PG command %s: %s", cmd, err)
-		return nil, err
-	}
-
-	pgQuery := cephPGQuery{}
-	if err := json.Unmarshal(buf, &pgQuery); err != nil {
-		return nil, err
-	}
-
-	return &pgQuery, nil
-}
-
 func (o *OSDCollector) collectOSDScrubState(ch chan<- prometheus.Metric) error {
-	// need to reset the PG scrub state since the scrub might have ended within
-	// the last prom scrape interval.
-	// This forces us to report scrub state on all previously discovered OSDs We
-	// may be able to remove the "cache" when using Prometheus 2.0 if we can
-	// tune how unreported/abandoned gauges are treated (ie set to 0).
+	// need to reset the PG scrub state since the scrub might have ended within the last prom scrape interval.
+	//  This forces us to report scrub state on all previously discovered osds
+	// We may be able to remove the "cache" when using prometheus 2.0 if we can tune how
+	// unreported/abandoned gauges are treated (ie set to 0).
 	for i := range o.osdScrubCache {
 		o.osdScrubCache[i] = scrubStateIdle
 	}
 
-	for _, pg := range o.pgDumpBrief.PGStats {
+	for _, pg := range o.pgDumpBrief {
 		if strings.Contains(pg.State, "scrubbing") {
 			scrubState := scrubStateScrubbing
 			if strings.Contains(pg.State, "deep") {
@@ -1062,13 +1034,9 @@ func (o *OSDCollector) cephOSDPerfCommand() []byte {
 func (o *OSDCollector) cephOSDTreeCommand(states ...string) []byte {
 	req := map[string]interface{}{
 		"prefix": "osd tree",
+		"states": states,
 		"format": jsonFormat,
-	}
-	if len(states) > 0 {
-		req["states"] = states
-	}
-
-	cmd, err := json.Marshal(req)
+	})
 	if err != nil {
 		panic(err)
 	}
@@ -1148,6 +1116,10 @@ func (o *OSDCollector) Collect(ch chan<- prometheus.Metric) {
 
 	if err := o.performPGDumpBrief(); err != nil {
 		log.Println("failed performing PG dump brief:", err)
+	}
+
+	if err := o.performPGDumpBrief(); err != nil {
+		log.Println("failed performing pg dump brief:", err)
 	}
 
 	if err := o.collectOSDScrubState(ch); err != nil {
