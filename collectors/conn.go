@@ -163,3 +163,9 @@ func (n *NoopConn) PGCommand(pgid, args []byte) ([]byte, string, error) {
 
 	return []byte(n.output), "", nil
 }
+
+// PGCommand returns the provided output string to NoopConn as is, making
+// it seem like it actually ran something and produced that string as a result.
+func (n *NoopConn) PGCommand(_, _ []byte) ([]byte, string, error) {
+	return []byte(n.output), "", nil
+}

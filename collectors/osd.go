@@ -31,6 +31,25 @@ type cephPGDumpBrief []struct {
 	State         string `json:"state"`
 }
 
+type cephPGQuery struct {
+	State string `json:"state"`
+	Info  struct {
+		PGID  string `json:"pgid"`
+		Stats struct {
+			StatSum struct {
+				NumObjectsRecovered int64 `json:"num_objects_recovered"`
+			} `json:"stat_sum"`
+		} `json:"stats"`
+	} `json:"info"`
+	RecoveryState []struct {
+		Name            string `json:"name"`
+		EnterTime       string `json:"enter_time"`
+		RecoverProgress *struct {
+			BackfillTargets []string `json:"backfill_targets"`
+		} `json:"recovery_progress"`
+	} `json:"recovery_state"`
+}
+
 // OSDCollector displays statistics about OSD in the ceph cluster.
 // An important aspect of monitoring OSDs is to ensure that when the cluster is up and
 // running that all OSDs that are in the cluster are up and running, too
@@ -904,6 +923,21 @@ func (o *OSDCollector) performPGDumpBrief() error {
 	return nil
 }
 
+func (o *OSDCollector) performPGQuery(pgid string) (*cephPGQuery, error) {
+	cmd := o.cephPGQueryCommand(pgid)
+	buf, _, err := o.conn.PGCommand([]byte(pgid), cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	pgQuery := cephPGQuery{}
+	if err := json.Unmarshal(buf, &pgQuery); err != nil {
+		return nil, err
+	}
+
+	return &pgQuery, nil
+}
+
 func (o *OSDCollector) collectOSDScrubState(ch chan<- prometheus.Metric) error {
 	// need to reset the PG scrub state since the scrub might have ended within the last prom scrape interval.
 	//  This forces us to report scrub state on all previously discovered osds
@@ -1067,8 +1101,8 @@ func (o *OSDCollector) cephPGQueryCommand(pgid string) []byte {
 	return cmd
 }
 
-// Describe sends the descriptors of each OSDCollector related metrics we have
-// defined to the provided Prometheus channel.
+// Describe sends the descriptors of each OSDCollector related metrics we have defined
+// to the provided prometheus channel.
 func (o *OSDCollector) Describe(ch chan<- *prometheus.Desc) {
 	for _, metric := range o.collectorList() {
 		metric.Describe(ch)
