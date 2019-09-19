@@ -21,7 +21,7 @@ const (
 	scrubStateDeepScrubbing = 2
 )
 
-type cephPGDumpBriefResponse []struct {
+type cephPGDumpBrief []struct {
 	PGID          string `json:"pgid"`
 	ActingPrimary int64  `json:"acting_primary"`
 	Acting        []int  `json:"acting"`
@@ -36,6 +36,9 @@ type OSDCollector struct {
 
 	// osdScrubCache holds the cache of previous PG scrubs
 	osdScrubCache map[int]int
+
+	// pgDumpBrief holds the content of PG dump brief
+	pgDumpBrief cephPGDumpBrief
 
 	// CrushWeight is a persistent setting, and it affects how CRUSH assigns data to OSDs.
 	// It displays the CRUSH weight for the OSD
@@ -315,10 +318,11 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 
 		OSDDownDesc: prometheus.NewDesc(
 			fmt.Sprintf("%s_osd_down", cephNamespace),
-			"No. of OSDs down in the cluster",
+			"Number of OSDs down in the cluster",
 			[]string{"osd", "status"},
 			labels,
 		),
+
 		ScrubbingStateDesc: prometheus.NewDesc(
 			fmt.Sprintf("%s_osd_scrub_state", cephNamespace),
 			"State of OSDs involved in a scrub",
@@ -643,18 +647,22 @@ func (o *OSDCollector) collectOSDDump() error {
 
 }
 
-func (o *OSDCollector) collectOSDScrubState(ch chan<- prometheus.Metric) error {
+func (o *OSDCollector) performPGDumpBrief() error {
 	cmd := o.cephPGDumpCommand()
 	buf, _, err := o.conn.MonCommand(cmd)
 	if err != nil {
 		return err
 	}
 
-	stats := cephPGDumpBriefResponse{}
-	if err := json.Unmarshal(buf, &stats); err != nil {
+	o.pgDumpBrief = cephPGDumpBrief{}
+	if err := json.Unmarshal(buf, &o.pgDumpBrief); err != nil {
 		return err
 	}
 
+	return nil
+}
+
+func (o *OSDCollector) collectOSDScrubState(ch chan<- prometheus.Metric) error {
 	// need to reset the PG scrub state since the scrub might have ended within the last prom scrape interval.
 	//  This forces us to report scrub state on all previously discovered osds
 	// We may be able to remove the "cache" when using prometheus 2.0 if we can tune how
@@ -663,7 +671,7 @@ func (o *OSDCollector) collectOSDScrubState(ch chan<- prometheus.Metric) error {
 		o.osdScrubCache[i] = scrubStateIdle
 	}
 
-	for _, pg := range stats {
+	for _, pg := range o.pgDumpBrief {
 		if strings.Contains(pg.State, "scrubbing") {
 			scrubState := scrubStateScrubbing
 			if strings.Contains(pg.State, "deep") {
@@ -690,7 +698,7 @@ func (o *OSDCollector) collectOSDScrubState(ch chan<- prometheus.Metric) error {
 func (o *OSDCollector) cephOSDDump() []byte {
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix": "osd dump",
-		"format": "json",
+		"format": jsonFormat,
 	})
 	if err != nil {
 		panic(err)
@@ -701,7 +709,7 @@ func (o *OSDCollector) cephOSDDump() []byte {
 func (o *OSDCollector) cephOSDDFCommand() []byte {
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix": "osd df",
-		"format": "json",
+		"format": jsonFormat,
 	})
 	if err != nil {
 		panic(err)
@@ -712,7 +720,7 @@ func (o *OSDCollector) cephOSDDFCommand() []byte {
 func (o *OSDCollector) cephOSDPerfCommand() []byte {
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix": "osd perf",
-		"format": "json",
+		"format": jsonFormat,
 	})
 	if err != nil {
 		panic(err)
@@ -724,7 +732,7 @@ func (o *OSDCollector) cephOSDTreeCommand(states ...string) []byte {
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix": "osd tree",
 		"states": states,
-		"format": "json",
+		"format": jsonFormat,
 	})
 	if err != nil {
 		panic(err)
@@ -792,6 +800,10 @@ func (o *OSDCollector) Collect(ch chan<- prometheus.Metric) {
 
 	for _, metric := range o.collectorList() {
 		metric.Collect(ch)
+	}
+
+	if err := o.performPGDumpBrief(); err != nil {
+		log.Println("failed performing pg dump brief:", err)
 	}
 
 	if err := o.collectOSDScrubState(ch); err != nil {
