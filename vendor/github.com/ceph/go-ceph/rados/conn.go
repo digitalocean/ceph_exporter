@@ -5,9 +5,11 @@ package rados
 // #include <rados/librados.h>
 import "C"
 
-import "unsafe"
-import "bytes"
-import "fmt"
+import (
+	"bytes"
+	"fmt"
+	"unsafe"
+)
 
 // ClusterStat represents Ceph cluster statistics.
 type ClusterStat struct {
@@ -303,6 +305,56 @@ func (c *Conn) monCommand(args, inputBuffer []byte) (buffer []byte, info string,
 	defer C.free(unsafe.Pointer(inbuf))
 
 	ret := C.rados_mon_command(c.cluster,
+		&argv, 1,
+		inbuf,              // bulk input (e.g. crush map)
+		C.size_t(inbufLen), // length inbuf
+		&outbuf,            // buffer
+		&outbuflen,         // buffer length
+		&outs,              // status string
+		&outslen)
+
+	if outslen > 0 {
+		info = C.GoStringN(outs, C.int(outslen))
+		C.free(unsafe.Pointer(outs))
+	}
+	if outbuflen > 0 {
+		buffer = C.GoBytes(unsafe.Pointer(outbuf), C.int(outbuflen))
+		C.free(unsafe.Pointer(outbuf))
+	}
+	if ret != 0 {
+		err = RadosError(int(ret))
+		return nil, info, err
+	}
+
+	return
+}
+
+// PGCommand sends a command to one of the PGs
+func (c *Conn) PGCommand(pgid, args []byte) (buffer []byte, info string, err error) {
+	return c.pgCommand(pgid, args, nil)
+}
+
+// PGCommand sends a command to one of the PGs, with an input buffer
+func (c *Conn) PGCommandWithInputBuffer(pgid, args, inputBuffer []byte) (buffer []byte, info string, err error) {
+	return c.pgCommand(pgid, args, inputBuffer)
+}
+
+func (c *Conn) pgCommand(pgid, args, inputBuffer []byte) (buffer []byte, info string, err error) {
+	name := C.CString(string(pgid))
+	argv := C.CString(string(args))
+	defer C.free(unsafe.Pointer(name))
+	defer C.free(unsafe.Pointer(argv))
+
+	var (
+		outs, outbuf       *C.char
+		outslen, outbuflen C.size_t
+	)
+	inbuf := C.CString(string(inputBuffer))
+	inbufLen := len(inputBuffer)
+	defer C.free(unsafe.Pointer(inbuf))
+
+	ret := C.rados_pg_command(c.cluster,
+		name,
 		&argv, 1,
 		inbuf,              // bulk input (e.g. crush map)
 		C.size_t(inbufLen), // length inbuf
