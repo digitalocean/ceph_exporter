@@ -43,9 +43,8 @@ var _ Conn = &rados.Conn{}
 // we can deprecate output, because cmdOut is able to hold the outputs we desire
 // for multiple commands for "go test".
 type NoopConn struct {
-	output    string // deprecated
-	cmdOut    []map[string]string
-	iteration int
+	output string
+	cmdOut map[string]string
 }
 
 // The stub we use for testing should also satisfy the interface properties.
@@ -55,22 +54,17 @@ var _ Conn = &NoopConn{}
 // at the end of the command we issue to Ceph is fixed and should be specified
 // in the only input parameter.
 func NewNoopConn(output string) *NoopConn {
-	return &NoopConn{output: output}
+	return &NoopConn{
+		output: output,
+		cmdOut: make(map[string]string),
+	}
 }
 
 // NewNoopConnWithCmdOut returns an instance of *NoopConn. The string that we
 // want output at the end of the command we issue to Ceph can be various and
 // should be specified by the map in the only input parameter.
-func NewNoopConnWithCmdOut(cmdOut []map[string]string) *NoopConn {
-	return &NoopConn{
-		cmdOut:    cmdOut,
-		iteration: 0,
-	}
-}
-
-// IncIteration increments iteration by 1.
-func (n *NoopConn) IncIteration() {
-	n.iteration++
+func NewNoopConnWithCmdOut(cmdOut map[string]string) *NoopConn {
+	return &NoopConn{cmdOut: cmdOut}
 }
 
 // ReadDefaultConfigFile does not need to return an error. It satisfies
@@ -101,45 +95,35 @@ func (n *NoopConn) MonCommand(args []byte) ([]byte, string, error) {
 	// Intercept and mock the output
 	switch prefix := cmd["prefix"]; prefix {
 	case "pg dump":
-		val, ok := cmd["dumpcontents"]
-		if !ok {
-			break
-		}
-
-		dc, ok := val.([]interface{})
+		dc, ok := cmd["dumpcontents"].([]interface{})
 		if !ok || len(dc) == 0 {
 			break
 		}
 
 		switch dc[0] {
 		case "pgs_brief":
-			return []byte(n.cmdOut[n.iteration]["ceph pg dump pgs_brief"]), "", nil
+			return []byte(n.cmdOut["ceph pg dump pgs_brief"]), "", nil
 		}
 
 	case "osd tree":
-		val, ok := cmd["states"]
-		if !ok {
-			return []byte(n.cmdOut[n.iteration]["ceph osd tree"]), "", nil
-		}
-
-		st, ok := val.([]interface{})
+		st, ok := cmd["states"].([]interface{})
 		if !ok || len(st) == 0 {
 			break
 		}
 
 		switch st[0] {
 		case "down":
-			return []byte(n.cmdOut[n.iteration]["ceph osd tree down"]), "", nil
+			return []byte(n.cmdOut["ceph osd tree down"]), "", nil
 		}
 
 	case "osd df":
-		return []byte(n.cmdOut[n.iteration]["ceph osd df"]), "", nil
+		return []byte(n.cmdOut["ceph osd df"]), "", nil
 
 	case "osd perf":
-		return []byte(n.cmdOut[n.iteration]["ceph osd perf"]), "", nil
+		return []byte(n.cmdOut["ceph osd perf"]), "", nil
 
 	case "osd dump":
-		return []byte(n.cmdOut[n.iteration]["ceph osd dump"]), "", nil
+		return []byte(n.cmdOut["ceph osd dump"]), "", nil
 	}
 
 	return []byte(n.output), "", nil
@@ -158,14 +142,8 @@ func (n *NoopConn) PGCommand(pgid, args []byte) ([]byte, string, error) {
 	// Intercept and mock the output
 	switch prefix := cmd["prefix"]; prefix {
 	case "query":
-		return []byte(n.cmdOut[n.iteration][fmt.Sprintf("ceph tell %s query", string(pgid))]), "", nil
+		return []byte(n.cmdOut[fmt.Sprintf("ceph tell %s query", string(pgid))]), "", nil
 	}
 
-	return []byte(n.output), "", nil
-}
-
-// PGCommand returns the provided output string to NoopConn as is, making
-// it seem like it actually ran something and produced that string as a result.
-func (n *NoopConn) PGCommand(_, _ []byte) ([]byte, string, error) {
 	return []byte(n.output), "", nil
 }
