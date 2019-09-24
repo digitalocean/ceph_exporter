@@ -939,7 +939,7 @@ func TestOSDCollector(t *testing.T) {
 }`,
 			},
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`ceph_pg_objects_recovered_total{cluster="ceph",pgid="84.1fff"} 123`),
+				regexp.MustCompile(`ceph_pg_objects_recovered_total{cluster="ceph",pgid="84.1fff"} 0`),
 			},
 		},
 	} {
@@ -955,7 +955,9 @@ func TestOSDCollector(t *testing.T) {
 
 			var buf []byte
 
-			for i := 0; i < len(tt.cmdOut); i++ {
+			// scrape at least twice to have the metrics for number of objects
+			// recovered available
+			for i := 0; i < 2; i++ {
 				resp, err := http.Get(server.URL)
 				if err != nil {
 					t.Fatalf("unexpected failed response from prometheus: %s", err)
@@ -966,8 +968,6 @@ func TestOSDCollector(t *testing.T) {
 				if err != nil {
 					t.Fatalf("failed reading server response: %s", err)
 				}
-
-				conn.IncIteration()
 			}
 			for _, re := range tt.regexes {
 				if !re.Match(buf) {

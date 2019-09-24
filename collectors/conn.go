@@ -43,7 +43,7 @@ var _ Conn = &rados.Conn{}
 // we can deprecate output, because cmdOut is able to hold the outputs we desire
 // for multiple commands for "go test".
 type NoopConn struct {
-	output string
+	output string // deprecated
 	cmdOut map[string]string
 }
 
@@ -95,7 +95,12 @@ func (n *NoopConn) MonCommand(args []byte) ([]byte, string, error) {
 	// Intercept and mock the output
 	switch prefix := cmd["prefix"]; prefix {
 	case "pg dump":
-		dc, ok := cmd["dumpcontents"].([]interface{})
+		val, ok := cmd["dumpcontents"]
+		if !ok {
+			break
+		}
+
+		dc, ok := val.([]interface{})
 		if !ok || len(dc) == 0 {
 			break
 		}
@@ -106,7 +111,12 @@ func (n *NoopConn) MonCommand(args []byte) ([]byte, string, error) {
 		}
 
 	case "osd tree":
-		st, ok := cmd["states"].([]interface{})
+		val, ok := cmd["states"]
+		if !ok {
+			break
+		}
+
+		st, ok := val.([]interface{})
 		if !ok || len(st) == 0 {
 			break
 		}

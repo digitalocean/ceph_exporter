@@ -55,8 +55,19 @@ type cephPGQuery struct {
 type OSDCollector struct {
 	conn Conn
 
+	// initialCollect flags if it is the first time for this OSDCollector to
+	// collect metrics. This flag is needed because we need to skip the metrics
+	// for number of objects recovered / backfilled for the first time, as we
+	// cannot calculate the value increased until the second time doing the
+	// collecting.
+	initialCollect bool
+
 	// osdScrubCache holds the cache of previous PG scrubs
 	osdScrubCache map[int]int
+
+	// pgObjectsRecoveredCache holds the cache of previous number of objects
+	// recovered of all PGs
+	pgObjectsRecoveredCache map[string]int64
 
 	// pgDumpBrief holds the content of PG dump brief
 	pgDumpBrief cephPGDumpBrief
@@ -146,14 +157,10 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 	osdLabels := []string{"osd", "device_class", "host", "rack", "root"}
 
 	return &OSDCollector{
-		conn: conn,
-
-		osdScrubCache:             make(map[int]int),
-		osdLabelsCache:            make(map[int64]*cephOSDLabel),
-		osdObjectsBackfilledCache: make(map[int64]int64),
-		pgStateCache:              make(map[string]string),
-		pgObjectsRecoveredCache:   make(map[string]int64),
-		pgBackfillTargetsCache:    make(map[string]map[int64]int64),
+		conn:                    conn,
+		initialCollect:          true,
+		osdScrubCache:           make(map[int]int),
+		pgObjectsRecoveredCache: make(map[string]int64),
 
 		CrushWeight: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -1020,16 +1027,31 @@ func (o *OSDCollector) collectPGRecoveryState(ch chan<- prometheus.Metric) error
 
 func (o *OSDCollector) collectPGRecoveryState(ch chan<- prometheus.Metric) error {
 	for _, pg := range o.pgDumpBrief {
-		if strings.Contains(pg.State, "recovering") {
+		if o.initialCollect {
 			query, err := o.performPGQuery(pg.PGID)
 			if err != nil {
+				continue
+			}
+
+			o.pgObjectsRecoveredCache[pg.PGID] = query.Info.Stats.StatSum.NumObjectsRecovered
+		} else if strings.Contains(pg.State, "recovering") {
+			query, err := o.performPGQuery(pg.PGID)
+			if err != nil {
+				continue
+			}
+
+			diff := query.Info.Stats.StatSum.NumObjectsRecovered - o.pgObjectsRecoveredCache[pg.PGID]
+
+			o.pgObjectsRecoveredCache[pg.PGID] = query.Info.Stats.StatSum.NumObjectsRecovered
+
+			if diff < 0 {
 				continue
 			}
 
 			ch <- prometheus.MustNewConstMetric(
 				o.PGObjectsRecoveredDesc,
 				prometheus.CounterValue,
-				float64(query.Info.Stats.StatSum.NumObjectsRecovered),
+				float64(diff),
 				pg.PGID,
 			)
 		}
@@ -1167,5 +1189,9 @@ func (o *OSDCollector) Collect(ch chan<- prometheus.Metric) {
 
 	if err := o.collectPGRecoveryState(ch); err != nil {
 		log.Println("failed collecting PG recovery state:", err)
+	}
+
+	if o.initialCollect {
+		o.initialCollect = false
 	}
 }
