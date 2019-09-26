@@ -56,10 +56,7 @@ type OSDCollector struct {
 	conn Conn
 
 	// initialCollect flags if it is the first time for this OSDCollector to
-	// collect metrics. This flag is needed because we need to skip the metrics
-	// for number of objects recovered / backfilled for the first time, as we
-	// cannot calculate the value increased until the second time doing the
-	// collecting.
+	// collect metrics.
 	initialCollect bool
 
 	// osdScrubCache holds the cache of previous PG scrubs
@@ -372,7 +369,7 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 		),
 
 		PGObjectsRecoveredDesc: prometheus.NewDesc(
-			fmt.Sprintf("%s_pg_objects_recovered_total", cephNamespace),
+			fmt.Sprintf("%s_pg_objects_recovered", cephNamespace),
 			"Number of objects recovered in a PG",
 			[]string{"pgid"},
 			labels,
@@ -1027,8 +1024,6 @@ func (o *OSDCollector) collectPGRecoveryState(ch chan<- prometheus.Metric) error
 
 func (o *OSDCollector) collectPGRecoveryState(ch chan<- prometheus.Metric) error {
 	for _, pg := range o.pgDumpBrief {
-		diff := 0.0
-
 		if o.initialCollect {
 			query, err := o.performPGQuery(pg.PGID)
 			if err != nil {
@@ -1043,22 +1038,18 @@ func (o *OSDCollector) collectPGRecoveryState(ch chan<- prometheus.Metric) error
 				continue
 			}
 
-			diff = float64(query.Info.Stats.StatSum.NumObjectsRecovered - o.pgObjectsRecoveredCache[pg.PGID])
-
 			o.pgObjectsRecoveredCache[pg.PGID] = query.Info.Stats.StatSum.NumObjectsRecovered
 		}
+	}
 
-		if diff < 0 {
-			continue
-		}
-
+	for pgid, val := range o.pgObjectsRecoveredCache {
 		ch <- prometheus.MustNewConstMetric(
 			o.PGObjectsRecoveredDesc,
-			prometheus.CounterValue,
-			diff,
-			pg.PGID,
-		)
+			prometheus.GaugeValue,
+			float64(val),
+			pgid)
 	}
+
 	return nil
 }
 
