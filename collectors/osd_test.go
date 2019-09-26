@@ -595,7 +595,7 @@ func TestOSDCollector(t *testing.T) {
 }`,
 			},
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`ceph_pg_objects_recovered_total{cluster="ceph",pgid="84.1fff"} 0`),
+				regexp.MustCompile(`ceph_pg_objects_recovered{cluster="ceph",pgid="84.1fff"} 123`),
 			},
 		},
 	} {
