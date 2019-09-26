@@ -753,6 +753,8 @@ func (o *OSDCollector) collectOSDScrubState(ch chan<- prometheus.Metric) error {
 
 func (o *OSDCollector) collectPGRecoveryState(ch chan<- prometheus.Metric) error {
 	for _, pg := range o.pgDumpBrief {
+		diff := 0.0
+
 		if o.initialCollect {
 			query, err := o.performPGQuery(pg.PGID)
 			if err != nil {
@@ -760,27 +762,28 @@ func (o *OSDCollector) collectPGRecoveryState(ch chan<- prometheus.Metric) error
 			}
 
 			o.pgObjectsRecoveredCache[pg.PGID] = query.Info.Stats.StatSum.NumObjectsRecovered
+
 		} else if strings.Contains(pg.State, "recovering") {
 			query, err := o.performPGQuery(pg.PGID)
 			if err != nil {
 				continue
 			}
 
-			diff := query.Info.Stats.StatSum.NumObjectsRecovered - o.pgObjectsRecoveredCache[pg.PGID]
+			diff = float64(query.Info.Stats.StatSum.NumObjectsRecovered - o.pgObjectsRecoveredCache[pg.PGID])
 
 			o.pgObjectsRecoveredCache[pg.PGID] = query.Info.Stats.StatSum.NumObjectsRecovered
-
-			if diff < 0 {
-				continue
-			}
-
-			ch <- prometheus.MustNewConstMetric(
-				o.PGObjectsRecoveredDesc,
-				prometheus.CounterValue,
-				float64(diff),
-				pg.PGID,
-			)
 		}
+
+		if diff < 0 {
+			continue
+		}
+
+		ch <- prometheus.MustNewConstMetric(
+			o.PGObjectsRecoveredDesc,
+			prometheus.CounterValue,
+			diff,
+			pg.PGID,
+		)
 	}
 	return nil
 }
