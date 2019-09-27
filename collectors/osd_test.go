@@ -12,12 +12,13 @@ import (
 
 func TestOSDCollector(t *testing.T) {
 	for _, tt := range []struct {
-		cmdOut  map[string]string
-		regexes []*regexp.Regexp
+		cmdOut []map[string]string
+		regExp []*regexp.Regexp
 	}{
 		{
-			cmdOut: map[string]string{
-				"ceph osd df": `
+			cmdOut: []map[string]string{
+				{
+					"ceph osd df": `
 {
   "nodes": [
     {
@@ -107,8 +108,9 @@ func TestOSDCollector(t *testing.T) {
     "dev": 0.017482
   }
 }`,
+				},
 			},
-			regexes: []*regexp.Regexp{
+			regExp: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_osd_crush_weight{cluster="ceph",osd="osd.0"} 0.010391`),
 				regexp.MustCompile(`ceph_osd_crush_weight{cluster="ceph",osd="osd.1"} 0.010391`),
 				regexp.MustCompile(`ceph_osd_crush_weight{cluster="ceph",osd="osd.2"} 0.010391`),
@@ -161,8 +163,9 @@ func TestOSDCollector(t *testing.T) {
 			},
 		},
 		{
-			cmdOut: map[string]string{
-				"ceph osd perf": `
+			cmdOut: []map[string]string{
+				{
+					"ceph osd perf": `
 {
   "osd_perf_infos": [
     {
@@ -202,8 +205,9 @@ func TestOSDCollector(t *testing.T) {
     }
   ]
 }`,
+				},
 			},
-			regexes: []*regexp.Regexp{
+			regExp: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_osd_perf_commit_latency_seconds{cluster="ceph",osd="osd.0"} 0.002`),
 				regexp.MustCompile(`ceph_osd_perf_commit_latency_seconds{cluster="ceph",osd="osd.1"} 0.002`),
 				regexp.MustCompile(`ceph_osd_perf_commit_latency_seconds{cluster="ceph",osd="osd.2"} 0.002`),
@@ -217,8 +221,9 @@ func TestOSDCollector(t *testing.T) {
 			},
 		},
 		{
-			cmdOut: map[string]string{
-				"ceph osd dump": `
+			cmdOut: []map[string]string{
+				{
+					"ceph osd dump": `
 {
   "osds": [
     {
@@ -269,8 +274,9 @@ func TestOSDCollector(t *testing.T) {
     }
   ]
 }`,
+				},
 			},
-			regexes: []*regexp.Regexp{
+			regExp: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_osd_in{cluster="ceph",osd="osd.0"} 1`),
 				regexp.MustCompile(`ceph_osd_in{cluster="ceph",osd="osd.1"} 1`),
 				regexp.MustCompile(`ceph_osd_in{cluster="ceph",osd="osd.2"} 1`),
@@ -299,8 +305,9 @@ func TestOSDCollector(t *testing.T) {
 			},
 		},
 		{
-			cmdOut: map[string]string{
-				"ceph pg dump pgs_brief": `
+			cmdOut: []map[string]string{
+				{
+					"ceph pg dump pgs_brief": `
 [
   {
     "acting": [
@@ -336,8 +343,9 @@ func TestOSDCollector(t *testing.T) {
     "state": "active+clean+scrubbing+deep"
   }
 ]`,
+				},
 			},
-			regexes: []*regexp.Regexp{
+			regExp: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",osd="osd.10"} 1`),
 				regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",osd="osd.11"} 1`),
 				regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",osd="osd.12"} 1`),
@@ -349,8 +357,9 @@ func TestOSDCollector(t *testing.T) {
 			},
 		},
 		{
-			cmdOut: map[string]string{
-				"ceph osd tree down": `
+			cmdOut: []map[string]string{
+				{
+					"ceph osd tree down": `
 {
   "nodes": [],
   "stray": [
@@ -368,14 +377,16 @@ func TestOSDCollector(t *testing.T) {
     }
   ]
 }`,
+				},
 			},
-			regexes: []*regexp.Regexp{
+			regExp: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_osd_down{cluster="ceph",osd="osd.524",status="destroyed"} 1`),
 			},
 		},
 		{
-			cmdOut: map[string]string{
-				"ceph osd tree down": `
+			cmdOut: []map[string]string{
+				{
+					"ceph osd tree down": `
 {
   "nodes": [],
   "stray": [
@@ -393,14 +404,16 @@ func TestOSDCollector(t *testing.T) {
     }
   ]
 }`,
+				},
 			},
-			regexes: []*regexp.Regexp{
+			regExp: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_osd_down{cluster="ceph",osd="osd.524",status="down"} 1`),
 			},
 		},
 		{
-			cmdOut: map[string]string{
-				"ceph osd tree down": `
+			cmdOut: []map[string]string{
+				{
+					"ceph osd tree down": `
 {
   "nodes": [
     {
@@ -449,14 +462,16 @@ func TestOSDCollector(t *testing.T) {
   ],
   "stray": []
 }`,
+				},
 			},
-			regexes: []*regexp.Regexp{
+			regExp: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_osd_down{cluster="ceph",osd="osd.524",status="destroyed"} 1`),
 			},
 		},
 		{
-			cmdOut: map[string]string{
-				"ceph osd tree down": `
+			cmdOut: []map[string]string{
+				{
+					"ceph osd tree down": `
 {
   "nodes": [
     {
@@ -518,24 +533,28 @@ func TestOSDCollector(t *testing.T) {
     }
   ]
 }`,
+				},
 			},
-			regexes: []*regexp.Regexp{
+			regExp: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_osd_down{cluster="ceph",osd="osd.524",status="destroyed"} 1`),
 				regexp.MustCompile(`ceph_osd_down{cluster="ceph",osd="osd.525",status="down"} 1`),
 			},
 		},
 		{
-			cmdOut: map[string]string{
-				"ceph osd tree down": `
+			cmdOut: []map[string]string{
+				{
+					"ceph osd tree down": `
 {
   "nodes": []}}
 }`,
+				},
 			},
-			regexes: []*regexp.Regexp{},
+			regExp: []*regexp.Regexp{},
 		},
 		{
-			cmdOut: map[string]string{
-				"ceph pg dump pgs_brief": `
+			cmdOut: []map[string]string{
+				{
+					"ceph pg dump pgs_brief": `
 [
   {
     "acting": [
@@ -582,7 +601,7 @@ func TestOSDCollector(t *testing.T) {
     "state": "active+recovering+degraded"
   }
 ]`,
-				"ceph tell 84.1fff query": `
+					"ceph tell 84.1fff query": `
 {
   "state": "active+recovering+degraded",
   "info": {
@@ -593,14 +612,182 @@ func TestOSDCollector(t *testing.T) {
     }
   }
 }`,
+				},
+				{
+					"ceph pg dump pgs_brief": `
+[
+  {
+    "acting": [
+      30,
+      31,
+      32,
+      33
+    ],
+    "acting_primary": 30,
+    "pgid": "84.1fff",
+    "state": "active+clean"
+  }
+]`,
+					"ceph tell 84.1fff query": `
+{
+  "state": "active+clean",
+  "info": {
+    "stats": {
+      "stat_sum": {
+        "num_objects_recovered": 456
+      }
+    }
+  }
+}`,
+				},
 			},
-			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`ceph_pg_objects_recovered{cluster="ceph",pgid="84.1fff"} 123`),
+			regExp: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_pg_objects_recovered{cluster="ceph",pgid="84.1fff"} 456`),
+			},
+		},
+		{
+			cmdOut: []map[string]string{
+				{
+					"ceph pg dump pgs_brief": `
+[
+  {
+    "acting": [
+      40,
+      41,
+      42,
+      43
+    ],
+    "acting_primary": 40,
+    "pgid": "85.1fff",
+    "state": "active+remapped+backfill_wait"
+  }
+]`,
+					"ceph tell 85.1fff query": `
+{
+  "state": "active+remapped+backfill_wait",
+  "info": {
+    "stats": {
+      "stat_sum": {
+        "num_objects_recovered": 100
+      }
+    }
+  }
+}`,
+				},
+				{
+					"ceph pg dump pgs_brief": `
+[
+  {
+    "acting": [
+      40,
+      41,
+      42,
+      43
+    ],
+    "acting_primary": 40,
+    "pgid": "85.1fff",
+    "state": "active+remapped+backfilling"
+  }
+]`,
+					"ceph tell 85.1fff query": `
+{
+  "state": "active+remapped+backfilling",
+  "info": {
+    "stats": {
+      "stat_sum": {
+        "num_objects_recovered": 100
+      }
+    }
+  },
+  "recovery_state": [
+    {
+      "enter_time": "2019-07-08 17:58:05.892834",
+      "name": "Started/Primary/Active",
+      "recovery_progress": {
+        "backfill_targets": [
+          "44(1)",
+          "45(2)"
+        ]
+      }
+    }
+  ]
+}`,
+				},
+				{
+					"ceph pg dump pgs_brief": `
+[
+  {
+    "acting": [
+      40,
+      41,
+      42,
+      43
+    ],
+    "acting_primary": 40,
+    "pgid": "85.1fff",
+    "state": "active+remapped+backfilling"
+  }
+]`,
+					"ceph tell 85.1fff query": `
+{
+  "state": "active+remapped+backfilling",
+  "info": {
+    "stats": {
+      "stat_sum": {
+        "num_objects_recovered": 200
+      }
+    }
+  },
+  "recovery_state": [
+    {
+      "enter_time": "2019-07-08 17:58:05.892834",
+      "name": "Started/Primary/Active",
+      "recovery_progress": {
+        "backfill_targets": [
+          "44(1)"
+        ]
+      }
+    }
+  ]
+}`,
+				},
+				{
+					"ceph pg dump pgs_brief": `
+[
+  {
+    "acting": [
+      40,
+      41,
+      42,
+      43
+    ],
+    "acting_primary": 40,
+    "pgid": "85.1fff",
+    "state": "active+clean"
+  }
+]`,
+					"ceph tell 85.1fff query": `
+{
+  "state": "active+clean",
+  "info": {
+    "stats": {
+      "stat_sum": {
+        "num_objects_recovered": 300
+      }
+    }
+  }
+}`,
+				},
+			},
+			regExp: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_osd_objects_backfilled{cluster="ceph",osd="osd.44",pgid="85.1fff"} 150`),
+				regexp.MustCompile(`ceph_osd_objects_backfilled{cluster="ceph",osd="osd.45",pgid="85.1fff"} 50`),
 			},
 		},
 	} {
 		func() {
-			collector := NewOSDCollector(NewNoopConnWithCmdOut(tt.cmdOut), "ceph")
+			conn := NewNoopConnWithCmdOut(tt.cmdOut)
+			collector := NewOSDCollector(conn, "ceph")
 			if err := prometheus.Register(collector); err != nil {
 				t.Fatalf("collector failed to register: %s", err)
 			}
@@ -611,18 +798,22 @@ func TestOSDCollector(t *testing.T) {
 
 			var buf []byte
 
-			resp, err := http.Get(server.URL)
-			if err != nil {
-				t.Fatalf("unexpected failed response from prometheus: %s", err)
-			}
-			defer resp.Body.Close()
+			for i := 0; i < len(tt.cmdOut); i++ {
+				resp, err := http.Get(server.URL)
+				if err != nil {
+					t.Fatalf("unexpected failed response from prometheus: %s", err)
+				}
+				defer resp.Body.Close()
 
-			buf, err = ioutil.ReadAll(resp.Body)
-			if err != nil {
-				t.Fatalf("failed reading server response: %s", err)
+				buf, err = ioutil.ReadAll(resp.Body)
+				if err != nil {
+					t.Fatalf("failed reading server response: %s", err)
+				}
+
+				conn.IncIteration()
 			}
 
-			for _, re := range tt.regexes {
+			for _, re := range tt.regExp {
 				if !re.Match(buf) {
 					t.Errorf("failed matching: %q", re)
 				}
