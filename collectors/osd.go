@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math"
 	"regexp"
 	"strconv"
 
@@ -1012,11 +1013,11 @@ func (o *OSDCollector) collectPGRecoveryState(ch chan<- prometheus.Metric) error
 		// We need previous PG state in order to update the metric when a PG has
 		// completed recovery or backfill. Or it could be an empty string if
 		// unknown.
-		prevPGState := o.pgStateCache[pg.PGID]
+		prevPGState, prevPGStateFound := o.pgStateCache[pg.PGID]
 		prevNumObjectsRecovered := o.pgObjectsRecoveredCache[pg.PGID]
 		prevBackfillTargets := o.pgBackfillTargetsCache[pg.PGID]
 
-		if prevPGState == "" || strings.Contains(prevPGState, "recovering") || strings.Contains(pg.State, "recovering") ||
+		if !prevPGStateFound || strings.Contains(prevPGState, "recovering") || strings.Contains(pg.State, "recovering") ||
 			strings.Contains(prevPGState, "backfilling") || strings.Contains(pg.State, "backfilling") {
 			query, err := o.performPGQuery(pg.PGID)
 			if err != nil {
@@ -1037,7 +1038,9 @@ func (o *OSDCollector) collectPGRecoveryState(ch chan<- prometheus.Metric) error
 			}
 
 			// Average out the total number of objects backfilled to each OSD
-			eachOSDIncrease := float64(o.pgObjectsRecoveredCache[pg.PGID]-prevNumObjectsRecovered) / float64(len(prevBackfillTargets))
+			// The average number rounds to the nearest integer, rounding half
+			// away from zero.
+			eachOSDIncrease := math.Round(float64(o.pgObjectsRecoveredCache[pg.PGID]-prevNumObjectsRecovered) / float64(len(prevBackfillTargets)))
 
 			for osdID := range prevBackfillTargets {
 				// It is possible that osdID has gone from the backfill_targets
