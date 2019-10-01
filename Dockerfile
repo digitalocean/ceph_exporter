@@ -25,11 +25,11 @@ RUN go get -d && \
     go build -o /bin/ceph_exporter
 
 
-FROM ubuntu:16.04
+FROM ubuntu:18.04
 MAINTAINER Vaibhav Bhembre <vaibhav@digitalocean.com>
 
 RUN apt-get update && \
-    apt-get install -y apt-transport-https curl wget
+    apt-get install -y apt-transport-https curl wget gnupg
 RUN wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add -
 RUN echo "deb https://download.ceph.com/debian-nautilus bionic main" >> /etc/apt/sources.list && \
     apt-get update && \
