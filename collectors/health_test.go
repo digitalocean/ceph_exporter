@@ -370,11 +370,12 @@ $ sudo ceph -s
 			"num_remapped_pgs": 0
 		}
 	},
-	"pgmap": { "num_pgs": 52000 },
+	"pgmap": { "num_pgs": 52000, "num_objects": 13156 },
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "7 pgs undersized"}]}
 }`,
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`total_pgs{cluster="ceph"} 52000`),
+				regexp.MustCompile(`cluster_objects{cluster="ceph"} 13156`),
 			},
 		},
 		{
@@ -399,7 +400,8 @@ $ sudo ceph -s
 				"count": 5
 			}
 		],
-		"num_pgs": 52000
+		"num_pgs": 52000,
+		"num_objects": 13156
 	},
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "7 pgs undersized"}]}
 }`,
@@ -407,6 +409,7 @@ $ sudo ceph -s
 				regexp.MustCompile(`active_pgs{cluster="ceph"} 7`),
 				regexp.MustCompile(`scrubbing_pgs{cluster="ceph"} 2`),
 				regexp.MustCompile(`deep_scrubbing_pgs{cluster="ceph"} 5`),
+				regexp.MustCompile(`cluster_objects{cluster="ceph"} 13156`),
 			},
 		},
 		{

@@ -167,6 +167,9 @@ type ClusterHealthCollector struct {
 	// This includes object replicas in its count.
 	MisplacedObjectsCount prometheus.Gauge
 
+	// Objects show the total no. of RADOS objects that are currently allocated
+	Objects prometheus.Gauge
+
 	// OSDMapFlags
 	OSDMapFlagFull        prometheus.Gauge
 	OSDMapFlagPauseRd     prometheus.Gauge
@@ -552,6 +555,14 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 				ConstLabels: labels,
 			},
 		),
+		Objects: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "cluster_objects",
+				Help:        "No. of rados objects within the cluster",
+				ConstLabels: labels,
+			},
+		),
 		OSDMapFlagFull: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace:   cephNamespace,
@@ -815,6 +826,7 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.StuckRequests,
 		c.DegradedObjectsCount,
 		c.MisplacedObjectsCount,
+		c.Objects,
 		c.OSDMapFlagFull,
 		c.OSDMapFlagPauseRd,
 		c.OSDMapFlagPauseWr,
@@ -878,6 +890,7 @@ type cephHealthStats struct {
 	} `json:"osdmap"`
 	PGMap struct {
 		NumPGs                  float64 `json:"num_pgs"`
+		TotalObjects            float64 `json:"num_objects"`
 		WriteOpPerSec           float64 `json:"write_op_per_sec"`
 		ReadOpPerSec            float64 `json:"read_op_per_sec"`
 		WriteBytePerSec         float64 `json:"write_bytes_sec"`
@@ -1300,6 +1313,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 
 	c.RemappedPGs.Set(stats.OSDMap.OSDMap.NumRemappedPGs)
 	c.TotalPGs.Set(stats.PGMap.NumPGs)
+	c.Objects.Set(stats.PGMap.TotalObjects)
 
 	for _, checkType := range []string{"REQUEST_SLOW", "REQUEST_STUCK"} {
 		if err := c.calculateSlowRequestsPerOSD(ch, checkType); err != nil {
