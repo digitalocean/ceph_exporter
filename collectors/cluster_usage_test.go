@@ -38,15 +38,13 @@ func TestClusterUsage(t *testing.T) {
 	"stats": {
 		"total_bytes": 10,
 		"total_used_bytes": 6,
-		"total_avail_bytes": 4,
-		"total_objects": 1
+		"total_avail_bytes": 4
 	}
 }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_cluster_capacity_bytes{cluster="ceph"} 10`),
 				regexp.MustCompile(`ceph_cluster_used_bytes{cluster="ceph"} 6`),
 				regexp.MustCompile(`ceph_cluster_available_bytes{cluster="ceph"} 4`),
-				regexp.MustCompile(`ceph_cluster_objects{cluster="ceph"} 1`),
 			},
 			reUnmatch: []*regexp.Regexp{},
 		},
@@ -55,15 +53,13 @@ func TestClusterUsage(t *testing.T) {
 {
 	"stats": {
 		"total_used_bytes": 6,
-		"total_avail_bytes": 4,
-		"total_objects": 1
+		"total_avail_bytes": 4
 	}
 }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_cluster_capacity_bytes{cluster="ceph"} 0`),
 				regexp.MustCompile(`ceph_cluster_used_bytes{cluster="ceph"} 6`),
 				regexp.MustCompile(`ceph_cluster_available_bytes{cluster="ceph"} 4`),
-				regexp.MustCompile(`ceph_cluster_objects{cluster="ceph"} 1`),
 			},
 			reUnmatch: []*regexp.Regexp{},
 		},
@@ -72,15 +68,13 @@ func TestClusterUsage(t *testing.T) {
 {
 	"stats": {
 		"total_bytes": 10,
-		"total_avail_bytes": 4,
-		"total_objects": 1
+		"total_avail_bytes": 4
 	}
 }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_cluster_capacity_bytes{cluster="ceph"} 10`),
 				regexp.MustCompile(`ceph_cluster_used_bytes{cluster="ceph"} 0`),
 				regexp.MustCompile(`ceph_cluster_available_bytes{cluster="ceph"} 4`),
-				regexp.MustCompile(`ceph_cluster_objects{cluster="ceph"} 1`),
 			},
 			reUnmatch: []*regexp.Regexp{},
 		},
@@ -89,15 +83,13 @@ func TestClusterUsage(t *testing.T) {
 {
 	"stats": {
 		"total_bytes": 10,
-		"total_used_bytes": 6,
-		"total_objects": 1
+		"total_used_bytes": 6
 	}
 }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_cluster_capacity_bytes{cluster="ceph"} 10`),
 				regexp.MustCompile(`ceph_cluster_used_bytes{cluster="ceph"} 6`),
 				regexp.MustCompile(`ceph_cluster_available_bytes{cluster="ceph"} 0`),
-				regexp.MustCompile(`ceph_cluster_objects{cluster="ceph"} 1`),
 			},
 			reUnmatch: []*regexp.Regexp{},
 		},
@@ -114,7 +106,6 @@ func TestClusterUsage(t *testing.T) {
 				regexp.MustCompile(`ceph_cluster_capacity_bytes{cluster="ceph"} 10`),
 				regexp.MustCompile(`ceph_cluster_used_bytes{cluster="ceph"} 6`),
 				regexp.MustCompile(`ceph_cluster_available_bytes{cluster="ceph"} 4`),
-				regexp.MustCompile(`ceph_cluster_objects{cluster="ceph"} 0`),
 			},
 			reUnmatch: []*regexp.Regexp{},
 		},
@@ -124,8 +115,7 @@ func TestClusterUsage(t *testing.T) {
 	"stats": {{{
 		"total_bytes": 10,
 		"total_used_bytes": 6,
-		"total_avail_bytes": 4,
-		"total_objects": 1
+		"total_avail_bytes": 4
 	}
 }`,
 			reMatch: []*regexp.Regexp{},
@@ -133,7 +123,6 @@ func TestClusterUsage(t *testing.T) {
 				regexp.MustCompile(`ceph_cluster_capacity_bytes{cluster="ceph"}`),
 				regexp.MustCompile(`ceph_cluster_used_bytes{cluster="ceph"}`),
 				regexp.MustCompile(`ceph_cluster_available_bytes{cluster="ceph"}`),
-				regexp.MustCompile(`ceph_cluster_objects{cluster="ceph"}`),
 			},
 		},
 	} {

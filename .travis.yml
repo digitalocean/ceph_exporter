@@ -3,7 +3,7 @@ sudo: required
 dist: bionic
 
 go:
-  - 1.9.2
+  - 1.13
 
 env:
   - DOCKER_TAG=$TRAVIS_TAG

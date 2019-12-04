@@ -42,9 +42,6 @@ type ClusterUsageCollector struct {
 
 	// AvailableCapacity shows the remaining capacity of the cluster that is left unallocated.
 	AvailableCapacity prometheus.Gauge
-
-	// Objects show the total no. of RADOS objects that are currently allocated.
-	Objects prometheus.Gauge
 }
 
 // NewClusterUsageCollector creates and returns the reference to ClusterUsageCollector
@@ -74,12 +71,6 @@ func NewClusterUsageCollector(conn Conn, cluster string) *ClusterUsageCollector 
 			Help:        "Available space within the cluster",
 			ConstLabels: labels,
 		}),
-		Objects: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace:   cephNamespace,
-			Name:        "cluster_objects",
-			Help:        "No. of rados objects within the cluster",
-			ConstLabels: labels,
-		}),
 	}
 }
 
@@ -88,7 +79,6 @@ func (c *ClusterUsageCollector) metricsList() []prometheus.Metric {
 		c.GlobalCapacity,
 		c.UsedCapacity,
 		c.AvailableCapacity,
-		c.Objects,
 	}
 }
 
@@ -97,7 +87,6 @@ type cephClusterStats struct {
 		TotalBytes      json.Number `json:"total_bytes"`
 		TotalUsedBytes  json.Number `json:"total_used_bytes"`
 		TotalAvailBytes json.Number `json:"total_avail_bytes"`
-		TotalObjects    json.Number `json:"total_objects"`
 	} `json:"stats"`
 }
 
@@ -113,7 +102,7 @@ func (c *ClusterUsageCollector) collect() error {
 		return err
 	}
 
-	var totBytes, usedBytes, availBytes, totObjects float64
+	var totBytes, usedBytes, availBytes float64
 
 	totBytes, err = stats.Stats.TotalBytes.Float64()
 	if err != nil {
@@ -130,15 +119,9 @@ func (c *ClusterUsageCollector) collect() error {
 		log.Println("[ERROR] cannot extract available bytes:", err)
 	}
 
-	totObjects, err = stats.Stats.TotalObjects.Float64()
-	if err != nil {
-		log.Println("[ERROR] cannot extract total objects:", err)
-	}
-
 	c.GlobalCapacity.Set(totBytes)
 	c.UsedCapacity.Set(usedBytes)
 	c.AvailableCapacity.Set(availBytes)
-	c.Objects.Set(totObjects)
 
 	return nil
 }
