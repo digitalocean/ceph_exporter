@@ -14,7 +14,12 @@
 
 package collectors
 
-import "github.com/ceph/go-ceph/rados"
+import (
+	"encoding/json"
+	"fmt"
+
+	"github.com/ceph/go-ceph/rados"
+)
 
 // Conn interface implements only necessary methods that are used
 // in this repository of *rados.Conn. This keeps rest of the implementation
@@ -26,6 +31,7 @@ type Conn interface {
 	Connect() error
 	Shutdown()
 	MonCommand([]byte) ([]byte, string, error)
+	PGCommand([]byte, []byte) ([]byte, string, error)
 }
 
 // Verify that *rados.Conn implements Conn correctly.
@@ -33,18 +39,32 @@ var _ Conn = &rados.Conn{}
 
 // NoopConn is the stub we use for mocking rados Conn. Unit testing
 // each individual collectors becomes a lot easier after that.
+// TODO: both output and cmdOut provide the command outputs for "go test", but
+// we can deprecate output, because cmdOut is able to hold the outputs we desire
+// for multiple commands for "go test".
 type NoopConn struct {
-	output string
+	output string // deprecated
+	cmdOut map[string]string
 }
 
 // The stub we use for testing should also satisfy the interface properties.
 var _ Conn = &NoopConn{}
 
-// NewNoopConn returns an instance of *NoopConn. The string that we want
-// outputted at the end of the command we issue to ceph, should be
-// specified in the only input parameter.
+// NewNoopConn returns an instance of *NoopConn. The string that we want output
+// at the end of the command we issue to Ceph is fixed and should be specified
+// in the only input parameter.
 func NewNoopConn(output string) *NoopConn {
-	return &NoopConn{output}
+	return &NoopConn{
+		output: output,
+		cmdOut: make(map[string]string),
+	}
+}
+
+// NewNoopConnWithCmdOut returns an instance of *NoopConn. THe string that we
+// want output at the end of the command we issue to Ceph can be various and
+// should be specified by the map in the only input parameter.
+func NewNoopConnWithCmdOut(cmdOut map[string]string) *NoopConn {
+	return &NoopConn{cmdOut: cmdOut}
 }
 
 // ReadDefaultConfigFile does not need to return an error. It satisfies
@@ -64,6 +84,74 @@ func (n *NoopConn) Shutdown() {}
 
 // MonCommand returns the provided output string to NoopConn as is, making
 // it seem like it actually ran something and produced that string as a result.
-func (n *NoopConn) MonCommand(_ []byte) ([]byte, string, error) {
+func (n *NoopConn) MonCommand(args []byte) ([]byte, string, error) {
+	// Unmarshal the input command and see if we need to intercept
+	cmd := map[string]interface{}{}
+	err := json.Unmarshal(args, &cmd)
+	if err != nil {
+		return []byte(n.output), "", err
+	}
+
+	// Intercept and mock the output
+	switch prefix := cmd["prefix"]; prefix {
+	case "pg dump":
+		val, ok := cmd["dumpcontents"]
+		if !ok {
+			break
+		}
+
+		dc, ok := val.([]interface{})
+		if !ok || len(dc) == 0 {
+			break
+		}
+
+		switch dc[0] {
+		case "pgs_brief":
+			return []byte(n.cmdOut["ceph pg dump pgs_brief"]), "", nil
+		}
+
+	case "osd tree":
+		val, ok := cmd["states"]
+		if !ok {
+			break
+		}
+
+		st, ok := val.([]interface{})
+		if !ok || len(st) == 0 {
+			break
+		}
+
+		switch st[0] {
+		case "down":
+			return []byte(n.cmdOut["ceph osd tree down"]), "", nil
+		}
+
+	case "osd df":
+		return []byte(n.cmdOut["ceph osd df"]), "", nil
+	case "osd perf":
+		return []byte(n.cmdOut["ceph osd perf"]), "", nil
+	case "osd dump":
+		return []byte(n.cmdOut["ceph osd dump"]), "", nil
+	}
+
+	return []byte(n.output), "", nil
+}
+
+// PGCommand returns the provided output string to NoopConn as is, making
+// it seem like it actually ran something and producted that string as a result.
+func (n *NoopConn) PGCommand(pgid, args []byte) ([]byte, string, error) {
+	// Unmarshal the input command and see if we need to intercept
+	cmd := map[string]interface{}{}
+	err := json.Unmarshal(args, &cmd)
+	if err != nil {
+		return []byte(n.output), "", err
+	}
+
+	// Intercept and mock the output
+	switch prefix := cmd["prefix"]; prefix {
+	case "query":
+		return []byte(n.cmdOut[fmt.Sprintf("ceph tell %s query", string(pgid))]), "", nil
+	}
+
 	return []byte(n.output), "", nil
 }

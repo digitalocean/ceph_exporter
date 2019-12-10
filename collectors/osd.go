@@ -21,21 +21,25 @@ const (
 	scrubStateDeepScrubbing = 2
 )
 
-type cephPGDumpBriefResponse []struct {
-	PGID          string `json:"pgid"`
-	ActingPrimary int64  `json:"acting_primary"`
-	Acting        []int  `json:"acting"`
-	State         string `json:"state"`
-}
-
 // OSDCollector displays statistics about OSD in the ceph cluster.
-// An important aspect of monitoring OSDs is to ensure that when the cluster is up and
-// running that all OSDs that are in the cluster are up and running, too
+// An important aspect of monitoring OSDs is to ensure that when the cluster is
+// up and running that all OSDs that are in the cluster are up and running, too
 type OSDCollector struct {
 	conn Conn
 
+	// initalCollect flags if it is the first time for this OSDCollector to
+	// collect metrics
+	initialCollect bool
+
 	// osdScrubCache holds the cache of previous PG scrubs
 	osdScrubCache map[int]int
+
+	// pgObjectsRecoveredCache holds the cache of previous number of objects
+	// recovered of all PGs
+	pgObjectsRecoveredCache map[string]int64
+
+	// pgDumpBrief holds the content of PG dump brief
+	pgDumpBrief cephPGDumpBrief
 
 	// CrushWeight is a persistent setting, and it affects how CRUSH assigns data to OSDs.
 	// It displays the CRUSH weight for the OSD
@@ -63,7 +67,7 @@ type OSDCollector struct {
 	// Variance displays current variance of the OSD from the standard utilization
 	Variance *prometheus.GaugeVec
 
-	// Pgs displays total no. of placement groups in the OSD.
+	// Pgs displays total number of placement groups in the OSD.
 	// Available in Ceph Jewel version.
 	Pgs *prometheus.GaugeVec
 
@@ -79,13 +83,13 @@ type OSDCollector struct {
 	// OSDUp displays the Up state of the OSD
 	OSDUp *prometheus.GaugeVec
 
-	// OSDFull flags if an osd is full
+	// OSDFull flags if an OSD is full
 	OSDFull *prometheus.GaugeVec
 
-	// OSDNearfull flags if an osd is near full
+	// OSDNearfull flags if an OSD is near full
 	OSDNearFull *prometheus.GaugeVec
 
-	// OSDBackfillFull flags if an osd is backfill full
+	// OSDBackfillFull flags if an OSD is backfill full
 	OSDBackfillFull *prometheus.GaugeVec
 
 	// OSDDownDesc displays OSDs present in the cluster in "down" state
@@ -103,20 +107,28 @@ type OSDCollector struct {
 	// AverageUtil displays average utilization in all OSDs
 	AverageUtil prometheus.Gauge
 
-	// ScrubbingStateDesc depicts if an osd is being scrubbed
-	// labelled by OSD
+	// ScrubbingStateDesc depicts if an OSD is being scrubbed
+	// labeled by OSD
 	ScrubbingStateDesc *prometheus.Desc
+
+	// PGObjectsRecoveredDesc displays total number of objects recovered in a PG
+	PGObjectsRecoveredDesc *prometheus.Desc
 }
 
-//NewOSDCollector creates an instance of the OSDCollector and instantiates
-// the individual metrics that show information about the OSD.
+// This ensures OSDCollector implements interface prometheus.Collector.
+var _ prometheus.Collector = &OSDCollector{}
+
+// NewOSDCollector creates an instance of the OSDCollector and instantiates the
+// individual metrics that show information about the OSD.
 func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 	labels := make(prometheus.Labels)
 	labels["cluster"] = cluster
 
 	return &OSDCollector{
-		conn:          conn,
-		osdScrubCache: make(map[int]int),
+		conn:                    conn,
+		initialCollect:          true,
+		osdScrubCache:           make(map[int]int),
+		pgObjectsRecoveredCache: make(map[string]int64),
 
 		CrushWeight: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -315,14 +327,22 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 
 		OSDDownDesc: prometheus.NewDesc(
 			fmt.Sprintf("%s_osd_down", cephNamespace),
-			"No. of OSDs down in the cluster",
+			"Number of OSDs down in the cluster",
 			[]string{"osd", "status"},
 			labels,
 		),
+
 		ScrubbingStateDesc: prometheus.NewDesc(
 			fmt.Sprintf("%s_osd_scrub_state", cephNamespace),
 			"State of OSDs involved in a scrub",
 			[]string{"osd"},
+			labels,
+		),
+
+		PGObjectsRecoveredDesc: prometheus.NewDesc(
+			fmt.Sprintf("%s_pg_objects_recovered", cephNamespace),
+			"Number of objects recovered in a PG",
+			[]string{"pgid"},
 			labels,
 		),
 	}
@@ -375,7 +395,7 @@ type cephOSDDF struct {
 	} `json:"summary"`
 }
 
-type cephPerfStat struct {
+type cephOSDPerf struct {
 	PerfInfo []struct {
 		ID    json.Number `json:"id"`
 		Stats struct {
@@ -383,10 +403,6 @@ type cephPerfStat struct {
 			ApplyLatency  json.Number `json:"apply_latency_ms"`
 		} `json:"perf_stats"`
 	} `json:"osd_perf_infos"`
-}
-
-type cephOSDPerfStat struct {
-	cephPerfStat `json:"osdstats"`
 }
 
 type cephOSDDump struct {
@@ -413,16 +429,45 @@ type cephOSDTreeDown struct {
 	} `json:"stray"`
 }
 
+type cephPGDumpBrief struct {
+	PGStats []struct {
+		PGID          string `json:"pgid"`
+		ActingPrimary int64  `json:"acting_primary"`
+		Acting        []int  `json:"acting"`
+		State         string `json:"state"`
+	} `json:"pg_stats"`
+}
+
+type cephPGQuery struct {
+	State string `json:"state"`
+	Info  struct {
+		Stats struct {
+			StatSum struct {
+				NumObjectsRecovered int64 `json:"num_objects_recovered"`
+			} `json:"stat_sum"`
+		} `json:"stats"`
+	} `json:"info:`
+	RecoveryState []struct {
+		Name            string `json:"name"`
+		EnterTime       string `json:"enter_time"`
+		RecoverProgress *struct {
+			BackfillTargets []string `json:"backfill_targets"`
+		} `json:"recovery_progress"`
+	} `json:"recovery_state"`
+}
+
+// backfillTargets function would go here - not sure if it is needed
+
 func (o *OSDCollector) collectOSDDF() error {
 	cmd := o.cephOSDDFCommand()
 
 	buf, _, err := o.conn.MonCommand(cmd)
 	if err != nil {
-		log.Println("[ERROR] Unable to collect data from ceph osd df", err)
+		log.Printf("failed sending Mon command %s: %s", cmd, err)
 		return err
 	}
 
-	// Workaround for Ceph Jewel after 10.2.5 produces invalid json when osd is out
+	// Workaround for Ceph Jewel after 10.2.5 produces invalid json when OSD is out
 	buf = bytes.Replace(buf, []byte("-nan"), []byte("0"), -1)
 
 	osdDF := &cephOSDDF{}
@@ -531,14 +576,14 @@ func (o *OSDCollector) collectOSDDF() error {
 }
 
 func (o *OSDCollector) collectOSDPerf() error {
-	osdPerfCmd := o.cephOSDPerfCommand()
-	buf, _, err := o.conn.MonCommand(osdPerfCmd)
+	cmd := o.cephOSDPerfCommand()
+	buf, _, err := o.conn.MonCommand(cmd)
 	if err != nil {
-		log.Println("[ERROR] Unable to collect data from ceph osd perf", err)
+		log.Printf("failed sending Mon command %s: %s", cmd, err)
 		return err
 	}
 
-	osdPerf := &cephOSDPerfStat{}
+	osdPerf := &cephOSDPerf{}
 	if err := json.Unmarshal(buf, osdPerf); err != nil {
 		return err
 	}
@@ -567,10 +612,10 @@ func (o *OSDCollector) collectOSDPerf() error {
 }
 
 func (o *OSDCollector) collectOSDTreeDown(ch chan<- prometheus.Metric) error {
-	osdDownCmd := o.cephOSDTreeCommand("down")
-	buff, _, err := o.conn.MonCommand(osdDownCmd)
+	cmd := o.cephOSDTreeCommand("down")
+	buff, _, err := o.conn.MonCommand(cmd)
 	if err != nil {
-		log.Println("[ERROR] Unable to collect data from ceph osd tree down", err)
+		log.Printf("failed sending Mon command %s: %s", cmd, err)
 		return err
 	}
 
@@ -595,15 +640,15 @@ func (o *OSDCollector) collectOSDTreeDown(ch chan<- prometheus.Metric) error {
 }
 
 func (o *OSDCollector) collectOSDDump() error {
-	osdDumpCmd := o.cephOSDDump()
-	buff, _, err := o.conn.MonCommand(osdDumpCmd)
+	cmd := o.cephOSDDump()
+	buff, _, err := o.conn.MonCommand(cmd)
 	if err != nil {
-		log.Println("[ERROR] Unable to collect data from ceph osd dump", err)
+		log.Printf("failed sending Mon command %s: %s", cmd, err)
 		return err
 	}
 
-	osdDump := &cephOSDDump{}
-	if err := json.Unmarshal(buff, osdDump); err != nil {
+	osdDump := cephOSDDump{}
+	if err := json.Unmarshal(buff, &osdDump); err != nil {
 		return err
 	}
 
@@ -647,27 +692,49 @@ func (o *OSDCollector) collectOSDDump() error {
 
 }
 
-func (o *OSDCollector) collectOSDScrubState(ch chan<- prometheus.Metric) error {
+func (o *OSDCollector) performPGDumpBrief() error {
 	cmd := o.cephPGDumpCommand()
 	buf, _, err := o.conn.MonCommand(cmd)
 	if err != nil {
+		log.Printf("failed sending Mon command %s: %s", cmd, err)
 		return err
 	}
 
-	stats := cephPGDumpBriefResponse{}
-	if err := json.Unmarshal(buf, &stats); err != nil {
+	o.pgDumpBrief = cephPGDumpBrief{}
+	if err := json.Unmarshal(buf, &o.pgDumpBrief); err != nil {
 		return err
 	}
 
-	// need to reset the PG scrub state since the scrub might have ended within the last prom scrape interval.
-	//  This forces us to report scrub state on all previously discovered osds
-	// We may be able to remove the "cache" when using prometheus 2.0 if we can tune how
-	// unreported/abandoned gauges are treated (ie set to 0).
+	return nil
+}
+
+func (o *OSDCollector) performPGQuery(pgid string) (*cephPGQuery, error) {
+	cmd := o.cephPGQueryCommand(pgid)
+	buf, _, err := o.conn.PGCommand([]byte(pgid), cmd)
+	if err != nil {
+		log.Printf("failed sending PG command %s: %s", cmd, err)
+		return nil, err
+	}
+
+	pgQuery := cephPGQuery{}
+	if err := json.Unmarshal(buf, &pgQuery); err != nil {
+		return nil, err
+	}
+
+	return &pgQuery, nil
+}
+
+func (o *OSDCollector) collectOSDScrubState(ch chan<- prometheus.Metric) error {
+	// need to reset the PG scrub state since the scrub might have ended within
+	// the last prom scrape interval.
+	// This forces us to report scrub state on all previously discovered OSDs We
+	// may be able to remove the "cache" when using Prometheus 2.0 if we can
+	// tune how unreported/abandoned gauges are treated (ie set to 0).
 	for i := range o.osdScrubCache {
 		o.osdScrubCache[i] = scrubStateIdle
 	}
 
-	for _, pg := range stats {
+	for _, pg := range o.pgDumpBrief.PGStats {
 		if strings.Contains(pg.State, "scrubbing") {
 			scrubState := scrubStateScrubbing
 			if strings.Contains(pg.State, "deep") {
@@ -691,10 +758,33 @@ func (o *OSDCollector) collectOSDScrubState(ch chan<- prometheus.Metric) error {
 	return nil
 }
 
+func (o *OSDCollector) collectPGRecoveryState(ch chan<- prometheus.Metric) error {
+	for _, pg := range o.pgDumpBrief.PGStats {
+		if o.initialCollect || strings.Contains(pg.State, "recovering") {
+			query, err := o.performPGQuery(pg.PGID)
+			if err != nil {
+				continue
+			}
+
+			o.pgObjectsRecoveredCache[pg.PGID] = query.Info.Stats.StatSum.NumObjectsRecovered
+		}
+	}
+
+	for pgid, val := range o.pgObjectsRecoveredCache {
+		ch <- prometheus.MustNewConstMetric(
+			o.PGObjectsRecoveredDesc,
+			prometheus.GaugeValue,
+			float64(val),
+			pgid)
+	}
+
+	return nil
+}
+
 func (o *OSDCollector) cephOSDDump() []byte {
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix": "osd dump",
-		"format": "json",
+		"format": jsonFormat,
 	})
 	if err != nil {
 		panic(err)
@@ -705,7 +795,7 @@ func (o *OSDCollector) cephOSDDump() []byte {
 func (o *OSDCollector) cephOSDDFCommand() []byte {
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix": "osd df",
-		"format": "json",
+		"format": jsonFormat,
 	})
 	if err != nil {
 		panic(err)
@@ -716,7 +806,7 @@ func (o *OSDCollector) cephOSDDFCommand() []byte {
 func (o *OSDCollector) cephOSDPerfCommand() []byte {
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix": "osd perf",
-		"format": "json",
+		"format": jsonFormat,
 	})
 	if err != nil {
 		panic(err)
@@ -728,7 +818,7 @@ func (o *OSDCollector) cephOSDTreeCommand(states ...string) []byte {
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix": "osd tree",
 		"states": states,
-		"format": "json",
+		"format": jsonFormat,
 	})
 	if err != nil {
 		panic(err)
@@ -743,23 +833,35 @@ func (o *OSDCollector) cephPGDumpCommand() []byte {
 		"format":       jsonFormat,
 	})
 	if err != nil {
-		// panic! because ideally in no world this hard-coded input
-		// should fail.
 		panic(err)
 	}
 	return cmd
 }
 
-// Describe sends the descriptors of each OSDCollector related metrics we have defined
-// to the provided prometheus channel.
+func (o *OSDCollector) cephPGQueryCommand(pgid string) []byte {
+	cmd, err := json.Marshal(map[string]interface{}{
+		"prefix": "query",
+		"pgid":   pgid,
+		"format": jsonFormat,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return cmd
+}
+
+// Describe sends the descriptors of each OSDCollector related metrics we have
+// defined to the provided Prometheus channel.
 func (o *OSDCollector) Describe(ch chan<- *prometheus.Desc) {
 	for _, metric := range o.collectorList() {
 		metric.Describe(ch)
 	}
+	ch <- o.OSDDownDesc
 	ch <- o.ScrubbingStateDesc
+	ch <- o.PGObjectsRecoveredDesc
 }
 
-// Collect sends all the collected metrics to the provided prometheus channel.
+// Collect sends all the collected metrics to the provided Prometheus channel.
 // It requires the caller to handle synchronization.
 func (o *OSDCollector) Collect(ch chan<- prometheus.Metric) {
 
@@ -779,26 +881,38 @@ func (o *OSDCollector) Collect(ch chan<- prometheus.Metric) {
 	o.OSDUp.Reset()
 
 	if err := o.collectOSDPerf(); err != nil {
-		log.Println("failed collecting osd perf stats:", err)
+		log.Println("failed collecting OSD perf metrics:", err)
 	}
 
 	if err := o.collectOSDDump(); err != nil {
-		log.Println("failed collecting osd dump:", err)
+		log.Println("failed collecting OSD dump metrics:", err)
 	}
 
 	if err := o.collectOSDDF(); err != nil {
-		log.Println("failed collecting osd metrics:", err)
+		log.Println("failed collecting OSD df metrics:", err)
 	}
 
 	if err := o.collectOSDTreeDown(ch); err != nil {
-		log.Println("failed collecting osd metrics:", err)
+		log.Println("failed collecting OSD tree down metrics:", err)
 	}
 
 	for _, metric := range o.collectorList() {
 		metric.Collect(ch)
 	}
 
+	if err := o.performPGDumpBrief(); err != nil {
+		log.Println("failed performing PG dump brief:", err)
+	}
+
 	if err := o.collectOSDScrubState(ch); err != nil {
-		log.Println("failed collecting osd scrub state:", err)
+		log.Println("failed collecting OSD scrub metrics:", err)
+	}
+
+	if err := o.collectPGRecoveryState(ch); err != nil {
+		log.Println("failed collecting PG recovery metrics:", err)
+	}
+
+	if o.initialCollect {
+		o.initialCollect = false
 	}
 }
