@@ -12,11 +12,12 @@ import (
 
 func TestOSDCollector(t *testing.T) {
 	for _, tt := range []struct {
-		input   string
+		cmdOut  map[string]string
 		regexes []*regexp.Regexp
 	}{
 		{
-			input: `
+			cmdOut: map[string]string{
+				"ceph osd df": `
 {
     "nodes": [
         {
@@ -106,6 +107,7 @@ func TestOSDCollector(t *testing.T) {
         "dev": 0.017482
     }
 }`,
+			},
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_osd_crush_weight{cluster="ceph",osd="osd.0"} 0.010391`),
 				regexp.MustCompile(`ceph_osd_crush_weight{cluster="ceph",osd="osd.1"} 0.010391`),
@@ -159,48 +161,48 @@ func TestOSDCollector(t *testing.T) {
 			},
 		},
 		{
-			input: `
+			cmdOut: map[string]string{
+				"ceph osd perf": `
 {
-	"osdstats": {
-		"osd_perf_infos": [
-			{
-				"id": 4,
-				"perf_stats": {
-					"commit_latency_ms": 0,
-					"apply_latency_ms": 0
-				}
-			},
-			{
-				"id": 3,
-				"perf_stats": {
-					"commit_latency_ms": 1,
-					"apply_latency_ms": 64
-				}
-			},
-			{
-				"id": 2,
-				"perf_stats": {
-					"commit_latency_ms": 2,
-					"apply_latency_ms": 79
-				}
-			},
-			{
-				"id": 1,
-				"perf_stats": {
-					"commit_latency_ms": 2,
-					"apply_latency_ms": 39
-				}
-			},
-			{
-				"id": 0,
-				"perf_stats": {
-					"commit_latency_ms": 2,
-					"apply_latency_ms": 31
-				}
+	"osd_perf_infos": [
+		{
+			"id": 4,
+			"perf_stats": {
+				"commit_latency_ms": 0,
+				"apply_latency_ms": 0
 			}
-		]
-	}
+		},
+		{
+			"id": 3,
+			"perf_stats": {
+				"commit_latency_ms": 1,
+				"apply_latency_ms": 64
+			}
+		},
+		{
+			"id": 2,
+			"perf_stats": {
+				"commit_latency_ms": 2,
+				"apply_latency_ms": 79
+			}
+		},
+		{
+			"id": 1,
+			"perf_stats": {
+				"commit_latency_ms": 2,
+				"apply_latency_ms": 39
+			}
+		},
+		{
+			"id": 0,
+			"perf_stats": {
+				"commit_latency_ms": 2,
+				"apply_latency_ms": 31
+			}
+		}
+	]
 }`,
+			},
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_osd_perf_commit_latency_seconds{cluster="ceph",osd="osd.0"} 0.002`),
 				regexp.MustCompile(`ceph_osd_perf_commit_latency_seconds{cluster="ceph",osd="osd.1"} 0.002`),
@@ -215,7 +217,8 @@ func TestOSDCollector(t *testing.T) {
 			},
 		},
 		{
-			input: `
+			cmdOut: map[string]string{
+				"ceph osd dump": `
 {
     "osds": [
         {
@@ -265,8 +268,8 @@ func TestOSDCollector(t *testing.T) {
             ]
         }
     ]
-}
-`,
+}`,
+			},
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_osd_in{cluster="ceph",osd="osd.0"} 1`),
 				regexp.MustCompile(`ceph_osd_in{cluster="ceph",osd="osd.1"} 1`),
@@ -296,42 +299,47 @@ func TestOSDCollector(t *testing.T) {
 			},
 		},
 		{
-			input: `
-[
-	{
-		"acting": [
-			1,
-			2,
-			3,
-			4
-		],
-		"acting_primary": 1,
-		"pgid": "81.1fff",
-		"state": "active+clean"
-	},
-	{
-		"acting": [
-			10,
-			11,
-			12,
-			13
-		],
-		"acting_primary": 10,
-		"pgid": "82.1fff",
-		"state": "active+clean+scrubbing"
-	},
-	{
-		"acting": [
-			20,
-			21,
-			22,
-			23
-		],
-		"acting_primary": 20,
-		"pgid": "83.1fff",
-		"state": "active+clean+scrubbing+deep"
-	}
-]`,
+			cmdOut: map[string]string{
+				"ceph pg dump pgs_brief": `
+{ 
+	"pg_ready": true,
+	"pg_stats": [
+		{
+			"acting": [
+				1,
+				2,
+				3,
+				4
+			],
+			"acting_primary": 1,
+			"pgid": "81.1fff",
+			"state": "active+clean"
+		},
+		{
+			"acting": [
+				10,
+				11,
+				12,
+				13
+			],
+			"acting_primary": 10,
+			"pgid": "82.1fff",
+			"state": "active+clean+scrubbing"
+		},
+		{
+			"acting": [
+				20,
+				21,
+				22,
+				23
+			],
+			"acting_primary": 20,
+			"pgid": "83.1fff",
+			"state": "active+clean+scrubbing+deep"
+		}
+	]
+}`,
+			},
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",osd="osd.10"} 1`),
 				regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",osd="osd.11"} 1`),
@@ -344,183 +352,261 @@ func TestOSDCollector(t *testing.T) {
 			},
 		},
 		{
-			input: `
-			{
-				"nodes": [],
-				"stray": [
-					{
-						"id": 524,
-						"name": "osd.524",
-						"type": "osd",
-						"type_id": 0,
-						"crush_weight": 0.000000,
-						"depth": 0,
-						"exists": 1,
-						"status": "destroyed",
-						"reweight": 0.000000,
-						"primary_affinity": 1.000000
-					}
-				]
-			}`,
+			cmdOut: map[string]string{
+				"ceph osd tree down": `
+{
+	"nodes": [],
+	"stray": [
+		{
+			"id": 524,
+			"name": "osd.524",
+			"type": "osd",
+			"type_id": 0,
+			"crush_weight": 0.000000,
+			"depth": 0,
+			"exists": 1,
+			"status": "destroyed",
+			"reweight": 0.000000,
+			"primary_affinity": 1.000000
+		}
+	]
+}`,
+			},
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_osd_down{cluster="ceph",osd="osd.524",status="destroyed"} 1`),
 			},
 		},
 		{
-			input: `
-			{
-				"nodes": [],
-				"stray": [
-					{
-						"id": 524,
-						"name": "osd.524",
-						"type": "osd",
-						"type_id": 0,
-						"crush_weight": 0.000000,
-						"depth": 0,
-						"exists": 1,
-						"status": "down",
-						"reweight": 0.000000,
-						"primary_affinity": 1.000000
-					}
-				]
-			}`,
+			cmdOut: map[string]string{
+				"ceph osd tree down": `
+{
+	"nodes": [],
+	"stray": [
+		{
+			"id": 524,
+			"name": "osd.524",
+			"type": "osd",
+			"type_id": 0,
+			"crush_weight": 0.000000,
+			"depth": 0,
+			"exists": 1,
+			"status": "down",
+			"reweight": 0.000000,
+			"primary_affinity": 1.000000
+		}
+	]
+}`,
+			},
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_osd_down{cluster="ceph",osd="osd.524",status="down"} 1`),
 			},
 		},
 		{
-			input: `
-			{
-				"nodes": [
-					{
-						"id": -18,
-						"name": "data",
-						"type": "root",
-						"type_id": 10,
-						"children": [
-							-20
-						]
-					},
-					{
-						"id": -20,
-						"name": "R1-data",
-						"type": "rack",
-						"type_id": 3,
-						"pool_weights": {},
-						"children": [
-							-8
-						]
-					},
-					{
-						"id": -8,
-						"name": "test-data03-object01",
-						"type": "host",
-						"type_id": 1,
-						"pool_weights": {},
-						"children": [
-							97
-						]
-					},
-					{
-						"id": 524,
-						"device_class": "hdd",
-						"name": "osd.524",
-						"type": "osd",
-						"type_id": 0,
-						"crush_weight": 7.265991,
-						"depth": 3,
-						"pool_weights": {},
-						"exists": 1,
-						"status": "destroyed",
-						"reweight": 0.000000,
-						"primary_affinity": 1.000000
-					}
-				],
-				"stray": []
-			}`,
+			cmdOut: map[string]string{
+				"ceph osd tree down": `
+{
+	"nodes": [
+		{
+			"id": -18,
+			"name": "data",
+			"type": "root",
+			"type_id": 10,
+			"children": [
+				-20
+			]
+		},
+		{
+			"id": -20,
+			"name": "R1-data",
+			"type": "rack",
+			"type_id": 3,
+			"pool_weights": {},
+			"children": [
+				-8
+			]
+		},
+		{
+			"id": -8,
+			"name": "test-data03-object01",
+			"type": "host",
+			"type_id": 1,
+			"pool_weights": {},
+			"children": [
+				97
+			]
+		},
+		{
+			"id": 524,
+			"device_class": "hdd",
+			"name": "osd.524",
+			"type": "osd",
+			"type_id": 0,
+			"crush_weight": 7.265991,
+			"depth": 3,
+			"pool_weights": {},
+			"exists": 1,
+			"status": "destroyed",
+			"reweight": 0.000000,
+			"primary_affinity": 1.000000
+		}
+	],
+	"stray": []
+}`,
+			},
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_osd_down{cluster="ceph",osd="osd.524",status="destroyed"} 1`),
 			},
 		},
 		{
-			input: `
-			{
-				"nodes": [
-					{
-						"id": -18,
-						"name": "data",
-						"type": "root",
-						"type_id": 10,
-						"children": [
-							-20
-						]
-					},
-					{
-						"id": -20,
-						"name": "R1-data",
-						"type": "rack",
-						"type_id": 3,
-						"pool_weights": {},
-						"children": [
-							-8
-						]
-					},
-					{
-						"id": -8,
-						"name": "test-data03-object01",
-						"type": "host",
-						"type_id": 1,
-						"pool_weights": {},
-						"children": [
-							97
-						]
-					},
-					{
-						"id": 524,
-						"device_class": "hdd",
-						"name": "osd.524",
-						"type": "osd",
-						"type_id": 0,
-						"crush_weight": 7.265991,
-						"depth": 3,
-						"pool_weights": {},
-						"exists": 1,
-						"status": "destroyed",
-						"reweight": 0.000000,
-						"primary_affinity": 1.000000
-					}
-				],
-				"stray": [
-					{
-						"id": 525,
-						"name": "osd.525",
-						"type": "osd",
-						"type_id": 0,
-						"crush_weight": 0.000000,
-						"depth": 0,
-						"exists": 1,
-						"status": "down",
-						"reweight": 0.000000,
-						"primary_affinity": 1.000000
-					}
-				]
-			}`,
+			cmdOut: map[string]string{
+				"ceph osd tree down": `
+{
+	"nodes": [
+		{
+			"id": -18,
+			"name": "data",
+			"type": "root",
+			"type_id": 10,
+			"children": [
+				-20
+			]
+		},
+		{
+			"id": -20,
+			"name": "R1-data",
+			"type": "rack",
+			"type_id": 3,
+			"pool_weights": {},
+			"children": [
+				-8
+			]
+		},
+		{
+			"id": -8,
+			"name": "test-data03-object01",
+			"type": "host",
+			"type_id": 1,
+			"pool_weights": {},
+			"children": [
+				97
+			]
+		},
+		{
+			"id": 524,
+			"device_class": "hdd",
+			"name": "osd.524",
+			"type": "osd",
+			"type_id": 0,
+			"crush_weight": 7.265991,
+			"depth": 3,
+			"pool_weights": {},
+			"exists": 1,
+			"status": "destroyed",
+			"reweight": 0.000000,
+			"primary_affinity": 1.000000
+		}
+	],
+	"stray": [
+		{
+			"id": 525,
+			"name": "osd.525",
+			"type": "osd",
+			"type_id": 0,
+			"crush_weight": 0.000000,
+			"depth": 0,
+			"exists": 1,
+			"status": "down",
+			"reweight": 0.000000,
+			"primary_affinity": 1.000000
+		}
+	]
+}`,
+			},
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_osd_down{cluster="ceph",osd="osd.524",status="destroyed"} 1`),
 				regexp.MustCompile(`ceph_osd_down{cluster="ceph",osd="osd.525",status="down"} 1`),
 			},
 		},
 		{
-			input: `
-			{
-				"nodes": []}}
-			}`,
+			cmdOut: map[string]string{
+				"ceph osd tree down": `
+{
+	"nodes": []}}
+}`,
+			},
 			regexes: []*regexp.Regexp{},
+		},
+		{
+			cmdOut: map[string]string{
+				"ceph pg dump pgs_brief": `
+{
+	"pg_ready": true,
+	"pg_stats": [
+		{
+			"acting": [
+			1,
+			2,
+			3,
+			4
+			],
+			"acting_primary": 1,
+			"pgid": "81.1fff",
+			"state": "active+clean"
+		},
+		{
+			"acting": [
+			10,
+			11,
+			12,
+			13
+			],
+			"acting_primary": 10,
+			"pgid": "82.1fff",
+			"state": "active+clean+scrubbing"
+		},
+		{
+			"acting": [
+			20,
+			21,
+			22,
+			23
+			],
+			"acting_primary": 20,
+			"pgid": "83.1fff",
+			"state": "active+clean+scrubbing+deep"
+		},
+		{
+			"acting": [
+			30,
+			31,
+			32,
+			33
+			],
+			"acting_primary": 30,
+			"pgid": "84.1fff",
+			"state": "active+recovering+degraded"
+		}
+	]
+}`,
+				"ceph tell 84.1fff query": `
+{
+	"state": "active+recovering+degraded",
+	"info": {
+		"stats": {
+			"stat_sum": {
+				"num_objects_recovered": 123
+			}
+		}
+	}
+}`,
+			},
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_pg_objects_recovered{cluster="ceph",pgid="84.1fff"} 123`),
+			},
 		},
 	} {
 		func() {
-			collector := NewOSDCollector(NewNoopConn(tt.input), "ceph")
+			collector := NewOSDCollector(NewNoopConnWithCmdOut(tt.cmdOut), "ceph")
 			if err := prometheus.Register(collector); err != nil {
 				t.Fatalf("collector failed to register: %s", err)
 			}
@@ -529,13 +615,15 @@ func TestOSDCollector(t *testing.T) {
 			server := httptest.NewServer(prometheus.Handler())
 			defer server.Close()
 
+			var buf []byte
+
 			resp, err := http.Get(server.URL)
 			if err != nil {
 				t.Fatalf("unexpected failed response from prometheus: %s", err)
 			}
 			defer resp.Body.Close()
 
-			buf, err := ioutil.ReadAll(resp.Body)
+			buf, err = ioutil.ReadAll(resp.Body)
 			if err != nil {
 				t.Fatalf("failed reading server response: %s", err)
 			}
