@@ -418,14 +418,14 @@ $ sudo ceph -s
 	"health": {
 		"summary": [
 			{
-				"severity": "HEALTH_WARN",
-				"summary": "6 requests are blocked > 32 sec"
+				"severity": "SLOW_OPS",
+				"summary": "3 slow ops, oldest one blocked for 1 sec, osd.39 has slow ops"
 			}
 		]
 	}
 }`,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`slow_requests{cluster="ceph"} 6`),
+				regexp.MustCompile(`slow_ops{cluster="ceph"} 3`),
 			},
 		},
 		{
@@ -433,17 +433,17 @@ $ sudo ceph -s
 {
   "health": {
     "checks": {
-      "REQUEST_SLOW": {
+      "SLOW_OPS": {
         "severity": "HEALTH_WARN",
         "summary": {
-          "message": "6 slow requests are blocked > 32 sec"
+          "message": "3 slow ops, oldest one blocked for 1 sec, osd.39 has slow ops"
         }
       }
     }
   }
 }`,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`slow_requests{cluster="ceph"} 6`),
+				regexp.MustCompile(`slow_ops{cluster="ceph"} 3`),
 			},
 		},
 		{
@@ -451,17 +451,17 @@ $ sudo ceph -s
 {
   "health": {
     "checks": {
-      "REQUEST_STUCK": {
-        "severity": "HEALTH_ERR",
+      "SLOW_OPS": {
+        "severity": "HEALTH_WARN",
         "summary": {
-          "message": "125 stuck requests are blocked > 4194.3 sec"
+          "message": "18 slow ops, oldest one blocked for 1 sec, daemons [osd.114,osd.116,osd.33,osd.34,osd.43,osd.49,osd.53] have slow ops."
         }
       }
     }
   }
 }`,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`stuck_requests{cluster="ceph"} 125`),
+				regexp.MustCompile(`slow_ops{cluster="ceph"} 18`),
 			},
 		},
 		{
@@ -519,103 +519,6 @@ $ sudo ceph -s
 }`,
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`health_status_interp{cluster="ceph"} 2`),
-			},
-		},
-		{
-			input: `
-{
-  	"checks": {
-		"REQUEST_STUCK": {
-			"detail": [
-				{
-					"message": "413 ops are blocked > 4194.3 sec"
-				},
-				{
-					"message": "osd.131 has stuck requests > 4194.3 sec"
-				}
-			],
-			"summary": {
-				"message": "413 stuck requests are blocked > 4096 sec"
-			},
-			"severity": "HEALTH_ERR"
-		},
-    	"REQUEST_SLOW": {
-			"severity": "HEALTH_WARN",
-			"summary": {
-				"message": "286 slow requests are blocked > 32 sec"
-			},
-			"detail": [
-				{
-					"message": "102 ops are blocked > 524.288 sec"
-				},
-				{
-					"message": "84 ops are blocked > 262.144 sec"
-				},
-				{
-					"message": "53 ops are blocked > 131.072 sec"
-				},
-				{
-					"message": "33 ops are blocked > 65.536 sec"
-				},
-				{
-					"message": "14 ops are blocked > 32.768 sec"
-				},
-				{
-					"message": "osds 363,463 have blocked requests > 32.768 sec"
-				},
-				{
-					"message": "osd.349 has blocked requests > 524.288 sec"
-				}
-			]
-      	}
-    }
-}`,
-			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`slow_requests_osd{cluster="ceph",osd="363"} 14`),
-				regexp.MustCompile(`slow_requests_osd{cluster="ceph",osd="463"} 14`),
-				regexp.MustCompile(`slow_requests_osd{cluster="ceph",osd="349"} 272`),
-				regexp.MustCompile(`slow_requests_osd{cluster="ceph",osd="131"} 413`),
-			},
-		},
-		{
-			input: `
-{
-  	"checks": {
-    	"REQUEST_SLOW": {
-			"severity": "HEALTH_WARN",
-			"summary": {
-				"message": "286 slow requests are blocked > 32 sec"
-			},
-			"detail": [
-				{
-					"message": "102 ops are blocked > 524.288 sec"
-				},
-				{
-					"message": "84 ops are blocked > 262.144 sec"
-				},
-				{
-					"message": "53 ops are blocked > 131.072 sec"
-				},
-				{
-					"message": "33 ops are blocked > 65.536 sec"
-				},
-				{
-					"message": "14 ops are blocked > 32.768 sec"
-				},
-				{
-					"message": "osds 363,463 have blocked requests > 131.072 sec"
-				},
-				{
-					"message": "osd.349 has blocked requests > 524.288 sec"
-				}
-			]
-      	}
-    }
-}`,
-			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`slow_requests_osd{cluster="ceph",osd="363"} 100`),
-				regexp.MustCompile(`slow_requests_osd{cluster="ceph",osd="463"} 100`),
-				regexp.MustCompile(`slow_requests_osd{cluster="ceph",osd="349"} 186`),
 			},
 		},
 		{
