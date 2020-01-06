@@ -435,11 +435,14 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 				ConstLabels: labels,
 			},
 		),
+		// with Nautilus, SLOW_OPS has replaced both REQUEST_SLOW and REQUEST_STUCK
+		// therefore slow_requests is deprecated, but for backwards compatibility
+		// the metric name will be kept the same for the time being
 		SlowOps: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace:   cephNamespace,
-				Name:        "slow_ops",
-				Help:        "No. of slow ops",
+				Name:        "slow_requests",
+				Help:        "No. of slow requests/slow ops",
 				ConstLabels: labels,
 			},
 		),

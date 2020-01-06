@@ -425,7 +425,7 @@ $ sudo ceph -s
 	}
 }`,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`slow_ops{cluster="ceph"} 3`),
+				regexp.MustCompile(`slow_requests{cluster="ceph"} 3`),
 			},
 		},
 		{
@@ -443,7 +443,7 @@ $ sudo ceph -s
   }
 }`,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`slow_ops{cluster="ceph"} 3`),
+				regexp.MustCompile(`slow_requests{cluster="ceph"} 3`),
 			},
 		},
 		{
@@ -461,7 +461,7 @@ $ sudo ceph -s
   }
 }`,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`slow_ops{cluster="ceph"} 18`),
+				regexp.MustCompile(`slow_requests{cluster="ceph"} 18`),
 			},
 		},
 		{
