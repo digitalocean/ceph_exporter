@@ -164,43 +164,45 @@ func TestOSDCollector(t *testing.T) {
 			cmdOut: map[string]string{
 				"ceph osd perf": `
 {
-	"osd_perf_infos": [
-		{
-			"id": 4,
-			"perf_stats": {
-				"commit_latency_ms": 0,
-				"apply_latency_ms": 0
+	"osdstats": {
+		"osd_perf_infos": [
+			{
+				"id": 4,
+				"perf_stats": {
+					"commit_latency_ms": 0,
+					"apply_latency_ms": 0
+				}
+			},
+			{
+				"id": 3,
+				"perf_stats": {
+					"commit_latency_ms": 1,
+					"apply_latency_ms": 64
+				}
+			},
+			{
+				"id": 2,
+				"perf_stats": {
+					"commit_latency_ms": 2,
+					"apply_latency_ms": 79
+				}
+			},
+			{
+				"id": 1,
+				"perf_stats": {
+					"commit_latency_ms": 2,
+					"apply_latency_ms": 39
+				}
+			},
+			{
+				"id": 0,
+				"perf_stats": {
+					"commit_latency_ms": 2,
+					"apply_latency_ms": 31
+				}
 			}
-		},
-		{
-			"id": 3,
-			"perf_stats": {
-				"commit_latency_ms": 1,
-				"apply_latency_ms": 64
-			}
-		},
-		{
-			"id": 2,
-			"perf_stats": {
-				"commit_latency_ms": 2,
-				"apply_latency_ms": 79
-			}
-		},
-		{
-			"id": 1,
-			"perf_stats": {
-				"commit_latency_ms": 2,
-				"apply_latency_ms": 39
-			}
-		},
-		{
-			"id": 0,
-			"perf_stats": {
-				"commit_latency_ms": 2,
-				"apply_latency_ms": 31
-			}
-		}
-	]
+		]
+	}
 }`,
 			},
 			regexes: []*regexp.Regexp{
