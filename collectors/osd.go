@@ -395,7 +395,7 @@ type cephOSDDF struct {
 	} `json:"summary"`
 }
 
-type cephOSDPerf struct {
+type cephPerfStat struct {
 	PerfInfo []struct {
 		ID    json.Number `json:"id"`
 		Stats struct {
@@ -403,6 +403,10 @@ type cephOSDPerf struct {
 			ApplyLatency  json.Number `json:"apply_latency_ms"`
 		} `json:"perf_stats"`
 	} `json:"osd_perf_infos"`
+}
+
+type CephOSDPerfStat struct {
+	cephPerfStat `json:"osdstats"`
 }
 
 type cephOSDDump struct {
@@ -583,7 +587,7 @@ func (o *OSDCollector) collectOSDPerf() error {
 		return err
 	}
 
-	osdPerf := &cephOSDPerf{}
+	osdPerf := &CephOSDPerfStat{}
 	if err := json.Unmarshal(buf, osdPerf); err != nil {
 		return err
 	}
