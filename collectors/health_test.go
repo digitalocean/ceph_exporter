@@ -508,6 +508,25 @@ $ sudo ceph -s
 {
   "health": {
     "checks": {
+      "RECENT_CRASH": {
+        "severity": "HEALTH_WARN",
+        "summary": {
+          "message": "2 daemons have recently crashed"
+        }
+      }
+    }
+  }
+}`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`new_crash_reports{cluster="ceph"} 2`),
+				regexp.MustCompile(`health_status_interp{cluster="ceph"} 1`),
+			},
+		},
+		{
+			input: `
+{
+  "health": {
+    "checks": {
       "POOL_APP_NOT_ENABLED": {
         "severity": "HEALTH_WARN",
         "summary": {

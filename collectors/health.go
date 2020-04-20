@@ -157,6 +157,9 @@ type ClusterHealthCollector struct {
 	// This includes object replicas in its count.
 	MisplacedObjectsCount prometheus.Gauge
 
+	// NewCrashReportCount reports if new Ceph daemon crash reports are available
+	NewCrashReportCount prometheus.Gauge
+
 	// Objects show the total no. of RADOS objects that are currently allocated
 	Objects prometheus.Gauge
 
@@ -534,6 +537,14 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 				ConstLabels: labels,
 			},
 		),
+		NewCrashReportCount: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "new_crash_reports",
+				Help:        "Number of new crash reports available",
+				ConstLabels: labels,
+			},
+		),
 		Objects: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace:   cephNamespace,
@@ -804,6 +815,7 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.SlowOps,
 		c.DegradedObjectsCount,
 		c.MisplacedObjectsCount,
+		c.NewCrashReportCount,
 		c.Objects,
 		c.OSDMapFlagFull,
 		c.OSDMapFlagPauseRd,
@@ -959,6 +971,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 		slowOpsRegexNautilus  = regexp.MustCompile(`([\d]+) slow ops, oldest one blocked for ([\d]+) sec`)
 		degradedObjectsRegex  = regexp.MustCompile(`([\d]+)/([\d]+) objects degraded`)
 		misplacedObjectsRegex = regexp.MustCompile(`([\d]+)/([\d]+) objects misplaced`)
+		newCrashreportRegex   = regexp.MustCompile(`([\d]+) daemons have recently crashed`)
 		osdmapFlagsRegex      = regexp.MustCompile(`([^ ]+) flag\(s\) set`)
 	)
 
@@ -1104,6 +1117,17 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 					return err
 				}
 				c.MisplacedObjectsCount.Set(float64(v))
+			}
+		}
+
+		if k == "RECENT_CRASH" {
+			matched := newCrashreportRegex.FindStringSubmatch(check.Summary.Message)
+			if len(matched) == 2 {
+				v, err := strconv.Atoi(matched[1])
+				if err != nil {
+					return err
+				}
+				c.NewCrashReportCount.Set(float64(v))
 			}
 		}
 
