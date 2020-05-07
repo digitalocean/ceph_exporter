@@ -960,15 +960,16 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 	}
 
 	var (
-		stuckDegradedRegex    = regexp.MustCompile(`([\d]+) pgs stuck degraded`)
-		stuckUncleanRegex     = regexp.MustCompile(`([\d]+) pgs stuck unclean`)
-		stuckUndersizedRegex  = regexp.MustCompile(`([\d]+) pgs stuck undersized`)
-		stuckStaleRegex       = regexp.MustCompile(`([\d]+) pgs stuck stale`)
-		slowOpsRegexNautilus  = regexp.MustCompile(`([\d]+) slow ops, oldest one blocked for ([\d]+) sec`)
-		degradedObjectsRegex  = regexp.MustCompile(`([\d]+)/([\d]+) objects degraded`)
-		misplacedObjectsRegex = regexp.MustCompile(`([\d]+)/([\d]+) objects misplaced`)
-		newCrashreportRegex   = regexp.MustCompile(`([\d]+) daemons have recently crashed`)
-		osdmapFlagsRegex      = regexp.MustCompile(`([^ ]+) flag\(s\) set`)
+		stuckDegradedRegex        = regexp.MustCompile(`([\d]+) pgs stuck degraded`)
+		stuckUncleanRegex         = regexp.MustCompile(`([\d]+) pgs stuck unclean`)
+		stuckUndersizedRegex      = regexp.MustCompile(`([\d]+) pgs stuck undersized`)
+		stuckStaleRegex           = regexp.MustCompile(`([\d]+) pgs stuck stale`)
+		slowRequestRegex          = regexp.MustCompile(`([\d]+) requests are blocked`)
+		slowRequestRegexLuminous  = regexp.MustCompile(`([\d]+) slow requests are blocked`)
+		stuckRequestRegexLuminous = regexp.MustCompile(`([\d]+) stuck requests are blocked`)
+		degradedObjectsRegex      = regexp.MustCompile(`([\d]+)/([\d]+) objects degraded`)
+		misplacedObjectsRegex     = regexp.MustCompile(`([\d]+)/([\d]+) objects misplaced`)
+		osdmapFlagsRegex          = regexp.MustCompile(`([^ ]+) flag\(s\) set`)
 	)
 
 	var mapEmpty = len(c.healthChecksMap) == 0
@@ -1058,17 +1059,6 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 					return err
 				}
 				c.DegradedObjectsCount.Set(float64(v))
-			}
-		}
-
-		if k == "OBJECT_MISPLACED" {
-			matched := misplacedObjectsRegex.FindStringSubmatch(check.Summary.Message)
-			if len(matched) == 3 {
-				v, err := strconv.Atoi(matched[1])
-				if err != nil {
-					return err
-				}
-				c.MisplacedObjectsCount.Set(float64(v))
 			}
 		}
 
