@@ -957,13 +957,9 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 	}
 
 	var (
-		degradedRegex             = regexp.MustCompile(`([\d]+) pgs degraded`)
 		stuckDegradedRegex        = regexp.MustCompile(`([\d]+) pgs stuck degraded`)
-		uncleanRegex              = regexp.MustCompile(`([\d]+) pgs unclean`)
 		stuckUncleanRegex         = regexp.MustCompile(`([\d]+) pgs stuck unclean`)
-		undersizedRegex           = regexp.MustCompile(`([\d]+) pgs undersized`)
 		stuckUndersizedRegex      = regexp.MustCompile(`([\d]+) pgs stuck undersized`)
-		staleRegex                = regexp.MustCompile(`([\d]+) pgs stale`)
 		stuckStaleRegex           = regexp.MustCompile(`([\d]+) pgs stuck stale`)
 		slowRequestRegex          = regexp.MustCompile(`([\d]+) requests are blocked`)
 		slowRequestRegexLuminous  = regexp.MustCompile(`([\d]+) slow requests are blocked`)
@@ -976,31 +972,13 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 	var mapEmpty = len(c.healthChecksMap) == 0
 
 	for _, s := range stats.Health.Summary {
-		matched := degradedRegex.FindStringSubmatch(s.Summary)
-		if len(matched) == 2 {
-			v, err := strconv.Atoi(matched[1])
-			if err != nil {
-				return err
-			}
-			c.DegradedPGs.Set(float64(v))
-		}
-
-		matched = stuckDegradedRegex.FindStringSubmatch(s.Summary)
+		matched := stuckDegradedRegex.FindStringSubmatch(s.Summary)
 		if len(matched) == 2 {
 			v, err := strconv.Atoi(matched[1])
 			if err != nil {
 				return err
 			}
 			c.StuckDegradedPGs.Set(float64(v))
-		}
-
-		matched = uncleanRegex.FindStringSubmatch(s.Summary)
-		if len(matched) == 2 {
-			v, err := strconv.Atoi(matched[1])
-			if err != nil {
-				return err
-			}
-			c.UncleanPGs.Set(float64(v))
 		}
 
 		matched = stuckUncleanRegex.FindStringSubmatch(s.Summary)
@@ -1012,15 +990,6 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 			c.StuckUncleanPGs.Set(float64(v))
 		}
 
-		matched = undersizedRegex.FindStringSubmatch(s.Summary)
-		if len(matched) == 2 {
-			v, err := strconv.Atoi(matched[1])
-			if err != nil {
-				return err
-			}
-			c.UndersizedPGs.Set(float64(v))
-		}
-
 		matched = stuckUndersizedRegex.FindStringSubmatch(s.Summary)
 		if len(matched) == 2 {
 			v, err := strconv.Atoi(matched[1])
@@ -1028,15 +997,6 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 				return err
 			}
 			c.StuckUndersizedPGs.Set(float64(v))
-		}
-
-		matched = staleRegex.FindStringSubmatch(s.Summary)
-		if len(matched) == 2 {
-			v, err := strconv.Atoi(matched[1])
-			if err != nil {
-				return err
-			}
-			c.StalePGs.Set(float64(v))
 		}
 
 		matched = stuckStaleRegex.FindStringSubmatch(s.Summary)
@@ -1107,14 +1067,6 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 					return err
 				}
 				c.DegradedObjectsCount.Set(float64(v))
-			}
-			matched = uncleanRegex.FindStringSubmatch(check.Summary.Message)
-			if len(matched) == 2 {
-				v, err := strconv.Atoi(matched[1])
-				if err != nil {
-					return err
-				}
-				c.UncleanPGs.Set(float64(v))
 			}
 		}
 
@@ -1189,7 +1141,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 		forcedBackfillPGs float64
 		downPGs           float64
 
-		pgStateMap = map[string]*float64{
+		pgStateCounterMap = map[string]*float64{
 			"degraded":        &degradedPGs,
 			"active":          &activePGs,
 			"unclean":         &uncleanPGs,
@@ -1206,76 +1158,43 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 			"forced_backfill": &forcedBackfillPGs,
 			"down":            &downPGs,
 		}
+		pgStateGaugeMap = map[string]prometheus.Gauge{
+			"degraded":        c.DegradedPGs,
+			"active":          c.ActivePGs,
+			"unclean":         c.UncleanPGs,
+			"undersized":      c.UndersizedPGs,
+			"peering":         c.PeeringPGs,
+			"stale":           c.StalePGs,
+			"scrubbing":       c.ScrubbingPGs,
+			"scrubbing+deep":  c.DeepScrubbingPGs,
+			"recovering":      c.RecoveringPGs,
+			"recovery_wait":   c.RecoveryWaitPGs,
+			"backfilling":     c.BackfillingPGs,
+			"backfill_wait":   c.BackfillWaitPGs,
+			"forced_recovery": c.ForcedRecoveryPGs,
+			"forced_backfill": c.ForcedBackfillPGs,
+			"down":            c.DownPGs,
+		}
 	)
 
 	for _, p := range stats.PGMap.PGsByState {
-		for pgState := range pgStateMap {
+		for pgState := range pgStateCounterMap {
 			if strings.Contains(p.States, pgState) {
-				*pgStateMap[pgState] += p.Count
+				*pgStateCounterMap[pgState] += p.Count
 			}
 		}
 	}
 
-	if *pgStateMap["degraded"] > 0 {
-		c.DegradedPGs.Set(*pgStateMap["degraded"])
-		c.PGState.WithLabelValues("degraded").Set(*pgStateMap["degraded"])
-	}
-	if *pgStateMap["active"] > 0 {
-		c.ActivePGs.Set(*pgStateMap["active"])
-		c.PGState.WithLabelValues("active").Set(*pgStateMap["active"])
-	}
-	if *pgStateMap["unclean"] > 0 {
-		c.UncleanPGs.Set(*pgStateMap["unclean"])
-		c.PGState.WithLabelValues("unclean").Set(*pgStateMap["unclean"])
-	}
-	if *pgStateMap["undersized"] > 0 {
-		c.UndersizedPGs.Set(*pgStateMap["undersized"])
-		c.PGState.WithLabelValues("undersized").Set(*pgStateMap["undersized"])
-	}
-	if *pgStateMap["peering"] > 0 {
-		c.PeeringPGs.Set(*pgStateMap["peering"])
-		c.PGState.WithLabelValues("peering").Set(*pgStateMap["peering"])
-	}
-	if *pgStateMap["stale"] > 0 {
-		c.StalePGs.Set(*pgStateMap["stale"])
-		c.PGState.WithLabelValues("stale").Set(*pgStateMap["stale"])
-	}
-	if *pgStateMap["scrubbing"] > 0 {
-		onlyScrubbing := *pgStateMap["scrubbing"] - *pgStateMap["scrubbing+deep"]
-		c.ScrubbingPGs.Set(onlyScrubbing)
-		c.PGState.WithLabelValues("scrubbing").Set(onlyScrubbing)
-	}
-	if *pgStateMap["scrubbing+deep"] > 0 {
-		c.DeepScrubbingPGs.Set(*pgStateMap["scrubbing+deep"])
-		c.PGState.WithLabelValues("deep_scrubbing").Set(*pgStateMap["scrubbing+deep"])
-	}
-	if *pgStateMap["recovering"] > 0 {
-		c.RecoveringPGs.Set(*pgStateMap["recovering"])
-		c.PGState.WithLabelValues("recovering").Set(*pgStateMap["recovering"])
-	}
-	if *pgStateMap["recovery_wait"] > 0 {
-		c.RecoveryWaitPGs.Set(*pgStateMap["recovery_wait"])
-		c.PGState.WithLabelValues("recovery_wait").Set(*pgStateMap["recovery_wait"])
-	}
-	if *pgStateMap["backfilling"] > 0 {
-		c.BackfillingPGs.Set(*pgStateMap["backfilling"])
-		c.PGState.WithLabelValues("backfilling").Set(*pgStateMap["backfilling"])
-	}
-	if *pgStateMap["backfill_wait"] > 0 {
-		c.BackfillWaitPGs.Set(*pgStateMap["backfill_wait"])
-		c.PGState.WithLabelValues("backfill_wait").Set(*pgStateMap["backfill_wait"])
-	}
-	if *pgStateMap["forced_recovery"] > 0 {
-		c.ForcedRecoveryPGs.Set(*pgStateMap["forced_recovery"])
-		c.PGState.WithLabelValues("forced_recovery").Set(*pgStateMap["forced_recovery"])
-	}
-	if *pgStateMap["forced_backfill"] > 0 {
-		c.ForcedBackfillPGs.Set(*pgStateMap["forced_backfill"])
-		c.PGState.WithLabelValues("forced_backfill").Set(*pgStateMap["forced_backfill"])
-	}
-	if *pgStateMap["down"] > 0 {
-		c.DownPGs.Set(*pgStateMap["down"])
-		c.PGState.WithLabelValues("down").Set(*pgStateMap["down"])
+	for state, gauge := range pgStateGaugeMap {
+		val := *pgStateCounterMap[state]
+		if state == "scrubbing" {
+			val -= *pgStateCounterMap["scrubbing+deep"]
+		}
+		gauge.Set(val)
+		if state == "scrubbing+deep" {
+			state = "deep_scrubbing"
+		}
+		c.PGState.WithLabelValues(state).Set(val)
 	}
 
 	c.ClientReadBytesPerSec.Set(stats.PGMap.ReadBytePerSec)

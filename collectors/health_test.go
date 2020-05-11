@@ -40,44 +40,10 @@ func TestClusterHealthCollector(t *testing.T) {
 			"num_remapped_pgs": 0
 		}
 	},
-	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "5 pgs degraded"}]}
-}`,
-			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`degraded_pgs{cluster="ceph"} 5`),
-			},
-		},
-		{
-			input: `
-{
-	"osdmap": {
-		"osdmap": {
-			"num_osds": 0,
-			"num_up_osds": 0,
-			"num_in_osds": 0,
-			"num_remapped_pgs": 0
-		}
-	},
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "15 pgs stuck degraded"}]}
 }`,
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`stuck_degraded_pgs{cluster="ceph"} 15`),
-			},
-		},
-		{
-			input: `
-{
-	"osdmap": {
-		"osdmap": {
-			"num_osds": 0,
-			"num_up_osds": 0,
-			"num_in_osds": 0,
-			"num_remapped_pgs": 0
-		}
-	},
-	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "6 pgs unclean"}]}
-}`,
-			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`unclean_pgs{cluster="ceph"} 6`),
 			},
 		},
 		{
@@ -108,44 +74,10 @@ func TestClusterHealthCollector(t *testing.T) {
 			"num_remapped_pgs": 0
 		}
 	},
-	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "7 pgs undersized"}]}
-}`,
-			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`undersized_pgs{cluster="ceph"} 7`),
-			},
-		},
-		{
-			input: `
-{
-	"osdmap": {
-		"osdmap": {
-			"num_osds": 0,
-			"num_up_osds": 0,
-			"num_in_osds": 0,
-			"num_remapped_pgs": 0
-		}
-	},
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "17 pgs stuck undersized"}]}
 }`,
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`stuck_undersized_pgs{cluster="ceph"} 17`),
-			},
-		},
-		{
-			input: `
-{
-	"osdmap": {
-		"osdmap": {
-			"num_osds": 0,
-			"num_up_osds": 0,
-			"num_in_osds": 0,
-			"num_remapped_pgs": 0
-		}
-	},
-	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "8 pgs stale"}]}
-}`,
-			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`stale_pgs{cluster="ceph"} 8`),
 			},
 		},
 		{
@@ -477,7 +409,6 @@ $ sudo ceph -s
 }`,
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`degraded_objects{cluster="ceph"} 1.54443937e\+08`),
-				regexp.MustCompile(`unclean_pgs{cluster="ceph"} 4886`),
 				regexp.MustCompile(`health_status_interp{cluster="ceph"} 1`),
 			},
 		},
