@@ -271,13 +271,13 @@ func (m *MonitorCollector) collect() error {
 		return err
 	}
 
-        // Reset daemon specifc metrics; daemons can leave the cluster
-        m.TotalKBs.Reset()
-        m.UsedKBs.Reset()
-        m.AvailKBs.Reset()
-        m.PercentAvail.Reset()
-        m.Latency.Reset()
-        m.ClockSkew.Reset()
+	// Reset daemon specifc metrics; daemons can leave the cluster
+	m.TotalKBs.Reset()
+	m.UsedKBs.Reset()
+	m.AvailKBs.Reset()
+	m.PercentAvail.Reset()
+	m.Latency.Reset()
+	m.ClockSkew.Reset()
 
 	for _, healthService := range stats.Health.Health.HealthServices {
 		for _, monstat := range healthService.Mons {
