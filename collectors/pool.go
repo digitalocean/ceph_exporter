@@ -21,6 +21,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const (
+	poolReplicated = 1
+	poolErasure    = 3
+)
+
 // PoolInfoCollector gives information about each pool that exists in a given
 // ceph cluster.
 type PoolInfoCollector struct {
@@ -159,6 +164,7 @@ type cephPoolInfo struct {
 		QuotaMaxBytes   float64 `json:"quota_max_bytes"`
 		QuotaMaxObjects float64 `json:"quota_max_objects"`
 		Profile         string  `json:"erasure_code_profile"`
+		Type            int64   `json:"type"`
 		StripeWidth     float64 `json:"stripe_width"`
 	}
 }
@@ -185,6 +191,9 @@ func (p *PoolInfoCollector) collect() error {
 	p.StripeWidth.Reset()
 
 	for _, pool := range stats.Pools {
+		if pool.Type == poolReplicated {
+			pool.Profile = "replicated"
+		}
 		p.PGNum.WithLabelValues(pool.Name, pool.Profile).Set(pool.PGNum)
 		p.PlacementPGNum.WithLabelValues(pool.Name, pool.Profile).Set(pool.PlacementPGNum)
 		p.MinSize.WithLabelValues(pool.Name, pool.Profile).Set(pool.MinSize)
