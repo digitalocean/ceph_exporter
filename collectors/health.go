@@ -227,6 +227,12 @@ type ClusterHealthCollector struct {
 
 	// CachePromoteIOOps shows the rate of operations promoting objects to the cache pool.
 	CachePromoteIOOps prometheus.Gauge
+
+	// MgrsActive shows the number of active mgrs, can be either 0 or 1.
+	MgrsActive prometheus.Gauge
+
+	// MgrsNum shows the total number of mgrs, including standbys.
+	MgrsNum prometheus.Gauge
 }
 
 const (
@@ -785,6 +791,22 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 				ConstLabels: labels,
 			},
 		),
+		MgrsActive: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "mgrs_active",
+				Help:        "Count of active mgrs, can be either 0 or 1",
+				ConstLabels: labels,
+			},
+		),
+		MgrsNum: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "mgrs",
+				Help:        "Total number of mgrs, including standbys",
+				ConstLabels: labels,
+			},
+		),
 	}
 }
 
@@ -846,6 +868,8 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.CacheFlushIORate,
 		c.CacheEvictIORate,
 		c.CachePromoteIOOps,
+		c.MgrsActive,
+		c.MgrsNum,
 	}
 }
 
@@ -898,6 +922,12 @@ type cephHealthStats struct {
 			States string  `json:"state_name"`
 		} `json:"pgs_by_state"`
 	} `json:"pgmap"`
+	MgrMap struct {
+		ActiveName string `json:"active_name"`
+		StandBys   []struct {
+			Name string `json:"name"`
+		} `json:"standbys"`
+	} `json:"mgrmap"`
 }
 
 type cephHealthDetailStats struct {
@@ -1211,7 +1241,160 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 
 	c.RemappedPGs.Set(stats.OSDMap.OSDMap.NumRemappedPGs)
 	c.TotalPGs.Set(stats.PGMap.NumPGs)
-	c.Objects.Set(stats.PGMap.TotalObjects)
+
+	for _, checkType := range []string{"REQUEST_SLOW", "REQUEST_STUCK"} {
+		if err := c.calculateSlowRequestsPerOSD(ch, checkType); err != nil {
+			return err
+		}
+	}
+
+	activeMgr := 0
+	if len(stats.MgrMap.ActiveName) > 0 {
+		activeMgr = 1
+	}
+
+	c.MgrsActive.Set(float64(activeMgr))
+	c.MgrsNum.Set(float64(activeMgr + len(stats.MgrMap.StandBys)))
+
+	return nil
+}
+
+func (c *ClusterHealthCollector) calculateSlowRequestsPerOSD(ch chan<- prometheus.Metric, checkType string) error {
+	var (
+		slowOpsBlockedRegex         = regexp.MustCompile(`([\d]+) ops are blocked > ([\d\.]+) sec`)
+		slowRequestSingleOSDRegex   = regexp.MustCompile(`osd.([\d]+) has blocked requests > ([\d\.]+) sec`)
+		slowRequestMultipleOSDRegex = regexp.MustCompile(`osds ([\d,]+) have blocked requests > ([\d\.]+) sec`)
+
+		slowRequestStuckSingleOSDRegex   = regexp.MustCompile(`osd.([\d]+) has stuck requests > ([\d\.]+) sec`)
+		slowRequestStuckMultipleOSDRegex = regexp.MustCompile(`osds ([\d,]+) have stuck requests > ([\d\.]+) sec`)
+
+		secToOpsBlocked     = make(map[float64]int)
+		osdToSecondsBlocked = make(map[int]float64)
+	)
+
+	cmd := c.cephHealthDetailCommand()
+	buf, _, err := c.conn.MonCommand(cmd)
+	if err != nil {
+		return err
+	}
+
+	hdstats := &cephHealthDetailStats{}
+	if err := json.Unmarshal(buf, hdstats); err != nil {
+		return err
+	}
+
+	for key, check := range hdstats.Checks {
+		if key == checkType {
+			for _, detail := range check.Details {
+				matched := slowOpsBlockedRegex.FindStringSubmatch(detail.Message)
+				if len(matched) == 3 {
+					v, err := strconv.Atoi(matched[1])
+					if err != nil {
+						return err
+					}
+
+					f, err := strconv.ParseFloat(matched[2], 64)
+					if err != nil {
+						return err
+					}
+
+					secToOpsBlocked[f] = v
+					continue
+				}
+
+				matched = slowRequestSingleOSDRegex.FindStringSubmatch(detail.Message)
+				if len(matched) == 3 {
+					v, err := strconv.Atoi(matched[1])
+					if err != nil {
+						return err
+					}
+
+					f, err := strconv.ParseFloat(matched[2], 64)
+					if err != nil {
+						return err
+					}
+
+					osdToSecondsBlocked[v] = f
+					continue
+				}
+
+				matched = slowRequestMultipleOSDRegex.FindStringSubmatch(detail.Message)
+				if len(matched) == 3 {
+					f, err := strconv.ParseFloat(matched[2], 64)
+					if err != nil {
+						return err
+					}
+
+					for _, osdID := range strings.Split(matched[1], ",") {
+						oid, err := strconv.Atoi(osdID)
+						if err != nil {
+							return err
+						}
+
+						osdToSecondsBlocked[oid] = f
+					}
+					continue
+				}
+
+				matched = slowRequestStuckSingleOSDRegex.FindStringSubmatch(detail.Message)
+				if len(matched) == 3 {
+					v, err := strconv.Atoi(matched[1])
+					if err != nil {
+						return err
+					}
+
+					f, err := strconv.ParseFloat(matched[2], 64)
+					if err != nil {
+						return err
+					}
+
+					osdToSecondsBlocked[v] = f
+					continue
+				}
+
+				matched = slowRequestStuckMultipleOSDRegex.FindStringSubmatch(detail.Message)
+				if len(matched) == 3 {
+					f, err := strconv.ParseFloat(matched[2], 64)
+					if err != nil {
+						return err
+					}
+
+					for _, osdID := range strings.Split(matched[1], ",") {
+						oid, err := strconv.Atoi(osdID)
+						if err != nil {
+							return err
+						}
+
+						osdToSecondsBlocked[oid] = f
+					}
+					continue
+				}
+			}
+		}
+	}
+
+	secs := make([]float64, len(secToOpsBlocked))
+	for sec := range secToOpsBlocked {
+		secs = append(secs, sec)
+	}
+	sort.Float64s(secs)
+
+	totalOpsUntilNow := 0
+	totalOpsSet := false
+	for _, sec := range secs {
+		totalOpsUntilNow += secToOpsBlocked[sec]
+		for osd, osec := range osdToSecondsBlocked {
+			if sec == osec {
+				ch <- prometheus.MustNewConstMetric(c.SlowRequestsByOSDDesc, prometheus.GaugeValue, float64(totalOpsUntilNow), strconv.Itoa(osd))
+				totalOpsSet = true
+			}
+		}
+
+		if totalOpsSet {
+			totalOpsUntilNow = 0
+			totalOpsSet = false
+		}
+	}
 
 	return nil
 }
