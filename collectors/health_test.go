@@ -716,6 +716,55 @@ $ sudo ceph -s
 				regexp.MustCompile(`pg_state{cluster="ceph",state="down"} 37`),
 			},
 		},
+		{
+			input: `
+{
+    "mgrmap": {
+        "epoch": 627,
+        "active_gid": 48000003,
+        "active_name": "mon03",
+        "active_addr": "10.0.0.3:6800/1746",
+        "available": true,
+        "standbys": [
+            {
+                "gid": 48000001,
+                "name": "mon01",
+                "available_modules": [
+                    "balancer",
+                    "dashboard",
+                    "influx"
+                ]
+            },
+            {
+                "gid": 48000002,
+                "name": "mon02",
+                "available_modules": [
+                    "balancer",
+                    "dashboard",
+                    "influx"
+                ]
+            }
+        ],
+        "modules": [
+            "dashboard",
+            "restful",
+            "status"
+        ],
+        "available_modules": [
+            "balancer",
+            "dashboard",
+            "influx"
+        ],
+        "services": {
+            "dashboard": "http://mon01:7000/"
+        }
+    }
+}`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`mgrs_active{cluster="ceph"} 1`),
+				regexp.MustCompile(`mgrs{cluster="ceph"} 3`),
+			},
+		},
 	} {
 		func() {
 			collector := NewClusterHealthCollector(NewNoopConn(tt.input), "ceph")
