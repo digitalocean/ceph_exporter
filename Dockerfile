@@ -1,6 +1,8 @@
 FROM ubuntu:16.04 as builder
 MAINTAINER Vaibhav Bhembre <vaibhav@digitalocean.com>
 
+ARG TEST
+
 ENV GOROOT /goroot
 ENV GOPATH /go
 ENV PATH $GOROOT/bin:$PATH
@@ -21,9 +23,9 @@ RUN \
 
 ADD . $APPLOC
 WORKDIR $APPLOC
-RUN go get -d && \
-    go build -o /bin/ceph_exporter
-
+RUN go get -d
+RUN if [ -n "${TEST}" ]; then go test -v ./...; fi
+RUN go build -o /bin/ceph_exporter
 
 FROM ubuntu:16.04
 MAINTAINER Vaibhav Bhembre <vaibhav@digitalocean.com>
@@ -35,7 +37,6 @@ RUN echo "deb https://download.ceph.com/debian-luminous xenial main" >> /etc/apt
     apt-get update && \
     apt-get install -y --force-yes librados2 librbd1 ceph-common && \
     rm -rf /var/lib/apt/lists/*
-
 
 COPY --from=builder /bin/ceph_exporter /bin/ceph_exporter
 RUN chmod +x /bin/ceph_exporter
