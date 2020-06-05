@@ -186,7 +186,7 @@ type cephPoolStats struct {
 		ID    int    `json:"id"`
 		Stats struct {
 			BytesUsed    float64 `json:"bytes_used"`
-			RawBytesUsed float64 `json:"raw_bytes_used"`
+			StoredRaw    float64 `json:"stored_raw"`
 			MaxAvail     float64 `json:"max_avail"`
 			Objects      float64 `json:"objects"`
 			DirtyObjects float64 `json:"dirty"`
@@ -223,7 +223,7 @@ func (p *PoolUsageCollector) collect() error {
 
 	for _, pool := range stats.Pools {
 		p.UsedBytes.WithLabelValues(pool.Name).Set(pool.Stats.BytesUsed)
-		p.RawUsedBytes.WithLabelValues(pool.Name).Set(pool.Stats.RawBytesUsed)
+		p.RawUsedBytes.WithLabelValues(pool.Name).Set(pool.Stats.StoredRaw)
 		p.MaxAvail.WithLabelValues(pool.Name).Set(pool.Stats.MaxAvail)
 		p.Objects.WithLabelValues(pool.Name).Set(pool.Stats.Objects)
 		p.DirtyObjects.WithLabelValues(pool.Name).Set(pool.Stats.DirtyObjects)
