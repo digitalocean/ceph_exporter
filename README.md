@@ -58,6 +58,10 @@ A sample build command would look like:
 $ docker build -t digitalocean/ceph_exporter .
 ```
 
+A `--build-args TEST=true` flag can be added to the build command above
+to also run `go test` during build:
+`docker build -t digitalocean/ceph_exporter . --build-arg TEST=true --no-cache`
+
 You can start running your ceph exporter container now.
 
 ```bash
