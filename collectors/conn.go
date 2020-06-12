@@ -119,7 +119,7 @@ func (n *NoopConn) MonCommand(args []byte) ([]byte, string, error) {
 	case "osd tree":
 		val, ok := cmd["states"]
 		if !ok {
-			break
+			return []byte(n.cmdOut[n.iteration]["ceph osd tree"]), "", nil
 		}
 
 		st, ok := val.([]interface{})
