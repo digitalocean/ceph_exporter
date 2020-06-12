@@ -450,7 +450,7 @@ type cephPGQuery struct {
 				NumObjectsRecovered int64 `json:"num_objects_recovered"`
 			} `json:"stat_sum"`
 		} `json:"stats"`
-	} `json:"info:`
+	} `json:"info"`
 	RecoveryState []struct {
 		Name            string `json:"name"`
 		EnterTime       string `json:"enter_time"`
