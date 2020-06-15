@@ -33,6 +33,9 @@ type OSDCollector struct {
 	// osdScrubCache holds the cache of previous PG scrubs
 	osdScrubCache map[int]int
 
+	// osdLabelsCache holds a cache of osd labels
+	osdLabelsCache map[int64]*cephOSDLabel
+
 	// osdObjectsBackfilledCache holds the cache of previous increase in number
 	// of objects backfilled of all OSDs
 	osdObjectsBackfilledCache map[int64]int64
@@ -136,11 +139,13 @@ var _ prometheus.Collector = &OSDCollector{}
 func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 	labels := make(prometheus.Labels)
 	labels["cluster"] = cluster
+	osdLabels := []string{"osd", "device_class", "host", "rack", "root"}
 
 	return &OSDCollector{
 		conn: conn,
 
 		osdScrubCache:             make(map[int]int),
+		osdLabelsCache:            make(map[int64]*cephOSDLabel),
 		osdObjectsBackfilledCache: make(map[int64]int64),
 		pgStateCache:              make(map[string]string),
 		pgObjectsRecoveredCache:   make(map[string]int64),
@@ -153,7 +158,7 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Crush Weight",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			osdLabels,
 		),
 
 		Depth: prometheus.NewGaugeVec(
@@ -163,7 +168,7 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Depth",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			osdLabels,
 		),
 
 		Reweight: prometheus.NewGaugeVec(
@@ -173,7 +178,7 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Reweight",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			osdLabels,
 		),
 
 		Bytes: prometheus.NewGaugeVec(
@@ -183,7 +188,7 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Total Bytes",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			osdLabels,
 		),
 
 		UsedBytes: prometheus.NewGaugeVec(
@@ -193,7 +198,7 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Used Storage in Bytes",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			osdLabels,
 		),
 
 		AvailBytes: prometheus.NewGaugeVec(
@@ -203,7 +208,7 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Available Storage in Bytes",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			osdLabels,
 		),
 
 		Utilization: prometheus.NewGaugeVec(
@@ -213,7 +218,7 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Utilization",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			osdLabels,
 		),
 
 		Variance: prometheus.NewGaugeVec(
@@ -223,7 +228,7 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Variance",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			osdLabels,
 		),
 
 		Pgs: prometheus.NewGaugeVec(
@@ -233,7 +238,7 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Placement Group Count",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			osdLabels,
 		),
 
 		TotalBytes: prometheus.NewGauge(
@@ -278,7 +283,7 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Perf Commit Latency",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			osdLabels,
 		),
 
 		ApplyLatency: prometheus.NewGaugeVec(
@@ -288,7 +293,7 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Perf Apply Latency",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			osdLabels,
 		),
 
 		OSDIn: prometheus.NewGaugeVec(
@@ -298,7 +303,7 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD In Status",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			osdLabels,
 		),
 
 		OSDUp: prometheus.NewGaugeVec(
@@ -308,7 +313,7 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Up Status",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			osdLabels,
 		),
 
 		OSDFull: prometheus.NewGaugeVec(
@@ -318,7 +323,7 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Full Status",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			osdLabels,
 		),
 
 		OSDNearFull: prometheus.NewGaugeVec(
@@ -328,7 +333,7 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Near Full Status",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			osdLabels,
 		),
 
 		OSDBackfillFull: prometheus.NewGaugeVec(
@@ -338,20 +343,20 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "OSD Backfill Full Status",
 				ConstLabels: labels,
 			},
-			[]string{"osd"},
+			osdLabels,
 		),
 
 		OSDDownDesc: prometheus.NewDesc(
 			fmt.Sprintf("%s_osd_down", cephNamespace),
 			"Number of OSDs down in the cluster",
-			[]string{"osd", "status"},
+			append([]string{"status"}, osdLabels...),
 			labels,
 		),
 
 		ScrubbingStateDesc: prometheus.NewDesc(
 			fmt.Sprintf("%s_osd_scrub_state", cephNamespace),
 			"State of OSDs involved in a scrub",
-			[]string{"osd"},
+			osdLabels,
 			labels,
 		),
 
@@ -369,7 +374,7 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 				Help:        "Average number of objects backfilled in an OSD",
 				ConstLabels: labels,
 			},
-			[]string{"pgid", "osd"},
+			append([]string{"pgid"}, osdLabels...),
 		),
 	}
 }
@@ -441,6 +446,26 @@ type cephOSDDump struct {
 	} `json:"osds"`
 }
 
+type cephOSDTree struct {
+	Nodes []struct {
+		ID          int64   `json:"id"`
+		Name        string  `json:"name"`
+		Type        string  `json:"type"`
+		Status      string  `json:"status"`
+		Class       string  `json:"device_class"`
+		CrushWeight float64 `json:"crush_weight"`
+		Children    []int64 `json:"children"`
+	} `json:"nodes"`
+	Stray []struct {
+		ID          int64   `json:"id"`
+		Name        string  `json:"name"`
+		Type        string  `json:"type"`
+		Status      string  `json:"status"`
+		CrushWeight float64 `json:"crush_weight"`
+		Children    []int   `json:"children"`
+	} `json:"stray"`
+}
+
 type cephOSDTreeDown struct {
 	Nodes []struct {
 		ID     int64  `json:"id"`
@@ -479,6 +504,19 @@ type cephPGQuery struct {
 			BackfillTargets []string `json:"backfill_targets"`
 		} `json:"recovery_progress"`
 	} `json:"recovery_state"`
+}
+
+type cephOSDLabel struct {
+	ID          int64   `json:"id"`
+	Name        string  `json:"name"`
+	Type        string  `json:"type"`
+	Status      string  `json:"status"`
+	DeviceClass string  `json:"device_class"`
+	CrushWeight float64 `json:"crush_weight"`
+	Root        string  `json:"host"`
+	Rack        string  `json:"rack"`
+	Host        string  `json:"host"`
+	parent      int64   // parent id when building tables
 }
 
 // backfillTargets returns a map from PG query result containing OSDs and
@@ -533,70 +571,70 @@ func (o *OSDCollector) collectOSDDF() error {
 	}
 
 	for _, node := range osdDF.OSDNodes {
+		lb := o.getOSDLabelFromName(node.Name)
 
 		crushWeight, err := node.CrushWeight.Float64()
 		if err != nil {
 			return err
 		}
 
-		o.CrushWeight.WithLabelValues(node.Name).Set(crushWeight)
-
+		o.CrushWeight.WithLabelValues(node.Name, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(crushWeight)
 		depth, err := node.Depth.Float64()
 		if err != nil {
 
 			return err
 		}
 
-		o.Depth.WithLabelValues(node.Name).Set(depth)
+		o.Depth.WithLabelValues(node.Name, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(depth)
 
 		reweight, err := node.Reweight.Float64()
 		if err != nil {
 			return err
 		}
 
-		o.Reweight.WithLabelValues(node.Name).Set(reweight)
+		o.Reweight.WithLabelValues(node.Name, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(reweight)
 
 		osdKB, err := node.KB.Float64()
 		if err != nil {
 			return nil
 		}
 
-		o.Bytes.WithLabelValues(node.Name).Set(osdKB * 1e3)
+		o.Bytes.WithLabelValues(node.Name, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(osdKB * 1e3)
 
 		usedKB, err := node.UsedKB.Float64()
 		if err != nil {
 			return err
 		}
 
-		o.UsedBytes.WithLabelValues(node.Name).Set(usedKB * 1e3)
+		o.UsedBytes.WithLabelValues(node.Name, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(usedKB * 1e3)
 
 		availKB, err := node.AvailKB.Float64()
 		if err != nil {
 			return err
 		}
 
-		o.AvailBytes.WithLabelValues(node.Name).Set(availKB * 1e3)
+		o.AvailBytes.WithLabelValues(node.Name, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(availKB * 1e3)
 
 		util, err := node.Utilization.Float64()
 		if err != nil {
 			return err
 		}
 
-		o.Utilization.WithLabelValues(node.Name).Set(util)
+		o.Utilization.WithLabelValues(node.Name, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(util)
 
 		variance, err := node.Variance.Float64()
 		if err != nil {
 			return err
 		}
 
-		o.Variance.WithLabelValues(node.Name).Set(variance)
+		o.Variance.WithLabelValues(node.Name, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(variance)
 
 		pgs, err := node.Pgs.Float64()
 		if err != nil {
 			continue
 		}
 
-		o.Pgs.WithLabelValues(node.Name).Set(pgs)
+		o.Pgs.WithLabelValues(node.Name, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(pgs)
 
 	}
 
@@ -652,20 +690,118 @@ func (o *OSDCollector) collectOSDPerf() error {
 		}
 		osdName := fmt.Sprintf(osdLabelFormat, osdID)
 
+		lb := o.getOSDLabelFromID(osdID)
+
 		commitLatency, err := perfStat.Stats.CommitLatency.Float64()
 		if err != nil {
 			return err
 		}
-		o.CommitLatency.WithLabelValues(osdName).Set(commitLatency / 1e3)
+		o.CommitLatency.WithLabelValues(osdName, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(commitLatency / 1e3)
 
 		applyLatency, err := perfStat.Stats.ApplyLatency.Float64()
 		if err != nil {
 			return err
 		}
-		o.ApplyLatency.WithLabelValues(osdName).Set(applyLatency / 1e3)
+		o.ApplyLatency.WithLabelValues(osdName, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(applyLatency / 1e3)
 	}
 
 	return nil
+}
+
+func buildOSDLabels(data []byte) (map[int64]*cephOSDLabel, error) {
+	nodeList := &cephOSDTree{}
+	if err := json.Unmarshal(data, nodeList); err != nil {
+		return nil, err
+	}
+
+	nodeMap := make(map[int64]*cephOSDLabel)
+	for _, node := range nodeList.Nodes {
+		label := cephOSDLabel{
+			ID:          node.ID,
+			Name:        node.Name,
+			Type:        node.Type,
+			Status:      node.Status,
+			DeviceClass: node.Class,
+			CrushWeight: node.CrushWeight,
+			parent:      math.MaxInt64,
+		}
+		nodeMap[node.ID] = &label
+	}
+	// now that we built a lookup table, fill in the parents
+	for _, node := range nodeList.Nodes {
+		for _, child := range node.Children {
+			if label, ok := nodeMap[child]; ok {
+				label.parent = node.ID
+			}
+		}
+	}
+
+	var findParent func(from *cephOSDLabel, kind string) (*cephOSDLabel, bool)
+	findParent = func(from *cephOSDLabel, kind string) (*cephOSDLabel, bool) {
+		if parent, ok := nodeMap[from.parent]; ok {
+			if parent.Type == kind {
+				return parent, true
+			}
+			return findParent(parent, kind)
+		}
+		return nil, false
+	}
+
+	// Now that we have parents filled in walk our map, and build a map of just osds.
+	for k := range nodeMap {
+		osdLabel := nodeMap[k]
+		if host, ok := findParent(osdLabel, "host"); ok {
+			osdLabel.Host = host.Name
+		}
+		if rack, ok := findParent(osdLabel, "rack"); ok {
+			osdLabel.Rack = rack.Name
+		}
+		if root, ok := findParent(osdLabel, "root"); ok {
+			osdLabel.Root = root.Name
+		}
+	}
+
+	for k := range nodeMap {
+		osdLabel := nodeMap[k]
+		if osdLabel.Type != "osd" {
+			delete(nodeMap, k)
+		}
+	}
+	return nodeMap, nil
+}
+
+func (o *OSDCollector) buildOSDLabelCache() error {
+	cmd := o.cephOSDTreeCommand()
+	data, _, err := o.conn.MonCommand(cmd)
+	if err != nil {
+		log.Printf("failed sending Mon command %s: %s", cmd, err)
+		return err
+	}
+
+	cache, err := buildOSDLabels(data)
+	if err != nil {
+		log.Printf("failed to decode OSD lables: %s", err)
+		return err
+	}
+	o.osdLabelsCache = cache
+	return nil
+}
+
+func (o *OSDCollector) getOSDLabelFromID(id int64) *cephOSDLabel {
+	if label, ok := o.osdLabelsCache[id]; ok {
+		return label
+	}
+	return &cephOSDLabel{}
+}
+
+func (o *OSDCollector) getOSDLabelFromName(osdid string) *cephOSDLabel {
+	var id int64
+	c, err := fmt.Sscanf(osdid, "osd.%d", &id)
+	if err != nil || c != 1 {
+		return &cephOSDLabel{}
+	}
+
+	return o.getOSDLabelFromID(id)
 }
 
 func (o *OSDCollector) collectOSDTreeDown(ch chan<- prometheus.Metric) error {
@@ -689,8 +825,15 @@ func (o *OSDCollector) collectOSDTreeDown(ch chan<- prometheus.Metric) error {
 		}
 
 		osdName := downItem.Name
+		lb := o.getOSDLabelFromName(osdName)
 
-		ch <- prometheus.MustNewConstMetric(o.OSDDownDesc, prometheus.GaugeValue, 1, osdName, downItem.Status)
+		ch <- prometheus.MustNewConstMetric(o.OSDDownDesc, prometheus.GaugeValue, 1,
+			downItem.Status,
+			osdName,
+			lb.DeviceClass,
+			lb.Host,
+			lb.Root,
+			lb.Rack)
 	}
 
 	return nil
@@ -715,32 +858,33 @@ func (o *OSDCollector) collectOSDDump() error {
 			return err
 		}
 		osdName := fmt.Sprintf(osdLabelFormat, osdID)
+		lb := o.getOSDLabelFromID(osdID)
 
 		in, err := dumpInfo.In.Float64()
 		if err != nil {
 			return err
 		}
 
-		o.OSDIn.WithLabelValues(osdName).Set(in)
+		o.OSDIn.WithLabelValues(osdName, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(in)
 
 		up, err := dumpInfo.Up.Float64()
 		if err != nil {
 			return err
 		}
 
-		o.OSDUp.WithLabelValues(osdName).Set(up)
+		o.OSDUp.WithLabelValues(osdName, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(up)
 
-		o.OSDFull.WithLabelValues(osdName).Set(0)
-		o.OSDNearFull.WithLabelValues(osdName).Set(0)
-		o.OSDBackfillFull.WithLabelValues(osdName).Set(0)
+		o.OSDFull.WithLabelValues(osdName, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(0)
+		o.OSDNearFull.WithLabelValues(osdName, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(0)
+		o.OSDBackfillFull.WithLabelValues(osdName, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(0)
 		for _, state := range dumpInfo.State {
 			switch state {
 			case "full":
-				o.OSDFull.WithLabelValues(osdName).Set(1)
+				o.OSDFull.WithLabelValues(osdName, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(1)
 			case "nearfull":
-				o.OSDNearFull.WithLabelValues(osdName).Set(1)
+				o.OSDNearFull.WithLabelValues(osdName, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(1)
 			case "backfillfull":
-				o.OSDBackfillFull.WithLabelValues(osdName).Set(1)
+				o.OSDBackfillFull.WithLabelValues(osdName, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(1)
 			}
 		}
 	}
@@ -805,11 +949,16 @@ func (o *OSDCollector) collectOSDScrubState(ch chan<- prometheus.Metric) error {
 	}
 
 	for i, v := range o.osdScrubCache {
+		lb := o.getOSDLabelFromID(int64(i))
 		ch <- prometheus.MustNewConstMetric(
 			o.ScrubbingStateDesc,
 			prometheus.GaugeValue,
 			float64(v),
-			fmt.Sprintf(osdLabelFormat, i))
+			fmt.Sprintf(osdLabelFormat, i),
+			lb.DeviceClass,
+			lb.Host,
+			lb.Root,
+			lb.Root)
 	}
 
 	return nil
@@ -851,10 +1000,11 @@ func (o *OSDCollector) collectPGRecoveryState(ch chan<- prometheus.Metric) error
 			eachOSDIncrease := math.Round(float64(o.pgObjectsRecoveredCache[pg.PGID]-prevNumObjectsRecovered) / float64(len(prevBackfillTargets)))
 
 			for osdID := range prevBackfillTargets {
+				lb := o.getOSDLabelFromID(osdID)
 				// It is possible that osdID has gone from the backfill_targets
 				// this time if backfill has completed on it. In this case we
 				// still count the increase to this OSD.
-				o.OSDObjectsBackfilled.WithLabelValues(pg.PGID, fmt.Sprintf(osdLabelFormat, osdID)).Add(eachOSDIncrease)
+				o.OSDObjectsBackfilled.WithLabelValues(pg.PGID, fmt.Sprintf(osdLabelFormat, osdID), lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Add(eachOSDIncrease)
 			}
 		}
 	}
@@ -904,11 +1054,15 @@ func (o *OSDCollector) cephOSDPerfCommand() []byte {
 }
 
 func (o *OSDCollector) cephOSDTreeCommand(states ...string) []byte {
-	cmd, err := json.Marshal(map[string]interface{}{
+	req := map[string]interface{}{
 		"prefix": "osd tree",
-		"states": states,
 		"format": jsonFormat,
-	})
+	}
+	if len(states) > 0 {
+		req["states"] = states
+	}
+
+	cmd, err := json.Marshal(req)
 	if err != nil {
 		panic(err)
 	}
@@ -968,6 +1122,7 @@ func (o *OSDCollector) Collect(ch chan<- prometheus.Metric) {
 	o.ApplyLatency.Reset()
 	o.OSDIn.Reset()
 	o.OSDUp.Reset()
+	o.buildOSDLabelCache()
 
 	if err := o.collectOSDPerf(); err != nil {
 		log.Println("failed collecting OSD perf metrics:", err)
