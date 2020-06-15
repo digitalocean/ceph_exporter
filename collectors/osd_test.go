@@ -10,14 +10,359 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+const (
+	testOSDTreeOutput = `
+{
+    "stray": [],
+    "nodes": [
+        {
+            "children": [
+                -14,
+                -15
+            ],
+            "type_id": 10,
+            "type": "root",
+            "name": "default",
+            "id": -1
+        },
+        {
+            "children": [
+                -2
+            ],
+            "pool_weights": {},
+            "type_id": 3,
+            "type": "rack",
+            "name": "A8R1",
+            "id": -14
+        },
+        {
+            "children": [
+                -3
+            ],
+            "pool_weights": {},
+            "type_id": 3,
+            "type": "rack",
+            "name": "A8R2",
+            "id": -15
+        },
+        {
+            "children": [
+                45,
+                44,
+                23,
+                22,
+                21,
+                20,
+                13,
+                12,
+                11,
+                10,
+                4,
+                3,
+                2,
+                1,
+                0
+            ],
+            "pool_weights": {},
+            "type_id": 1,
+            "type": "host",
+            "name": "prod-data01-block01",
+            "id": -2
+        },
+        {
+            "children": [
+                525,
+                524
+            ],
+            "pool_weights": {},
+            "type_id": 1,
+            "type": "host",
+            "name": "prod-data02-block01",
+            "id": -3
+        },
+        {
+            "primary_affinity": 1,
+            "reweight": 1,
+            "status": "up",
+            "exists": 1,
+            "id": 0,
+            "device_class": "hdd",
+            "name": "osd.0",
+            "type": "osd",
+            "type_id": 0,
+            "crush_weight": 3.481995,
+            "depth": 3,
+            "pool_weights": {}
+        },
+        {
+            "primary_affinity": 1,
+            "reweight": 0.950027,
+            "status": "up",
+            "exists": 1,
+            "id": 1,
+            "device_class": "ssd",
+            "name": "osd.1",
+            "type": "osd",
+            "type_id": 0,
+            "crush_weight": 3.481995,
+            "depth": 3,
+            "pool_weights": {}
+        },
+        {
+            "primary_affinity": 1,
+            "reweight": 1,
+            "status": "up",
+            "exists": 1,
+            "id": 2,
+            "device_class": "ssd",
+            "name": "osd.2",
+            "type": "osd",
+            "type_id": 0,
+            "crush_weight": 3.481995,
+            "depth": 3,
+            "pool_weights": {}
+        },
+        {
+            "primary_affinity": 1,
+            "reweight": 0.980011,
+            "status": "up",
+            "exists": 1,
+            "id": 3,
+            "device_class": "ssd",
+            "name": "osd.3",
+            "type": "osd",
+            "type_id": 0,
+            "crush_weight": 3.481995,
+            "depth": 3,
+            "pool_weights": {}
+        },
+        {
+            "primary_affinity": 1,
+            "reweight": 0.980011,
+            "status": "up",
+            "exists": 1,
+            "id": 4,
+            "device_class": "ssd",
+            "name": "osd.4",
+            "type": "osd",
+            "type_id": 0,
+            "crush_weight": 3.481995,
+            "depth": 3,
+            "pool_weights": {}
+        },
+        {
+            "primary_affinity": 1,
+            "reweight": 0.980011,
+            "status": "up",
+            "exists": 1,
+            "id": 10,
+            "device_class": "ssd",
+            "name": "osd.10",
+            "type": "osd",
+            "type_id": 0,
+            "crush_weight": 3.481995,
+            "depth": 3,
+            "pool_weights": {}
+        },
+        {
+            "primary_affinity": 1,
+            "reweight": 0.980011,
+            "status": "up",
+            "exists": 1,
+            "id": 11,
+            "device_class": "ssd",
+            "name": "osd.11",
+            "type": "osd",
+            "type_id": 0,
+            "crush_weight": 3.481995,
+            "depth": 3,
+            "pool_weights": {}
+        },
+        {
+            "primary_affinity": 1,
+            "reweight": 0.980011,
+            "status": "up",
+            "exists": 1,
+            "id": 12,
+            "device_class": "ssd",
+            "name": "osd.12",
+            "type": "osd",
+            "type_id": 0,
+            "crush_weight": 3.481995,
+            "depth": 3,
+            "pool_weights": {}
+        },
+        {
+            "primary_affinity": 1,
+            "reweight": 0.980011,
+            "status": "up",
+            "exists": 1,
+            "id": 13,
+            "device_class": "ssd",
+            "name": "osd.13",
+            "type": "osd",
+            "type_id": 0,
+            "crush_weight": 3.481995,
+            "depth": 3,
+            "pool_weights": {}
+        },
+        {
+            "primary_affinity": 1,
+            "reweight": 0.980011,
+            "status": "up",
+            "exists": 1,
+            "id": 20,
+            "device_class": "ssd",
+            "name": "osd.20",
+            "type": "osd",
+            "type_id": 0,
+            "crush_weight": 3.481995,
+            "depth": 3,
+            "pool_weights": {}
+        },
+        {
+            "primary_affinity": 1,
+            "reweight": 0.980011,
+            "status": "up",
+            "exists": 1,
+            "id": 21,
+            "device_class": "ssd",
+            "name": "osd.21",
+            "type": "osd",
+            "type_id": 0,
+            "crush_weight": 3.481995,
+            "depth": 3,
+            "pool_weights": {}
+        },
+        {
+            "primary_affinity": 1,
+            "reweight": 0.980011,
+            "status": "up",
+            "exists": 1,
+            "id": 22,
+            "device_class": "ssd",
+            "name": "osd.22",
+            "type": "osd",
+            "type_id": 0,
+            "crush_weight": 3.481995,
+            "depth": 3,
+            "pool_weights": {}
+        },
+        {
+            "primary_affinity": 1,
+            "reweight": 0.980011,
+            "status": "up",
+            "exists": 1,
+            "id": 23,
+            "device_class": "ssd",
+            "name": "osd.23",
+            "type": "osd",
+            "type_id": 0,
+            "crush_weight": 3.481995,
+            "depth": 3,
+            "pool_weights": {}
+        },
+        {
+            "primary_affinity": 1,
+            "reweight": 0.980011,
+            "status": "up",
+            "exists": 1,
+            "id": 44,
+            "device_class": "ssd",
+            "name": "osd.44",
+            "type": "osd",
+            "type_id": 0,
+            "crush_weight": 3.481995,
+            "depth": 3,
+            "pool_weights": {}
+        },
+        {
+            "primary_affinity": 1,
+            "reweight": 0.980011,
+            "status": "up",
+            "exists": 1,
+            "id": 45,
+            "device_class": "ssd",
+            "name": "osd.45",
+            "type": "osd",
+            "type_id": 0,
+            "crush_weight": 3.481995,
+            "depth": 3,
+            "pool_weights": {}
+        },
+        {
+            "id": 524,
+            "device_class": "ssd",
+            "name": "osd.524",
+            "type": "osd",
+            "type_id": 0,
+            "crush_weight": 0.000000,
+            "depth": 0,
+            "exists": 1,
+            "status": "destroyed",
+            "reweight": 0.000000,
+            "primary_affinity": 1.000000
+        },
+        {
+            "id": 525,
+            "device_class": "ssd",
+            "name": "osd.525",
+            "type": "osd",
+            "type_id": 0,
+            "crush_weight": 0.000000,
+            "depth": 0,
+            "exists": 1,
+            "status": "destroyed",
+            "reweight": 0.000000,
+            "primary_affinity": 1.000000
+        }
+    ]
+}
+`
+)
+
+func TestOSDLabelBuilder(t *testing.T) {
+	osds, err := buildOSDLabels([]byte(testOSDTreeOutput))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	osd, ok := osds[0]
+	if !ok {
+		t.Fatal("did not find expected node in map")
+	}
+
+	if osd.Type != "osd" {
+		t.Fatal("node is not an osd")
+	}
+
+	if osd.Rack != "A8R1" {
+		t.Fatal("node is not in expected rack")
+	}
+
+	if osd.Host != "prod-data01-block01" {
+		t.Fatal("node is not in expected host")
+	}
+
+	if osd.Root != "default" {
+		t.Fatal("node is not in expected root", osd.Root)
+	}
+
+	if osd.DeviceClass != "hdd" {
+		t.Fatal("node is not an hdd")
+	}
+}
+
 func TestOSDCollector(t *testing.T) {
 	for _, tt := range []struct {
-		cmdOut  map[string]string
-		regexes []*regexp.Regexp
+		cmdOut []map[string]string
+		regExp []*regexp.Regexp
 	}{
 		{
-			cmdOut: map[string]string{
-				"ceph osd df": `
+			cmdOut: []map[string]string{
+				{
+					"ceph osd tree": testOSDTreeOutput,
+					"ceph osd df": `
 {
     "nodes": [
         {
@@ -107,53 +452,54 @@ func TestOSDCollector(t *testing.T) {
         "dev": 0.017482
     }
 }`,
+				},
 			},
-			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`ceph_osd_crush_weight{cluster="ceph",osd="osd.0"} 0.010391`),
-				regexp.MustCompile(`ceph_osd_crush_weight{cluster="ceph",osd="osd.1"} 0.010391`),
-				regexp.MustCompile(`ceph_osd_crush_weight{cluster="ceph",osd="osd.2"} 0.010391`),
-				regexp.MustCompile(`ceph_osd_crush_weight{cluster="ceph",osd="osd.3"} 0.010391`),
-				regexp.MustCompile(`ceph_osd_crush_weight{cluster="ceph",osd="osd.4"} 0.010391`),
-				regexp.MustCompile(`ceph_osd_depth{cluster="ceph",osd="osd.0"} 2`),
-				regexp.MustCompile(`ceph_osd_depth{cluster="ceph",osd="osd.1"} 2`),
-				regexp.MustCompile(`ceph_osd_depth{cluster="ceph",osd="osd.2"} 2`),
-				regexp.MustCompile(`ceph_osd_depth{cluster="ceph",osd="osd.3"} 2`),
-				regexp.MustCompile(`ceph_osd_depth{cluster="ceph",osd="osd.4"} 2`),
-				regexp.MustCompile(`ceph_osd_reweight{cluster="ceph",osd="osd.0"} 1`),
-				regexp.MustCompile(`ceph_osd_reweight{cluster="ceph",osd="osd.1"} 1`),
-				regexp.MustCompile(`ceph_osd_reweight{cluster="ceph",osd="osd.2"} 1`),
-				regexp.MustCompile(`ceph_osd_reweight{cluster="ceph",osd="osd.3"} 1`),
-				regexp.MustCompile(`ceph_osd_reweight{cluster="ceph",osd="osd.4"} 0`),
-				regexp.MustCompile(`ceph_osd_bytes{cluster="ceph",osd="osd.0"} 1.1150316e`),
-				regexp.MustCompile(`ceph_osd_bytes{cluster="ceph",osd="osd.1"} 1.1150316e`),
-				regexp.MustCompile(`ceph_osd_bytes{cluster="ceph",osd="osd.2"} 1.1150316e`),
-				regexp.MustCompile(`ceph_osd_bytes{cluster="ceph",osd="osd.3"} 1.1150316e`),
-				regexp.MustCompile(`ceph_osd_bytes{cluster="ceph",osd="osd.4"} 0`),
-				regexp.MustCompile(`ceph_osd_used_bytes{cluster="ceph",osd="osd.0"} 4.0772e`),
-				regexp.MustCompile(`ceph_osd_used_bytes{cluster="ceph",osd="osd.1"} 4.0512e`),
-				regexp.MustCompile(`ceph_osd_used_bytes{cluster="ceph",osd="osd.2"} 3.6712e`),
-				regexp.MustCompile(`ceph_osd_used_bytes{cluster="ceph",osd="osd.3"} 3.6784e`),
-				regexp.MustCompile(`ceph_osd_used_bytes{cluster="ceph",osd="osd.4"} 0`),
-				regexp.MustCompile(`ceph_osd_avail_bytes{cluster="ceph",osd="osd.0"} 1.1109544e`),
-				regexp.MustCompile(`ceph_osd_avail_bytes{cluster="ceph",osd="osd.1"} 1.1109804e`),
-				regexp.MustCompile(`ceph_osd_avail_bytes{cluster="ceph",osd="osd.2"} 1.1113604e`),
-				regexp.MustCompile(`ceph_osd_avail_bytes{cluster="ceph",osd="osd.3"} 1.1113532e`),
-				regexp.MustCompile(`ceph_osd_avail_bytes{cluster="ceph",osd="osd.4"} 0`),
-				regexp.MustCompile(`ceph_osd_utilization{cluster="ceph",osd="osd.0"} 0.365658`),
-				regexp.MustCompile(`ceph_osd_utilization{cluster="ceph",osd="osd.1"} 0.363326`),
-				regexp.MustCompile(`ceph_osd_utilization{cluster="ceph",osd="osd.2"} 0.329246`),
-				regexp.MustCompile(`ceph_osd_utilization{cluster="ceph",osd="osd.3"} 0.329892`),
-				regexp.MustCompile(`ceph_osd_utilization{cluster="ceph",osd="osd.4"} 0`),
-				regexp.MustCompile(`ceph_osd_variance{cluster="ceph",osd="osd.0"} 1.053676`),
-				regexp.MustCompile(`ceph_osd_variance{cluster="ceph",osd="osd.1"} 1.046957`),
-				regexp.MustCompile(`ceph_osd_variance{cluster="ceph",osd="osd.2"} 0.948753`),
-				regexp.MustCompile(`ceph_osd_variance{cluster="ceph",osd="osd.3"} 0.950614`),
-				regexp.MustCompile(`ceph_osd_variance{cluster="ceph",osd="osd.4"} 0`),
-				regexp.MustCompile(`ceph_osd_pgs{cluster="ceph",osd="osd.0"} 283`),
-				regexp.MustCompile(`ceph_osd_pgs{cluster="ceph",osd="osd.1"} 279`),
-				regexp.MustCompile(`ceph_osd_pgs{cluster="ceph",osd="osd.2"} 162`),
-				regexp.MustCompile(`ceph_osd_pgs{cluster="ceph",osd="osd.3"} 164`),
-				regexp.MustCompile(`ceph_osd_pgs{cluster="ceph",osd="osd.4"} 0`),
+			regExp: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_osd_crush_weight{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 0.010391`),
+				regexp.MustCompile(`ceph_osd_crush_weight{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 0.010391`),
+				regexp.MustCompile(`ceph_osd_crush_weight{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 0.010391`),
+				regexp.MustCompile(`ceph_osd_crush_weight{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 0.010391`),
+				regexp.MustCompile(`ceph_osd_crush_weight{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0.010391`),
+				regexp.MustCompile(`ceph_osd_depth{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 2`),
+				regexp.MustCompile(`ceph_osd_depth{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 2`),
+				regexp.MustCompile(`ceph_osd_depth{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 2`),
+				regexp.MustCompile(`ceph_osd_depth{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 2`),
+				regexp.MustCompile(`ceph_osd_depth{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 2`),
+				regexp.MustCompile(`ceph_osd_reweight{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 1`),
+				regexp.MustCompile(`ceph_osd_reweight{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 1`),
+				regexp.MustCompile(`ceph_osd_reweight{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 1`),
+				regexp.MustCompile(`ceph_osd_reweight{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 1`),
+				regexp.MustCompile(`ceph_osd_reweight{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0`),
+				regexp.MustCompile(`ceph_osd_bytes{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 1.1150316e\+10`),
+				regexp.MustCompile(`ceph_osd_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 1.1150316e\+10`),
+				regexp.MustCompile(`ceph_osd_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 1.1150316e\+10`),
+				regexp.MustCompile(`ceph_osd_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 1.1150316e\+10`),
+				regexp.MustCompile(`ceph_osd_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0`),
+				regexp.MustCompile(`ceph_osd_used_bytes{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 4.0772e`),
+				regexp.MustCompile(`ceph_osd_used_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 4.0512e`),
+				regexp.MustCompile(`ceph_osd_used_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 3.6712e`),
+				regexp.MustCompile(`ceph_osd_used_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 3.6784e`),
+				regexp.MustCompile(`ceph_osd_used_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0`),
+				regexp.MustCompile(`ceph_osd_avail_bytes{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 1.1109544e`),
+				regexp.MustCompile(`ceph_osd_avail_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 1.1109804e`),
+				regexp.MustCompile(`ceph_osd_avail_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 1.1113604e`),
+				regexp.MustCompile(`ceph_osd_avail_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 1.1113532e`),
+				regexp.MustCompile(`ceph_osd_avail_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0`),
+				regexp.MustCompile(`ceph_osd_utilization{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 0.365658`),
+				regexp.MustCompile(`ceph_osd_utilization{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 0.363326`),
+				regexp.MustCompile(`ceph_osd_utilization{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 0.329246`),
+				regexp.MustCompile(`ceph_osd_utilization{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 0.329892`),
+				regexp.MustCompile(`ceph_osd_utilization{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0`),
+				regexp.MustCompile(`ceph_osd_variance{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 1.053676`),
+				regexp.MustCompile(`ceph_osd_variance{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 1.046957`),
+				regexp.MustCompile(`ceph_osd_variance{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 0.948753`),
+				regexp.MustCompile(`ceph_osd_variance{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 0.950614`),
+				regexp.MustCompile(`ceph_osd_variance{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0`),
+				regexp.MustCompile(`ceph_osd_pgs{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 283`),
+				regexp.MustCompile(`ceph_osd_pgs{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 279`),
+				regexp.MustCompile(`ceph_osd_pgs{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 162`),
+				regexp.MustCompile(`ceph_osd_pgs{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 164`),
+				regexp.MustCompile(`ceph_osd_pgs{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0`),
 				regexp.MustCompile(`ceph_osd_total_bytes{cluster="ceph"} 4.4601264e`),
 				regexp.MustCompile(`ceph_osd_total_used_bytes{cluster="ceph"} 1.5478e`),
 				regexp.MustCompile(`ceph_osd_total_avail_bytes{cluster="ceph"} 4.4446484e`),
@@ -161,66 +507,71 @@ func TestOSDCollector(t *testing.T) {
 			},
 		},
 		{
-			cmdOut: map[string]string{
-				"ceph osd perf": `
+			cmdOut: []map[string]string{
+				{
+					"ceph osd tree": testOSDTreeOutput,
+					"ceph osd perf": `
 {
-	"osdstats": {
-		"osd_perf_infos": [
-			{
-				"id": 4,
-				"perf_stats": {
-					"commit_latency_ms": 0,
-					"apply_latency_ms": 0
-				}
-			},
-			{
-				"id": 3,
-				"perf_stats": {
-					"commit_latency_ms": 1,
-					"apply_latency_ms": 64
-				}
-			},
-			{
-				"id": 2,
-				"perf_stats": {
-					"commit_latency_ms": 2,
-					"apply_latency_ms": 79
-				}
-			},
-			{
-				"id": 1,
-				"perf_stats": {
-					"commit_latency_ms": 2,
-					"apply_latency_ms": 39
-				}
-			},
-			{
-				"id": 0,
-				"perf_stats": {
-					"commit_latency_ms": 2,
-					"apply_latency_ms": 31
-				}
-			}
-		]
-	}
+    "osdstats": {
+        "osd_perf_infos": [
+            {
+                "id": 4,
+                "perf_stats": {
+                    "commit_latency_ms": 0,
+                    "apply_latency_ms": 0
+                }
+            },
+            {
+                "id": 3,
+                "perf_stats": {
+                    "commit_latency_ms": 1,
+                    "apply_latency_ms": 64
+                }
+            },
+            {
+                "id": 2,
+                "perf_stats": {
+                    "commit_latency_ms": 2,
+                    "apply_latency_ms": 79
+                }
+            },
+            {
+                "id": 1,
+                "perf_stats": {
+                    "commit_latency_ms": 2,
+                    "apply_latency_ms": 39
+                }
+            },
+            {
+                "id": 0,
+                "perf_stats": {
+                    "commit_latency_ms": 2,
+                    "apply_latency_ms": 31
+                }
+            }
+        ]
+    }
 }`,
+				},
 			},
-			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`ceph_osd_perf_commit_latency_seconds{cluster="ceph",osd="osd.0"} 0.002`),
-				regexp.MustCompile(`ceph_osd_perf_commit_latency_seconds{cluster="ceph",osd="osd.1"} 0.002`),
-				regexp.MustCompile(`ceph_osd_perf_commit_latency_seconds{cluster="ceph",osd="osd.2"} 0.002`),
-				regexp.MustCompile(`ceph_osd_perf_commit_latency_seconds{cluster="ceph",osd="osd.3"} 0.001`),
-				regexp.MustCompile(`ceph_osd_perf_commit_latency_seconds{cluster="ceph",osd="osd.4"} 0`),
-				regexp.MustCompile(`ceph_osd_perf_apply_latency_seconds{cluster="ceph",osd="osd.0"} 0.031`),
-				regexp.MustCompile(`ceph_osd_perf_apply_latency_seconds{cluster="ceph",osd="osd.1"} 0.039`),
-				regexp.MustCompile(`ceph_osd_perf_apply_latency_seconds{cluster="ceph",osd="osd.2"} 0.079`),
-				regexp.MustCompile(`ceph_osd_perf_apply_latency_seconds{cluster="ceph",osd="osd.3"} 0.064`),
-				regexp.MustCompile(`ceph_osd_perf_apply_latency_seconds{cluster="ceph",osd="osd.4"} 0`),
+			regExp: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_osd_perf_commit_latency_seconds{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 0.002`),
+				regexp.MustCompile(`ceph_osd_perf_commit_latency_seconds{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 0.002`),
+				regexp.MustCompile(`ceph_osd_perf_commit_latency_seconds{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 0.002`),
+				regexp.MustCompile(`ceph_osd_perf_commit_latency_seconds{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 0.001`),
+				regexp.MustCompile(`ceph_osd_perf_commit_latency_seconds{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0`),
+				regexp.MustCompile(`ceph_osd_perf_apply_latency_seconds{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 0.031`),
+				regexp.MustCompile(`ceph_osd_perf_apply_latency_seconds{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 0.039`),
+				regexp.MustCompile(`ceph_osd_perf_apply_latency_seconds{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 0.079`),
+				regexp.MustCompile(`ceph_osd_perf_apply_latency_seconds{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 0.064`),
+				regexp.MustCompile(`ceph_osd_perf_apply_latency_seconds{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0`),
 			},
 		},
 		{
-			cmdOut: map[string]string{
-				"ceph osd dump": `
+			cmdOut: []map[string]string{
+				{
+					"ceph osd tree": testOSDTreeOutput,
+					"ceph osd dump": `
 {
     "osds": [
         {
@@ -271,344 +622,551 @@ func TestOSDCollector(t *testing.T) {
         }
     ]
 }`,
+				},
 			},
-			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`ceph_osd_in{cluster="ceph",osd="osd.0"} 1`),
-				regexp.MustCompile(`ceph_osd_in{cluster="ceph",osd="osd.1"} 1`),
-				regexp.MustCompile(`ceph_osd_in{cluster="ceph",osd="osd.2"} 1`),
-				regexp.MustCompile(`ceph_osd_in{cluster="ceph",osd="osd.3"} 1`),
-				regexp.MustCompile(`ceph_osd_in{cluster="ceph",osd="osd.4"} 0`),
-				regexp.MustCompile(`ceph_osd_up{cluster="ceph",osd="osd.0"} 1`),
-				regexp.MustCompile(`ceph_osd_up{cluster="ceph",osd="osd.1"} 1`),
-				regexp.MustCompile(`ceph_osd_up{cluster="ceph",osd="osd.2"} 1`),
-				regexp.MustCompile(`ceph_osd_up{cluster="ceph",osd="osd.3"} 1`),
-				regexp.MustCompile(`ceph_osd_up{cluster="ceph",osd="osd.4"} 0`),
-				regexp.MustCompile(`ceph_osd_full{cluster="ceph",osd="osd.0"} 0`),
-				regexp.MustCompile(`ceph_osd_full{cluster="ceph",osd="osd.1"} 0`),
-				regexp.MustCompile(`ceph_osd_full{cluster="ceph",osd="osd.2"} 0`),
-				regexp.MustCompile(`ceph_osd_full{cluster="ceph",osd="osd.3"} 1`),
-				regexp.MustCompile(`ceph_osd_full{cluster="ceph",osd="osd.4"} 0`),
-				regexp.MustCompile(`ceph_osd_near_full{cluster="ceph",osd="osd.0"} 0`),
-				regexp.MustCompile(`ceph_osd_near_full{cluster="ceph",osd="osd.1"} 0`),
-				regexp.MustCompile(`ceph_osd_near_full{cluster="ceph",osd="osd.2"} 1`),
-				regexp.MustCompile(`ceph_osd_near_full{cluster="ceph",osd="osd.3"} 0`),
-				regexp.MustCompile(`ceph_osd_near_full{cluster="ceph",osd="osd.4"} 0`),
-				regexp.MustCompile(`ceph_osd_backfill_full{cluster="ceph",osd="osd.0"} 0`),
-				regexp.MustCompile(`ceph_osd_backfill_full{cluster="ceph",osd="osd.1"} 0`),
-				regexp.MustCompile(`ceph_osd_backfill_full{cluster="ceph",osd="osd.2"} 0`),
-				regexp.MustCompile(`ceph_osd_backfill_full{cluster="ceph",osd="osd.3"} 1`),
-				regexp.MustCompile(`ceph_osd_backfill_full{cluster="ceph",osd="osd.4"} 1`),
-			},
-		},
-		{
-			cmdOut: map[string]string{
-				"ceph pg dump pgs_brief": `
-{ 
-	"pg_ready": true,
-	"pg_stats": [
-		{
-			"acting": [
-				1,
-				2,
-				3,
-				4
-			],
-			"acting_primary": 1,
-			"pgid": "81.1fff",
-			"state": "active+clean"
-		},
-		{
-			"acting": [
-				10,
-				11,
-				12,
-				13
-			],
-			"acting_primary": 10,
-			"pgid": "82.1fff",
-			"state": "active+clean+scrubbing"
-		},
-		{
-			"acting": [
-				20,
-				21,
-				22,
-				23
-			],
-			"acting_primary": 20,
-			"pgid": "83.1fff",
-			"state": "active+clean+scrubbing+deep"
-		}
-	]
-}`,
-			},
-			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",osd="osd.10"} 1`),
-				regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",osd="osd.11"} 1`),
-				regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",osd="osd.12"} 1`),
-				regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",osd="osd.13"} 1`),
-				regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",osd="osd.20"} 2`),
-				regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",osd="osd.21"} 2`),
-				regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",osd="osd.22"} 2`),
-				regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",osd="osd.23"} 2`),
+			regExp: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_osd_in{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 1`),
+				regexp.MustCompile(`ceph_osd_in{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 1`),
+				regexp.MustCompile(`ceph_osd_in{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 1`),
+				regexp.MustCompile(`ceph_osd_in{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 1`),
+				regexp.MustCompile(`ceph_osd_in{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0`),
+				regexp.MustCompile(`ceph_osd_up{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 1`),
+				regexp.MustCompile(`ceph_osd_up{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 1`),
+				regexp.MustCompile(`ceph_osd_up{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 1`),
+				regexp.MustCompile(`ceph_osd_up{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 1`),
+				regexp.MustCompile(`ceph_osd_up{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0`),
+				regexp.MustCompile(`ceph_osd_full{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 0`),
+				regexp.MustCompile(`ceph_osd_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 0`),
+				regexp.MustCompile(`ceph_osd_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 0`),
+				regexp.MustCompile(`ceph_osd_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 1`),
+				regexp.MustCompile(`ceph_osd_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0`),
+				regexp.MustCompile(`ceph_osd_near_full{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 0`),
+				regexp.MustCompile(`ceph_osd_near_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 0`),
+				regexp.MustCompile(`ceph_osd_near_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 1`),
+				regexp.MustCompile(`ceph_osd_near_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 0`),
+				regexp.MustCompile(`ceph_osd_near_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0`),
+				regexp.MustCompile(`ceph_osd_backfill_full{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 0`),
+				regexp.MustCompile(`ceph_osd_backfill_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 0`),
+				regexp.MustCompile(`ceph_osd_backfill_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 0`),
+				regexp.MustCompile(`ceph_osd_backfill_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 1`),
+				regexp.MustCompile(`ceph_osd_backfill_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 1`),
 			},
 		},
 		{
-			cmdOut: map[string]string{
-				"ceph osd tree down": `
+			cmdOut: []map[string]string{
+				{
+					"ceph osd tree": testOSDTreeOutput,
+					"ceph pg dump pgs_brief": `
 {
-	"nodes": [],
-	"stray": [
-		{
-			"id": 524,
-			"name": "osd.524",
-			"type": "osd",
-			"type_id": 0,
-			"crush_weight": 0.000000,
-			"depth": 0,
-			"exists": 1,
-			"status": "destroyed",
-			"reweight": 0.000000,
-			"primary_affinity": 1.000000
-		}
-	]
+    "pg_ready": true,
+    "pg_stats": [
+        {
+            "acting": [
+                  1,
+                  2,
+                  3,
+                  4
+            ],
+            "acting_primary": 1,
+            "pgid": "81.1fff",
+            "state": "active+clean"
+        },
+        {
+            "acting": [
+                10,
+                11,
+                12,
+                13
+            ],
+            "acting_primary": 10,
+            "pgid": "82.1fff",
+            "state": "active+clean+scrubbing"
+            },
+        {
+            "acting": [
+                20,
+                21,
+                22,
+                23
+            ],
+            "acting_primary": 20,
+            "pgid": "83.1fff",
+            "state": "active+clean+scrubbing+deep"
+        }
+    ]
 }`,
+				},
 			},
-			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`ceph_osd_down{cluster="ceph",osd="osd.524",status="destroyed"} 1`),
+			regExp: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.10",rack="default",root="default"} 1`),
+				regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.11",rack="default",root="default"} 1`),
+				regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.12",rack="default",root="default"} 1`),
+				regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.13",rack="default",root="default"} 1`),
+				regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.20",rack="default",root="default"} 2`),
+				regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.21",rack="default",root="default"} 2`),
+				regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.22",rack="default",root="default"} 2`),
+				regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.23",rack="default",root="default"} 2`),
 			},
 		},
 		{
-			cmdOut: map[string]string{
-				"ceph osd tree down": `
+			cmdOut: []map[string]string{
+				{
+					"ceph osd tree": testOSDTreeOutput,
+					"ceph osd tree down": `
 {
-	"nodes": [],
-	"stray": [
-		{
-			"id": 524,
-			"name": "osd.524",
-			"type": "osd",
-			"type_id": 0,
-			"crush_weight": 0.000000,
-			"depth": 0,
-			"exists": 1,
-			"status": "down",
-			"reweight": 0.000000,
-			"primary_affinity": 1.000000
-		}
-	]
+    "nodes": [],
+    "stray": [
+        {
+            "id": 524,
+            "name": "osd.524",
+            "type": "osd",
+            "type_id": 0,
+            "crush_weight": 0.000000,
+            "depth": 0,
+            "exists": 1,
+            "status": "destroyed",
+            "reweight": 0.000000,
+            "primary_affinity": 1.000000
+        }
+    ]
 }`,
+				},
 			},
-			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`ceph_osd_down{cluster="ceph",osd="osd.524",status="down"} 1`),
+			regExp: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_osd_down{cluster="ceph",device_class="ssd",host="prod-data02-block01",osd="osd.524",rack="default",root="A8R2",status="destroyed"} 1`),
 			},
 		},
 		{
-			cmdOut: map[string]string{
-				"ceph osd tree down": `
+			cmdOut: []map[string]string{
+				{
+					"ceph osd tree": testOSDTreeOutput,
+					"ceph osd tree down": `
 {
-	"nodes": [
-		{
-			"id": -18,
-			"name": "data",
-			"type": "root",
-			"type_id": 10,
-			"children": [
-				-20
-			]
-		},
-		{
-			"id": -20,
-			"name": "R1-data",
-			"type": "rack",
-			"type_id": 3,
-			"pool_weights": {},
-			"children": [
-				-8
-			]
-		},
-		{
-			"id": -8,
-			"name": "test-data03-object01",
-			"type": "host",
-			"type_id": 1,
-			"pool_weights": {},
-			"children": [
-				97
-			]
-		},
-		{
-			"id": 524,
-			"device_class": "hdd",
-			"name": "osd.524",
-			"type": "osd",
-			"type_id": 0,
-			"crush_weight": 7.265991,
-			"depth": 3,
-			"pool_weights": {},
-			"exists": 1,
-			"status": "destroyed",
-			"reweight": 0.000000,
-			"primary_affinity": 1.000000
-		}
-	],
-	"stray": []
+    "nodes": [],
+    "stray": [
+        {
+            "id": 524,
+            "name": "osd.524",
+            "type": "osd",
+            "type_id": 0,
+            "crush_weight": 0.000000,
+            "depth": 0,
+            "exists": 1,
+            "status": "down",
+            "reweight": 0.000000,
+            "primary_affinity": 1.000000
+        }
+    ]
 }`,
+				},
 			},
-			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`ceph_osd_down{cluster="ceph",osd="osd.524",status="destroyed"} 1`),
+			regExp: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_osd_down{cluster="ceph",device_class="ssd",host="prod-data02-block01",osd="osd.524",rack="default",root="A8R2",status="down"} 1`),
 			},
 		},
 		{
-			cmdOut: map[string]string{
-				"ceph osd tree down": `
+			cmdOut: []map[string]string{
+				{
+					"ceph osd tree": testOSDTreeOutput,
+					"ceph osd tree down": `
 {
-	"nodes": [
-		{
-			"id": -18,
-			"name": "data",
-			"type": "root",
-			"type_id": 10,
-			"children": [
-				-20
-			]
-		},
-		{
-			"id": -20,
-			"name": "R1-data",
-			"type": "rack",
-			"type_id": 3,
-			"pool_weights": {},
-			"children": [
-				-8
-			]
-		},
-		{
-			"id": -8,
-			"name": "test-data03-object01",
-			"type": "host",
-			"type_id": 1,
-			"pool_weights": {},
-			"children": [
-				97
-			]
-		},
-		{
-			"id": 524,
-			"device_class": "hdd",
-			"name": "osd.524",
-			"type": "osd",
-			"type_id": 0,
-			"crush_weight": 7.265991,
-			"depth": 3,
-			"pool_weights": {},
-			"exists": 1,
-			"status": "destroyed",
-			"reweight": 0.000000,
-			"primary_affinity": 1.000000
-		}
-	],
-	"stray": [
-		{
-			"id": 525,
-			"name": "osd.525",
-			"type": "osd",
-			"type_id": 0,
-			"crush_weight": 0.000000,
-			"depth": 0,
-			"exists": 1,
-			"status": "down",
-			"reweight": 0.000000,
-			"primary_affinity": 1.000000
-		}
-	]
+    "nodes": [
+        {
+            "id": -18,
+            "name": "data",
+            "type": "root",
+            "type_id": 10,
+            "children": [
+                -20
+            ]
+        },
+        {
+            "id": -20,
+            "name": "R1-data",
+            "type": "rack",
+            "type_id": 3,
+            "pool_weights": {},
+            "children": [
+                -8
+            ]
+        },
+        {
+            "id": -8,
+            "name": "test-data03-object01",
+            "type": "host",
+            "type_id": 1,
+            "pool_weights": {},
+            "children": [
+                97
+            ]
+        },
+        {
+            "id": 524,
+            "device_class": "hdd",
+            "name": "osd.524",
+            "type": "osd",
+            "type_id": 0,
+            "crush_weight": 7.265991,
+            "depth": 3,
+            "pool_weights": {},
+            "exists": 1,
+            "status": "destroyed",
+            "reweight": 0.000000,
+            "primary_affinity": 1.000000
+        }
+    ],
+    "stray": []
 }`,
+				},
 			},
-			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`ceph_osd_down{cluster="ceph",osd="osd.524",status="destroyed"} 1`),
-				regexp.MustCompile(`ceph_osd_down{cluster="ceph",osd="osd.525",status="down"} 1`),
+			regExp: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_osd_down{cluster="ceph",device_class="ssd",host="prod-data02-block01",osd="osd.524",rack="default",root="A8R2",status="destroyed"} 1`),
 			},
 		},
 		{
-			cmdOut: map[string]string{
-				"ceph osd tree down": `
+			cmdOut: []map[string]string{
+				{
+					"ceph osd tree": testOSDTreeOutput,
+					"ceph osd tree down": `
 {
-	"nodes": []}}
+    "nodes": [
+        {
+            "id": -18,
+            "name": "data",
+            "type": "root",
+            "type_id": 10,
+            "children": [
+                -20
+            ]
+        },
+        {
+            "id": -20,
+            "name": "R1-data",
+            "type": "rack",
+            "type_id": 3,
+            "pool_weights": {},
+            "children": [
+                -8
+            ]
+        },
+        {
+            "id": -8,
+            "name": "test-data03-object01",
+            "type": "host",
+            "type_id": 1,
+            "pool_weights": {},
+            "children": [
+                97
+            ]
+        },
+        {
+            "id": 524,
+            "device_class": "hdd",
+            "name": "osd.524",
+            "type": "osd",
+            "type_id": 0,
+            "crush_weight": 7.265991,
+            "depth": 3,
+            "pool_weights": {},
+            "exists": 1,
+            "status": "destroyed",
+            "reweight": 0.000000,
+            "primary_affinity": 1.000000
+        }
+    ],
+    "stray": [
+        {
+            "id": 525,
+            "name": "osd.525",
+            "type": "osd",
+            "type_id": 0,
+            "crush_weight": 0.000000,
+            "depth": 0,
+            "exists": 1,
+            "status": "down",
+            "reweight": 0.000000,
+            "primary_affinity": 1.000000
+        }
+    ]
 }`,
+				},
 			},
-			regexes: []*regexp.Regexp{},
-		},
-		{
-			cmdOut: map[string]string{
-				"ceph pg dump pgs_brief": `
-{
-	"pg_ready": true,
-	"pg_stats": [
-		{
-			"acting": [
-			1,
-			2,
-			3,
-			4
-			],
-			"acting_primary": 1,
-			"pgid": "81.1fff",
-			"state": "active+clean"
-		},
-		{
-			"acting": [
-			10,
-			11,
-			12,
-			13
-			],
-			"acting_primary": 10,
-			"pgid": "82.1fff",
-			"state": "active+clean+scrubbing"
-		},
-		{
-			"acting": [
-			20,
-			21,
-			22,
-			23
-			],
-			"acting_primary": 20,
-			"pgid": "83.1fff",
-			"state": "active+clean+scrubbing+deep"
-		},
-		{
-			"acting": [
-			30,
-			31,
-			32,
-			33
-			],
-			"acting_primary": 30,
-			"pgid": "84.1fff",
-			"state": "active+recovering+degraded"
-		}
-	]
-}`,
-				"ceph tell 84.1fff query": `
-{
-	"state": "active+recovering+degraded",
-	"info": {
-		"stats": {
-			"stat_sum": {
-				"num_objects_recovered": 123
-			}
-		}
-	}
-}`,
+			regExp: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_osd_down{cluster="ceph",device_class="ssd",host="prod-data02-block01",osd="osd.524",rack="default",root="A8R2",status="destroyed"} 1`),
+				regexp.MustCompile(`ceph_osd_down{cluster="ceph",device_class="ssd",host="prod-data02-block01",osd="osd.525",rack="default",root="A8R2",status="down"} 1`),
 			},
-			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`ceph_pg_objects_recovered{cluster="ceph",pgid="84.1fff"} 123`),
+		},
+		{
+			cmdOut: []map[string]string{
+				{
+					"ceph osd tree": testOSDTreeOutput,
+					"ceph osd tree down": `
+{
+  "nodes": []}}
+}`,
+				},
+			},
+			regExp: []*regexp.Regexp{},
+		},
+		{
+			cmdOut: []map[string]string{
+				{
+					"ceph osd tree": testOSDTreeOutput,
+					"ceph pg dump pgs_brief": `
+{
+    "pg_ready": true,
+    "pg_stats": [
+        {
+            "acting": [
+                1,
+                2,
+                3,
+                4
+            ],
+            "acting_primary": 1,
+            "pgid": "81.1fff",
+            "state": "active+clean"
+        },
+        {
+            "acting": [
+                10,
+                11,
+                12,
+                13
+            ],
+            "acting_primary": 10,
+            "pgid": "82.1fff",
+            "state": "active+clean+scrubbing"
+        },
+        {
+            "acting": [
+                20,
+                21,
+                22,
+                23
+            ],
+            "acting_primary": 20,
+            "pgid": "83.1fff",
+            "state": "active+clean+scrubbing+deep"
+        },
+        {
+            "acting": [
+                30,
+                31,
+                32,
+                33
+            ],
+            "acting_primary": 30,
+            "pgid": "84.1fff",
+            "state": "active+recovering+degraded"
+        }
+    ]
+}`,
+					"ceph tell 84.1fff query": `
+{
+    "state": "active+recovering+degraded",
+    "info": {
+        "stats": {
+            "stat_sum": {
+                "num_objects_recovered": 123
+            }
+        }
+    }
+}`,
+				},
+				{
+					"ceph pg dump pgs_brief": `
+{
+    "pg_ready": true,
+    "pg_stats": [
+        {
+            "acting": [
+                30,
+                31,
+                32,
+                33
+            ],
+            "acting_primary": 30,
+            "pgid": "84.1fff",
+            "state": "active+clean"
+        }
+    ]
+}`,
+					"ceph tell 84.1fff query": `
+{
+    "state": "active+clean",
+        "info": {
+            "stats": {
+                "stat_sum": {
+                "num_objects_recovered": 456
+                }
+            }
+        }
+}`,
+				},
+			},
+			regExp: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_pg_objects_recovered{cluster="ceph",pgid="84.1fff"} 456`),
+			},
+		},
+		{
+			cmdOut: []map[string]string{
+				{
+					"ceph osd tree": testOSDTreeOutput,
+					"ceph pg dump pgs_brief": `
+{
+    "pg_ready": true,
+    "pg_stats": [
+        {
+            "acting": [
+                40,
+                41,
+                42,
+                43
+            ],
+            "acting_primary": 40,
+            "pgid": "85.1fff",
+            "state": "active+remapped+backfill_wait"
+        }
+    ]
+}`,
+					"ceph tell 85.1fff query": `
+{
+    "state": "active+remapped+backfill_wait",
+    "info": {
+        "stats": {
+              "stat_sum": {
+                    "num_objects_recovered": 100
+              }
+        }
+    }
+}`,
+				},
+				{
+					"ceph osd tree": testOSDTreeOutput,
+					"ceph pg dump pgs_brief": `
+{
+    "pg_ready": true,
+    "pg_stats": [
+        {
+            "acting": [
+                  40,
+                  41,
+                  42,
+                  43
+            ],
+            "acting_primary": 40,
+            "pgid": "85.1fff",
+            "state": "active+remapped+backfilling"
+        }
+    ]
+}`,
+					"ceph tell 85.1fff query": `
+{
+    "state": "active+remapped+backfilling",
+    "info": {
+        "stats": {
+            "stat_sum": {
+                "num_objects_recovered": 100
+            }
+        }
+        },
+    "recovery_state": [
+        {
+            "enter_time": "2019-07-08 17:58:05.892834",
+            "name": "Started/Primary/Active",
+            "recovery_progress": {
+                "backfill_targets": [
+                    "44(1)",
+                    "45(2)"
+                ]
+            }
+        }
+    ]
+}`,
+				},
+				{
+					"ceph pg dump pgs_brief": `
+{
+    "pg_ready": true,
+    "pg_stats": [
+        {
+            "acting": [
+                40,
+                41,
+                42,
+                43
+            ],
+            "acting_primary": 40,
+            "pgid": "85.1fff",
+            "state": "active+remapped+backfilling"
+        }
+    ]
+}`,
+					"ceph tell 85.1fff query": `
+{
+    "state": "active+remapped+backfilling",
+    "info": {
+        "stats": {
+            "stat_sum": {
+                "num_objects_recovered": 200
+            }
+        }
+    },
+    "recovery_state": [
+        {
+            "enter_time": "2019-07-08 17:58:05.892834",
+            "name": "Started/Primary/Active",
+            "recovery_progress": {
+                "backfill_targets": [
+                      "44(1)"
+                ]
+            }
+        }
+    ]
+}`,
+				},
+				{
+					"ceph osd tree": testOSDTreeOutput,
+					"ceph pg dump pgs_brief": `
+{
+    "pg_ready": true,
+    "pg_stats": [
+        {
+            "acting": [
+                40,
+                41,
+                42,
+                43
+            ],
+            "acting_primary": 40,
+            "pgid": "85.1fff",
+            "state": "active+clean"
+        }
+    ]
+}`,
+					"ceph tell 85.1fff query": `
+{
+    "state": "active+clean",
+    "info": {
+        "stats": {
+              "stat_sum": {
+                "num_objects_recovered": 300
+              }
+        }
+    }
+}`,
+				},
+			},
+			regExp: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_osd_objects_backfilled{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.44",pgid="85.1fff",rack="A8R1",root="default"} 150`),
+				regexp.MustCompile(`ceph_osd_objects_backfilled{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.45",pgid="85.1fff",rack="A8R1",root="default"} 50`),
 			},
 		},
 	} {
 		func() {
-			collector := NewOSDCollector(NewNoopConnWithCmdOut(tt.cmdOut), "ceph")
+			conn := NewNoopConnWithCmdOut(tt.cmdOut)
+			collector := NewOSDCollector(conn, "ceph")
 			if err := prometheus.Register(collector); err != nil {
 				t.Fatalf("collector failed to register: %s", err)
 			}
@@ -619,20 +1177,24 @@ func TestOSDCollector(t *testing.T) {
 
 			var buf []byte
 
-			resp, err := http.Get(server.URL)
-			if err != nil {
-				t.Fatalf("unexpected failed response from prometheus: %s", err)
-			}
-			defer resp.Body.Close()
+			for i := 0; i < len(tt.cmdOut); i++ {
+				resp, err := http.Get(server.URL)
+				if err != nil {
+					t.Fatalf("unexpected failed response from prometheus: %s", err)
+				}
+				defer resp.Body.Close()
 
-			buf, err = ioutil.ReadAll(resp.Body)
-			if err != nil {
-				t.Fatalf("failed reading server response: %s", err)
+				buf, err = ioutil.ReadAll(resp.Body)
+				if err != nil {
+					t.Fatalf("failed reading server response: %s", err)
+				}
+
+				conn.IncIteration()
 			}
 
-			for _, re := range tt.regexes {
+			for _, re := range tt.regExp {
 				if !re.Match(buf) {
-					t.Errorf("failed matching: %q", re)
+					t.Fatalf("failed matching: %q %s", re, buf)
 				}
 			}
 		}()
