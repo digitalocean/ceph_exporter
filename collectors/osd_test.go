@@ -86,7 +86,7 @@ const (
       "status": "up",
       "exists": 1,
       "id": 0,
-      "device_class": "ssd",
+      "device_class": "hdd",
       "name": "osd.0",
       "type": "osd",
       "type_id": 0,
@@ -338,15 +338,19 @@ func TestOSDLabelBuilder(t *testing.T) {
 	}
 
 	if osd.Rack != "A8R1" {
-		t.Fatal("node is not not in expected rack")
+		t.Fatal("node is not in expected rack")
 	}
 
 	if osd.Host != "prod-data01-block01" {
-		t.Fatal("node is not not in expected host")
+		t.Fatal("node is not in expected host")
 	}
 
 	if osd.Root != "default" {
-		t.Fatal("node is not not in expected root", osd.Root)
+		t.Fatal("node is not in expected root", osd.Root)
+	}
+
+	if osd.DeviceClass != "hdd" {
+		t.Fatal("node is not an hdd")
 	}
 }
 
@@ -452,47 +456,47 @@ func TestOSDCollector(t *testing.T) {
 				},
 			},
 			regExp: []*regexp.Regexp{
-				regexp.MustCompile(`ceph_osd_crush_weight{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 0.010391`),
+				regexp.MustCompile(`ceph_osd_crush_weight{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 0.010391`),
 				regexp.MustCompile(`ceph_osd_crush_weight{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 0.010391`),
 				regexp.MustCompile(`ceph_osd_crush_weight{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 0.010391`),
 				regexp.MustCompile(`ceph_osd_crush_weight{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 0.010391`),
 				regexp.MustCompile(`ceph_osd_crush_weight{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0.010391`),
-				regexp.MustCompile(`ceph_osd_depth{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 2`),
+				regexp.MustCompile(`ceph_osd_depth{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 2`),
 				regexp.MustCompile(`ceph_osd_depth{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 2`),
 				regexp.MustCompile(`ceph_osd_depth{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 2`),
 				regexp.MustCompile(`ceph_osd_depth{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 2`),
 				regexp.MustCompile(`ceph_osd_depth{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 2`),
-				regexp.MustCompile(`ceph_osd_reweight{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 1`),
+				regexp.MustCompile(`ceph_osd_reweight{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 1`),
 				regexp.MustCompile(`ceph_osd_reweight{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 1`),
 				regexp.MustCompile(`ceph_osd_reweight{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 1`),
 				regexp.MustCompile(`ceph_osd_reweight{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 1`),
 				regexp.MustCompile(`ceph_osd_reweight{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0`),
-				regexp.MustCompile(`ceph_osd_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 1.1150316e\+10`),
+				regexp.MustCompile(`ceph_osd_bytes{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 1.1150316e\+10`),
 				regexp.MustCompile(`ceph_osd_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 1.1150316e\+10`),
 				regexp.MustCompile(`ceph_osd_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 1.1150316e\+10`),
 				regexp.MustCompile(`ceph_osd_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 1.1150316e\+10`),
 				regexp.MustCompile(`ceph_osd_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0`),
-				regexp.MustCompile(`ceph_osd_used_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 4.0772e`),
+				regexp.MustCompile(`ceph_osd_used_bytes{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 4.0772e`),
 				regexp.MustCompile(`ceph_osd_used_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 4.0512e`),
 				regexp.MustCompile(`ceph_osd_used_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 3.6712e`),
 				regexp.MustCompile(`ceph_osd_used_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 3.6784e`),
 				regexp.MustCompile(`ceph_osd_used_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0`),
-				regexp.MustCompile(`ceph_osd_avail_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 1.1109544e`),
+				regexp.MustCompile(`ceph_osd_avail_bytes{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 1.1109544e`),
 				regexp.MustCompile(`ceph_osd_avail_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 1.1109804e`),
 				regexp.MustCompile(`ceph_osd_avail_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 1.1113604e`),
 				regexp.MustCompile(`ceph_osd_avail_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 1.1113532e`),
 				regexp.MustCompile(`ceph_osd_avail_bytes{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0`),
-				regexp.MustCompile(`ceph_osd_utilization{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 0.365658`),
+				regexp.MustCompile(`ceph_osd_utilization{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 0.365658`),
 				regexp.MustCompile(`ceph_osd_utilization{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 0.363326`),
 				regexp.MustCompile(`ceph_osd_utilization{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 0.329246`),
 				regexp.MustCompile(`ceph_osd_utilization{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 0.329892`),
 				regexp.MustCompile(`ceph_osd_utilization{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0`),
-				regexp.MustCompile(`ceph_osd_variance{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 1.053676`),
+				regexp.MustCompile(`ceph_osd_variance{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 1.053676`),
 				regexp.MustCompile(`ceph_osd_variance{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 1.046957`),
 				regexp.MustCompile(`ceph_osd_variance{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 0.948753`),
 				regexp.MustCompile(`ceph_osd_variance{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 0.950614`),
 				regexp.MustCompile(`ceph_osd_variance{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0`),
-				regexp.MustCompile(`ceph_osd_pgs{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 283`),
+				regexp.MustCompile(`ceph_osd_pgs{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 283`),
 				regexp.MustCompile(`ceph_osd_pgs{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 279`),
 				regexp.MustCompile(`ceph_osd_pgs{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 162`),
 				regexp.MustCompile(`ceph_osd_pgs{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 164`),
@@ -550,12 +554,12 @@ func TestOSDCollector(t *testing.T) {
 				},
 			},
 			regExp: []*regexp.Regexp{
-				regexp.MustCompile(`ceph_osd_perf_commit_latency_seconds{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 0.002`),
+				regexp.MustCompile(`ceph_osd_perf_commit_latency_seconds{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 0.002`),
 				regexp.MustCompile(`ceph_osd_perf_commit_latency_seconds{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 0.002`),
 				regexp.MustCompile(`ceph_osd_perf_commit_latency_seconds{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 0.002`),
 				regexp.MustCompile(`ceph_osd_perf_commit_latency_seconds{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 0.001`),
 				regexp.MustCompile(`ceph_osd_perf_commit_latency_seconds{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0`),
-				regexp.MustCompile(`ceph_osd_perf_apply_latency_seconds{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 0.031`),
+				regexp.MustCompile(`ceph_osd_perf_apply_latency_seconds{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 0.031`),
 				regexp.MustCompile(`ceph_osd_perf_apply_latency_seconds{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 0.039`),
 				regexp.MustCompile(`ceph_osd_perf_apply_latency_seconds{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 0.079`),
 				regexp.MustCompile(`ceph_osd_perf_apply_latency_seconds{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 0.064`),
@@ -620,27 +624,27 @@ func TestOSDCollector(t *testing.T) {
 				},
 			},
 			regExp: []*regexp.Regexp{
-				regexp.MustCompile(`ceph_osd_in{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 1`),
+				regexp.MustCompile(`ceph_osd_in{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 1`),
 				regexp.MustCompile(`ceph_osd_in{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 1`),
 				regexp.MustCompile(`ceph_osd_in{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 1`),
 				regexp.MustCompile(`ceph_osd_in{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 1`),
 				regexp.MustCompile(`ceph_osd_in{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0`),
-				regexp.MustCompile(`ceph_osd_up{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 1`),
+				regexp.MustCompile(`ceph_osd_up{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 1`),
 				regexp.MustCompile(`ceph_osd_up{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 1`),
 				regexp.MustCompile(`ceph_osd_up{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 1`),
 				regexp.MustCompile(`ceph_osd_up{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 1`),
 				regexp.MustCompile(`ceph_osd_up{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0`),
-				regexp.MustCompile(`ceph_osd_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 0`),
+				regexp.MustCompile(`ceph_osd_full{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 0`),
 				regexp.MustCompile(`ceph_osd_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 0`),
 				regexp.MustCompile(`ceph_osd_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 0`),
 				regexp.MustCompile(`ceph_osd_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 1`),
 				regexp.MustCompile(`ceph_osd_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0`),
-				regexp.MustCompile(`ceph_osd_near_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 0`),
+				regexp.MustCompile(`ceph_osd_near_full{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 0`),
 				regexp.MustCompile(`ceph_osd_near_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 0`),
 				regexp.MustCompile(`ceph_osd_near_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 1`),
 				regexp.MustCompile(`ceph_osd_near_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 0`),
 				regexp.MustCompile(`ceph_osd_near_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0`),
-				regexp.MustCompile(`ceph_osd_backfill_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 0`),
+				regexp.MustCompile(`ceph_osd_backfill_full{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 0`),
 				regexp.MustCompile(`ceph_osd_backfill_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 0`),
 				regexp.MustCompile(`ceph_osd_backfill_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 0`),
 				regexp.MustCompile(`ceph_osd_backfill_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 1`),
