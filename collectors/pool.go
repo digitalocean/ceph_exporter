@@ -16,7 +16,10 @@ package collectors
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
+	"math"
+	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -54,6 +57,9 @@ type PoolInfoCollector struct {
 
 	// StripeWidth contains width of a RADOS object in a pool.
 	StripeWidth *prometheus.GaugeVec
+
+	// ExpansionFactor Contains a float >= 1 that defines the EC or replication multiplier of a pool
+	ExpansionFactor *prometheus.GaugeVec
 }
 
 // NewPoolInfoCollector displays information about each pool in the cluster.
@@ -139,6 +145,16 @@ func NewPoolInfoCollector(conn Conn, cluster string) *PoolInfoCollector {
 			},
 			poolLabels,
 		),
+		ExpansionFactor: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Subsystem:   subSystem,
+				Name:        "expansion_factor",
+				Help:        "Data expansion multiplier for a pool",
+				ConstLabels: labels,
+			},
+			poolLabels,
+		),
 	}
 }
 
@@ -151,22 +167,24 @@ func (p *PoolInfoCollector) collectorList() []prometheus.Collector {
 		p.QuotaMaxBytes,
 		p.QuotaMaxObjects,
 		p.StripeWidth,
+		p.ExpansionFactor,
 	}
 }
 
+type poolInfo struct {
+	Name            string  `json:"pool_name"`
+	ActualSize      float64 `json:"size"`
+	MinSize         float64 `json:"min_size"`
+	PGNum           float64 `json:"pg_num"`
+	PlacementPGNum  float64 `json:"pg_placement_num"`
+	QuotaMaxBytes   float64 `json:"quota_max_bytes"`
+	QuotaMaxObjects float64 `json:"quota_max_objects"`
+	Profile         string  `json:"erasure_code_profile"`
+	StripeWidth     float64 `json:"stripe_width"`
+}
+
 type cephPoolInfo struct {
-	Pools []struct {
-		Name            string  `json:"pool_name"`
-		ActualSize      float64 `json:"size"`
-		MinSize         float64 `json:"min_size"`
-		PGNum           float64 `json:"pg_num"`
-		PlacementPGNum  float64 `json:"pg_placement_num"`
-		QuotaMaxBytes   float64 `json:"quota_max_bytes"`
-		QuotaMaxObjects float64 `json:"quota_max_objects"`
-		Profile         string  `json:"erasure_code_profile"`
-		Type            int64   `json:"type"`
-		StripeWidth     float64 `json:"stripe_width"`
-	}
+	Pools []poolInfo
 }
 
 func (p *PoolInfoCollector) collect() error {
@@ -189,6 +207,7 @@ func (p *PoolInfoCollector) collect() error {
 	p.QuotaMaxBytes.Reset()
 	p.QuotaMaxObjects.Reset()
 	p.StripeWidth.Reset()
+	p.ExpansionFactor.Reset()
 
 	for _, pool := range stats.Pools {
 		if pool.Type == poolReplicated {
@@ -201,6 +220,7 @@ func (p *PoolInfoCollector) collect() error {
 		p.QuotaMaxBytes.WithLabelValues(pool.Name, pool.Profile).Set(pool.QuotaMaxBytes)
 		p.QuotaMaxObjects.WithLabelValues(pool.Name, pool.Profile).Set(pool.QuotaMaxObjects)
 		p.StripeWidth.WithLabelValues(pool.Name, pool.Profile).Set(pool.StripeWidth)
+		p.ExpansionFactor.WithLabelValues(pool.Name, pool.Profile).Set(p.getExpansionCommand(pool))
 	}
 
 	return nil
@@ -239,4 +259,38 @@ func (p *PoolInfoCollector) Collect(ch chan<- prometheus.Metric) {
 	for _, metric := range p.collectorList() {
 		metric.Collect(ch)
 	}
+}
+
+func (p *PoolInfoCollector) getExpansionCommand(pool poolInfo) float64 {
+	prefix := fmt.Sprintf("osd erasure-code-profile get %s", pool.Profile)
+	cmd, err := json.Marshal(map[string]interface{}{
+		"prefix": prefix,
+		"detail": "detail",
+		"format": "json",
+	})
+
+	fmt.Printf("\n\n%s\n\n", cmd)
+
+	buf, _, err := p.conn.MonCommand(cmd)
+	if err != nil {
+		return -1
+	}
+
+	type ecInfo struct {
+		K string `json:"k"`
+		M string `json:"m"`
+	}
+
+	ecStats := ecInfo{}
+	err = json.Unmarshal(buf, &ecStats)
+	if err != nil || ecStats.K == "" || ecStats.M == "" {
+		return pool.ActualSize
+	}
+
+	k, _ := strconv.ParseFloat(ecStats.K, 64)
+	m, _ := strconv.ParseFloat(ecStats.M, 64)
+
+	expansionFactor := (k + m) / k
+	roundedExpansion := math.Round(expansionFactor*100) / 100
+	return roundedExpansion
 }
