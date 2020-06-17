@@ -1100,7 +1100,7 @@ func (o *OSDCollector) cephOSDTreeCommand(states ...string) []byte {
 		"prefix": "osd tree",
 		"states": states,
 		"format": jsonFormat,
-	})
+	}
 	if err != nil {
 		panic(err)
 	}
