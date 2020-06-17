@@ -140,8 +140,25 @@ func (n *NoopConn) MonCommand(args []byte) ([]byte, string, error) {
 
 	case "osd dump":
 		return []byte(n.cmdOut[n.iteration]["ceph osd dump"]), "", nil
-	}
 
+	case "osd erasure-code-profile get ec-4-2":
+		ec42Return :=
+			`{
+			"crush-device-class": "",
+			"crush-failure-domain": "host",
+			"crush-root": "objectdata",
+			"jerasure-per-chunk-alignment": "false",
+			"k": "4",
+			"m": "2",
+			"plugin": "jerasure",
+			"technique": "reed_sol_van",
+			"w": "8"
+		}`
+		return []byte(ec42Return), "", nil
+
+	case "osd erasure-code-profile get replicated-ruleset":
+		return []byte("{}"), "", nil
+	}
 	return []byte(n.output), "", nil
 }
 
