@@ -261,8 +261,6 @@ func (p *PoolInfoCollector) getExpansionCommand(pool poolInfo) float64 {
 		"format": "json",
 	})
 
-	fmt.Printf("\n\n%s\n\n", cmd)
-
 	buf, _, err := p.conn.MonCommand(cmd)
 	if err != nil {
 		return -1
