@@ -46,6 +46,7 @@ func TestPoolInfoCollector(t *testing.T) {
 				regexp.MustCompile(`pool_quota_max_bytes{cluster="ceph",pool="rbd",profile="ec-4-2"} 1024`),
 				regexp.MustCompile(`pool_quota_max_objects{cluster="ceph",pool="rbd",profile="ec-4-2"} 2048`),
 				regexp.MustCompile(`pool_stripe_width{cluster="ceph",pool="rbd",profile="ec-4-2"} 4096`),
+				regexp.MustCompile(`pool_expansion_factor{cluster="ceph",pool="rbd",profile="ec-4-2"} 1.5`),
 
 				regexp.MustCompile(`pool_size{cluster="ceph",pool="rbd",profile="replicated-ruleset"} 3`),
 				regexp.MustCompile(`pool_min_size{cluster="ceph",pool="rbd",profile="replicated-ruleset"} 2`),
@@ -54,6 +55,7 @@ func TestPoolInfoCollector(t *testing.T) {
 				regexp.MustCompile(`pool_quota_max_bytes{cluster="ceph",pool="rbd",profile="replicated-ruleset"} 512`),
 				regexp.MustCompile(`pool_quota_max_objects{cluster="ceph",pool="rbd",profile="replicated-ruleset"} 1024`),
 				regexp.MustCompile(`pool_stripe_width{cluster="ceph",pool="rbd",profile="replicated-ruleset"} 4096`),
+				regexp.MustCompile(`pool_expansion_factor{cluster="ceph",pool="rbd",profile="replicated-ruleset"} 3`),
 			},
 			reUnmatch: []*regexp.Regexp{},
 		},
