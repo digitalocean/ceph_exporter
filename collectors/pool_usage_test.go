@@ -140,10 +140,10 @@ func TestPoolUsageCollector(t *testing.T) {
 		{
 			input: `
 {"pools": [
-	{"name": "ssd", "id": 11, "stats": {"percent_used": 0.067462295293807983, "objects": 5, "rd": 4, "wr": 6}}
+	{"name": "ssd", "id": 11, "stats": {"percent_used": 1.3390908861765638e-06, "objects": 5, "rd": 4, "wr": 6}}
 ]}`,
 			reMatch: []*regexp.Regexp{
-				regexp.MustCompile(`pool_percent_used{cluster="ceph",pool="ssd"} 0.067462295293807983`),
+				regexp.MustCompile(`pool_percent_used{cluster="ceph",pool="ssd"} 1.3390908861765638e\-06`),
 			},
 		},
 		{
