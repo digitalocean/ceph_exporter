@@ -105,11 +105,11 @@ func NewPoolUsageCollector(conn Conn, cluster string) *PoolUsageCollector {
 			},
 			poolLabel,
 		),
-		MaxAvail: prometheus.NewGaugeVec(
+		PercentUsed: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace:   cephNamespace,
 				Subsystem:   subSystem,
-				Name:        "percentage_used",
+				Name:        "percent_used",
 				Help:        "Percentage of the capacity available to this pool that is used by this pool",
 				ConstLabels: labels,
 			},
