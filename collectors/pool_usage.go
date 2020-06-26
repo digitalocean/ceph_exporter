@@ -21,8 +21,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-// PoolUsageCollector displays statistics about each pool we have created
-// in the ceph cluster.
+// PoolUsageCollector displays statistics about each pool in the Ceph cluster.
 type PoolUsageCollector struct {
 	conn Conn
 
@@ -37,6 +36,9 @@ type PoolUsageCollector struct {
 	// MaxAvail tracks the amount of bytes currently free for the pool,
 	// which depends on the replication settings for the pool in question.
 	MaxAvail *prometheus.GaugeVec
+
+	// PercentUsed is the percentage of raw space available to the pool currently in use
+	PercentUsed *prometheus.GaugeVec
 
 	// Objects shows the no. of RADOS objects created within the pool.
 	Objects *prometheus.GaugeVec
@@ -98,7 +100,17 @@ func NewPoolUsageCollector(conn Conn, cluster string) *PoolUsageCollector {
 				Namespace:   cephNamespace,
 				Subsystem:   subSystem,
 				Name:        "available_bytes",
-				Help:        "Free space for this ceph pool",
+				Help:        "Free space for this pool",
+				ConstLabels: labels,
+			},
+			poolLabel,
+		),
+		MaxAvail: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Subsystem:   subSystem,
+				Name:        "percentage_used",
+				Help:        "Percentage of the capacity available to this pool that is used by this pool",
 				ConstLabels: labels,
 			},
 			poolLabel,
@@ -171,6 +183,7 @@ func (p *PoolUsageCollector) collectorList() []prometheus.Collector {
 		p.UsedBytes,
 		p.RawUsedBytes,
 		p.MaxAvail,
+		p.PercentUsed,
 		p.Objects,
 		p.DirtyObjects,
 		p.ReadIO,
@@ -188,6 +201,7 @@ type cephPoolStats struct {
 			BytesUsed    float64 `json:"bytes_used"`
 			StoredRaw    float64 `json:"stored_raw"`
 			MaxAvail     float64 `json:"max_avail"`
+			PercentUsed  float64 `json:"percent_used"`
 			Objects      float64 `json:"objects"`
 			DirtyObjects float64 `json:"dirty"`
 			ReadIO       float64 `json:"rd"`
@@ -214,6 +228,7 @@ func (p *PoolUsageCollector) collect() error {
 	p.UsedBytes.Reset()
 	p.RawUsedBytes.Reset()
 	p.MaxAvail.Reset()
+	p.PercentUsed.Reset()
 	p.Objects.Reset()
 	p.DirtyObjects.Reset()
 	p.ReadIO.Reset()
@@ -225,6 +240,7 @@ func (p *PoolUsageCollector) collect() error {
 		p.UsedBytes.WithLabelValues(pool.Name).Set(pool.Stats.BytesUsed)
 		p.RawUsedBytes.WithLabelValues(pool.Name).Set(pool.Stats.StoredRaw)
 		p.MaxAvail.WithLabelValues(pool.Name).Set(pool.Stats.MaxAvail)
+		p.PercentUsed.WithLabelValues(pool.Name).Set(pool.Stats.PercentUsed)
 		p.Objects.WithLabelValues(pool.Name).Set(pool.Stats.Objects)
 		p.DirtyObjects.WithLabelValues(pool.Name).Set(pool.Stats.DirtyObjects)
 		p.ReadIO.WithLabelValues(pool.Name).Set(pool.Stats.ReadIO)

@@ -140,6 +140,15 @@ func TestPoolUsageCollector(t *testing.T) {
 		{
 			input: `
 {"pools": [
+	{"name": "ssd", "id": 11, "stats": {"percent_used": 1.3390908861765638e-06, "objects": 5, "rd": 4, "wr": 6}}
+]}`,
+			reMatch: []*regexp.Regexp{
+				regexp.MustCompile(`pool_percent_used{cluster="ceph",pool="ssd"} 1.3390908861765638e\-06`),
+			},
+		},
+		{
+			input: `
+{"pools": [
 	{"id": 32, "name": "cinder_sas", "stats": { "bytes_used": 71525351713, "dirty": 17124, "kb_used": 69848977, "max_avail": 6038098673664, "objects": 17124, "quota_bytes": 0, "quota_objects": 0, "stored_raw": 214576054272, "rd": 348986643, "rd_bytes": 3288983853056, "wr": 45792703, "wr_bytes": 272268791808 }},
 	{"id": 33, "name": "cinder_ssd", "stats": { "bytes_used": 68865564849, "dirty": 16461, "kb_used": 67251529, "max_avail": 186205372416, "objects": 16461, "quota_bytes": 0, "quota_objects": 0, "stored_raw": 206596702208, "rd": 347, "rd_bytes": 12899328, "wr": 26721, "wr_bytes": 68882356224 }}
 ]}`,
