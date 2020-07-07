@@ -143,6 +143,9 @@ type ClusterHealthCollector struct {
 	// DownPGs depicts no. of PGs that are currently down and not able to serve traffic.
 	DownPGs prometheus.Gauge
 
+	// IncompletePGs depicts no. of PGs that are currently incomplete and not able to serve traffic.
+	IncompletePGs prometheus.Gauge
+
 	// SlowOps depicts no. of total slow ops in the cluster
 	SlowOps prometheus.Gauge
 
@@ -435,6 +438,14 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 				Namespace:   cephNamespace,
 				Name:        "down_pgs",
 				Help:        "No. of PGs in the cluster in down state",
+				ConstLabels: labels,
+			},
+		),
+		IncompletePGs: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "incomplete_pgs",
+				Help:        "No. of PGs in the cluster in incomplete state",
 				ConstLabels: labels,
 			},
 		),
@@ -812,6 +823,7 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.ForcedRecoveryPGs,
 		c.ForcedBackfillPGs,
 		c.DownPGs,
+		c.IncompletePGs,
 		c.SlowOps,
 		c.DegradedObjectsCount,
 		c.MisplacedObjectsCount,
@@ -1142,6 +1154,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 		forcedRecoveryPGs float64
 		forcedBackfillPGs float64
 		downPGs           float64
+		incompletePGs     float64
 
 		pgStateCounterMap = map[string]*float64{
 			"degraded":        &degradedPGs,
@@ -1159,6 +1172,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 			"forced_recovery": &forcedRecoveryPGs,
 			"forced_backfill": &forcedBackfillPGs,
 			"down":            &downPGs,
+			"incomplete":      &incompletePGs,
 		}
 		pgStateGaugeMap = map[string]prometheus.Gauge{
 			"degraded":        c.DegradedPGs,
@@ -1176,6 +1190,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 			"forced_recovery": c.ForcedRecoveryPGs,
 			"forced_backfill": c.ForcedBackfillPGs,
 			"down":            c.DownPGs,
+			"incomplete":      c.IncompletePGs,
 		}
 	)
 
