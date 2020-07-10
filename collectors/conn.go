@@ -16,6 +16,7 @@ package collectors
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/ceph/go-ceph/rados"
@@ -157,6 +158,9 @@ func (n *NoopConn) MonCommand(args []byte) ([]byte, string, error) {
 			"w": "8"
 		}`
 			return []byte(ec42Return), "", nil
+
+		default:
+			return []byte(""), "", errors.New("unknown erasure code profile")
 		}
 
 	case "osd erasure-code-profile get replicated-ruleset":
