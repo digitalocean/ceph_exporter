@@ -16,6 +16,7 @@ package collectors
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/ceph/go-ceph/rados"
@@ -141,9 +142,11 @@ func (n *NoopConn) MonCommand(args []byte) ([]byte, string, error) {
 	case "osd dump":
 		return []byte(n.cmdOut[n.iteration]["ceph osd dump"]), "", nil
 
-	case "osd erasure-code-profile get ec-4-2":
-		ec42Return :=
-			`{
+	case "osd erasure-code-profile get":
+		switch cmd["name"] {
+		case "ec-4-2":
+			ec42Return :=
+				`{
 			"crush-device-class": "",
 			"crush-failure-domain": "host",
 			"crush-root": "objectdata",
@@ -154,7 +157,11 @@ func (n *NoopConn) MonCommand(args []byte) ([]byte, string, error) {
 			"technique": "reed_sol_van",
 			"w": "8"
 		}`
-		return []byte(ec42Return), "", nil
+			return []byte(ec42Return), "", nil
+
+		default:
+			return []byte(""), "", errors.New("unknown erasure code profile")
+		}
 
 	case "osd erasure-code-profile get replicated-ruleset":
 		return []byte("{}"), "", nil
