@@ -254,10 +254,10 @@ func (p *PoolInfoCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (p *PoolInfoCollector) getExpansionCommand(pool poolInfo) float64 {
-	prefix := fmt.Sprintf("osd erasure-code-profile get %s", pool.Profile)
+	prefix := fmt.Sprintf("osd erasure-code-profile get")
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix": prefix,
-		"detail": "detail",
+		"name":   pool.Profile,
 		"format": "json",
 	})
 
