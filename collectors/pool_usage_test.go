@@ -35,7 +35,7 @@ func TestPoolUsageCollector(t *testing.T) {
 		{
 			input: `
 {"pools": [
-	{"name": "rbd", "id": 11, "stats": {"bytes_used": 20, "objects": 5, "rd": 4, "wr": 6}}
+	{"name": "rbd", "id": 11, "stats": {"stored": 20, "objects": 5, "rd": 4, "wr": 6}}
 ]}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`pool_used_bytes{cluster="ceph",pool="rbd"} 20`),
@@ -61,7 +61,7 @@ func TestPoolUsageCollector(t *testing.T) {
 		{
 			input: `
 {"pools": [
-	{"name": "rbd", "id": 11, "stats": {"bytes_used": 20, "rd": 4, "wr": 6}}
+	{"name": "rbd", "id": 11, "stats": {"stored": 20, "rd": 4, "wr": 6}}
 ]}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`pool_used_bytes{cluster="ceph",pool="rbd"} 20`),
@@ -74,7 +74,7 @@ func TestPoolUsageCollector(t *testing.T) {
 		{
 			input: `
 {"pools": [
-	{"name": "rbd", "id": 11, "stats": {"bytes_used": 20, "objects": 5, "wr": 6}}
+	{"name": "rbd", "id": 11, "stats": {"stored": 20, "objects": 5, "wr": 6}}
 ]}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`pool_used_bytes{cluster="ceph",pool="rbd"} 20`),
@@ -87,7 +87,7 @@ func TestPoolUsageCollector(t *testing.T) {
 		{
 			input: `
 {"pools": [
-	{"name": "rbd", "id": 11, "stats": {"bytes_used": 20, "objects": 5, "rd": 4}}
+	{"name": "rbd", "id": 11, "stats": {"stored": 20, "objects": 5, "rd": 4}}
 ]}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`pool_used_bytes{cluster="ceph",pool="rbd"} 20`),
@@ -100,7 +100,7 @@ func TestPoolUsageCollector(t *testing.T) {
 		{
 			input: `
 {"pools": [
-    {{{{"name": "rbd", "id": 11, "stats": {"bytes_used": 20, "objects": 5, "rd": 4, "wr": 6}}
+    {{{{"name": "rbd", "id": 11, "stats": {"stored": 20, "objects": 5, "rd": 4, "wr": 6}}
 ]}`,
 			reMatch: []*regexp.Regexp{},
 			reUnmatch: []*regexp.Regexp{
@@ -113,8 +113,8 @@ func TestPoolUsageCollector(t *testing.T) {
 		{
 			input: `
 {"pools": [
-	{"name": "rbd", "id": 11, "stats": {"bytes_used": 20, "objects": 5, "rd": 4, "wr": 6}},
-	{"name": "rbd-new", "id": 12, "stats": {"bytes_used": 50, "objects": 20, "rd": 10, "wr": 30}}
+	{"name": "rbd", "id": 11, "stats": {"stored": 20, "objects": 5, "rd": 4, "wr": 6}},
+	{"name": "rbd-new", "id": 12, "stats": {"stored": 50, "objects": 20, "rd": 10, "wr": 30}}
 ]}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`pool_used_bytes{cluster="ceph",pool="rbd"} 20`),
@@ -149,8 +149,8 @@ func TestPoolUsageCollector(t *testing.T) {
 		{
 			input: `
 {"pools": [
-	{"id": 32, "name": "cinder_sas", "stats": { "bytes_used": 71525351713, "dirty": 17124, "kb_used": 69848977, "max_avail": 6038098673664, "objects": 17124, "quota_bytes": 0, "quota_objects": 0, "stored_raw": 214576054272, "rd": 348986643, "rd_bytes": 3288983853056, "wr": 45792703, "wr_bytes": 272268791808 }},
-	{"id": 33, "name": "cinder_ssd", "stats": { "bytes_used": 68865564849, "dirty": 16461, "kb_used": 67251529, "max_avail": 186205372416, "objects": 16461, "quota_bytes": 0, "quota_objects": 0, "stored_raw": 206596702208, "rd": 347, "rd_bytes": 12899328, "wr": 26721, "wr_bytes": 68882356224 }}
+	{"id": 32, "name": "cinder_sas", "stats": { "stored": 71525351713, "dirty": 17124, "kb_used": 69848977, "max_avail": 6038098673664, "objects": 17124, "quota_bytes": 0, "quota_objects": 0, "stored_raw": 214576054272, "rd": 348986643, "rd_bytes": 3288983853056, "wr": 45792703, "wr_bytes": 272268791808 }},
+	{"id": 33, "name": "cinder_ssd", "stats": { "stored": 68865564849, "dirty": 16461, "kb_used": 67251529, "max_avail": 186205372416, "objects": 16461, "quota_bytes": 0, "quota_objects": 0, "stored_raw": 206596702208, "rd": 347, "rd_bytes": 12899328, "wr": 26721, "wr_bytes": 68882356224 }}
 ]}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_pool_available_bytes{cluster="ceph",pool="cinder_sas"} 6.038098673664e\+12`),
