@@ -230,6 +230,12 @@ type ClusterHealthCollector struct {
 
 	// CachePromoteIOOps shows the rate of operations promoting objects to the cache pool.
 	CachePromoteIOOps prometheus.Gauge
+
+	// MgrsActive shows the number of active mgrs, can be either 0 or 1.
+	MgrsActive prometheus.Gauge
+
+	// MgrsNum shows the total number of mgrs, including standbys.
+	MgrsNum prometheus.Gauge
 }
 
 const (
@@ -796,6 +802,22 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 				ConstLabels: labels,
 			},
 		),
+		MgrsActive: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "mgrs_active",
+				Help:        "Count of active mgrs, can be either 0 or 1",
+				ConstLabels: labels,
+			},
+		),
+		MgrsNum: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "mgrs",
+				Help:        "Total number of mgrs, including standbys",
+				ConstLabels: labels,
+			},
+		),
 	}
 }
 
@@ -858,6 +880,8 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.CacheFlushIORate,
 		c.CacheEvictIORate,
 		c.CachePromoteIOOps,
+		c.MgrsActive,
+		c.MgrsNum,
 	}
 }
 
@@ -910,6 +934,12 @@ type cephHealthStats struct {
 			States string  `json:"state_name"`
 		} `json:"pgs_by_state"`
 	} `json:"pgmap"`
+	MgrMap struct {
+		ActiveName string `json:"active_name"`
+		StandBys   []struct {
+			Name string `json:"name"`
+		} `json:"standbys"`
+	} `json:"mgrmap"`
 }
 
 type cephHealthDetailStats struct {
@@ -1237,6 +1267,14 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 	c.RemappedPGs.Set(stats.OSDMap.OSDMap.NumRemappedPGs)
 	c.TotalPGs.Set(stats.PGMap.NumPGs)
 	c.Objects.Set(stats.PGMap.TotalObjects)
+
+	activeMgr := 0
+	if len(stats.MgrMap.ActiveName) > 0 {
+		activeMgr = 1
+	}
+
+	c.MgrsActive.Set(float64(activeMgr))
+	c.MgrsNum.Set(float64(activeMgr + len(stats.MgrMap.StandBys)))
 
 	return nil
 }
