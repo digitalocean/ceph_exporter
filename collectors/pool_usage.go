@@ -17,6 +17,7 @@ package collectors
 import (
 	"encoding/json"
 	"log"
+	"math"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -238,7 +239,7 @@ func (p *PoolUsageCollector) collect() error {
 
 	for _, pool := range stats.Pools {
 		p.UsedBytes.WithLabelValues(pool.Name).Set(pool.Stats.BytesUsed)
-		p.RawUsedBytes.WithLabelValues(pool.Name).Set(pool.Stats.StoredRaw)
+		p.RawUsedBytes.WithLabelValues(pool.Name).Set(math.Max(pool.Stats.StoredRaw, pool.Stats.BytesUsed))
 		p.MaxAvail.WithLabelValues(pool.Name).Set(pool.Stats.MaxAvail)
 		p.PercentUsed.WithLabelValues(pool.Name).Set(pool.Stats.PercentUsed)
 		p.Objects.WithLabelValues(pool.Name).Set(pool.Stats.Objects)
