@@ -66,7 +66,7 @@ type PoolInfoCollector struct {
 func NewPoolInfoCollector(conn Conn, cluster string) *PoolInfoCollector {
 	var (
 		subSystem  = "pool"
-		poolLabels = []string{"pool", "profile"}
+		poolLabels = []string{"pool", "profile", "root"}
 	)
 
 	labels := make(prometheus.Labels)
@@ -182,6 +182,7 @@ type poolInfo struct {
 	Profile         string  `json:"erasure_code_profile"`
 	Type            int64   `json:"type"`
 	StripeWidth     float64 `json:"stripe_width"`
+	CrushRule       int64   `json:"crush_rule"`
 }
 
 type cephPoolInfo struct {
@@ -194,6 +195,8 @@ func (p *PoolInfoCollector) collect() error {
 	if err != nil {
 		return err
 	}
+
+	ruleToRootMappings := p.getCrushRuleToRootMappings()
 
 	stats := &cephPoolInfo{}
 	if err := json.Unmarshal(buf, &stats.Pools); err != nil {
@@ -214,14 +217,15 @@ func (p *PoolInfoCollector) collect() error {
 		if pool.Type == poolReplicated {
 			pool.Profile = "replicated"
 		}
-		p.PGNum.WithLabelValues(pool.Name, pool.Profile).Set(pool.PGNum)
-		p.PlacementPGNum.WithLabelValues(pool.Name, pool.Profile).Set(pool.PlacementPGNum)
-		p.MinSize.WithLabelValues(pool.Name, pool.Profile).Set(pool.MinSize)
-		p.ActualSize.WithLabelValues(pool.Name, pool.Profile).Set(pool.ActualSize)
-		p.QuotaMaxBytes.WithLabelValues(pool.Name, pool.Profile).Set(pool.QuotaMaxBytes)
-		p.QuotaMaxObjects.WithLabelValues(pool.Name, pool.Profile).Set(pool.QuotaMaxObjects)
-		p.StripeWidth.WithLabelValues(pool.Name, pool.Profile).Set(pool.StripeWidth)
-		p.ExpansionFactor.WithLabelValues(pool.Name, pool.Profile).Set(p.getExpansionFactor(pool))
+		labelValues := []string{pool.Name, pool.Profile, ruleToRootMappings[pool.CrushRule]}
+		p.PGNum.WithLabelValues(labelValues...).Set(pool.PGNum)
+		p.PlacementPGNum.WithLabelValues(labelValues...).Set(pool.PlacementPGNum)
+		p.MinSize.WithLabelValues(labelValues...).Set(pool.MinSize)
+		p.ActualSize.WithLabelValues(labelValues...).Set(pool.ActualSize)
+		p.QuotaMaxBytes.WithLabelValues(labelValues...).Set(pool.QuotaMaxBytes)
+		p.QuotaMaxObjects.WithLabelValues(labelValues...).Set(pool.QuotaMaxObjects)
+		p.StripeWidth.WithLabelValues(labelValues...).Set(pool.StripeWidth)
+		p.ExpansionFactor.WithLabelValues(labelValues...).Set(p.getExpansionFactor(pool))
 	}
 
 	return nil
@@ -300,4 +304,42 @@ func (p *PoolInfoCollector) getECExpansionFactor(pool poolInfo) (float64, bool) 
 	expansionFactor := (k + m) / k
 	roundedExpansion := math.Round(expansionFactor*100) / 100
 	return roundedExpansion, true
+}
+
+func (p *PoolInfoCollector) getCrushRuleToRootMappings() map[int64]string {
+	mappings := make(map[int64]string)
+
+	cmd, err := json.Marshal(map[string]interface{}{
+		"prefix": "osd crush rule dump",
+		"format": "json",
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	buf, _, err := p.conn.MonCommand(cmd)
+	if err != nil {
+		return mappings
+	}
+
+	var rules []struct {
+		RuleID int64 `json:"rule_id"`
+		Steps  []struct {
+			ItemName string `json:"item_name"`
+		} `json:"steps"`
+	}
+
+	err = json.Unmarshal(buf, &rules)
+	if err != nil {
+		return mappings
+	}
+
+	for _, rule := range rules {
+		if len(rule.Steps) == 0 {
+			continue
+		}
+		mappings[rule.RuleID] = rule.Steps[0].ItemName
+	}
+
+	return mappings
 }
