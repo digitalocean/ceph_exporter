@@ -154,6 +154,10 @@ func (n *NoopConn) MonCommand(args []byte) ([]byte, string, error) {
                              "max_size": 10,
                              "steps": [
                                {
+                                 "num": 5,
+                                 "op": "set_chooseleaf_tries"
+                               },
+                               {
                                  "op": "take",
                                  "item": -1,
                                  "item_name": "default"
