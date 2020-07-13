@@ -201,6 +201,7 @@ type cephPoolStats struct {
 		Stats struct {
 			BytesUsed    float64 `json:"bytes_used"`
 			StoredRaw    float64 `json:"stored_raw"`
+			Stored       float64 `json:"stored"`
 			MaxAvail     float64 `json:"max_avail"`
 			PercentUsed  float64 `json:"percent_used"`
 			Objects      float64 `json:"objects"`
@@ -238,7 +239,7 @@ func (p *PoolUsageCollector) collect() error {
 	p.WriteBytes.Reset()
 
 	for _, pool := range stats.Pools {
-		p.UsedBytes.WithLabelValues(pool.Name).Set(pool.Stats.BytesUsed)
+		p.UsedBytes.WithLabelValues(pool.Name).Set(pool.Stats.Stored)
 		p.RawUsedBytes.WithLabelValues(pool.Name).Set(math.Max(pool.Stats.StoredRaw, pool.Stats.BytesUsed))
 		p.MaxAvail.WithLabelValues(pool.Name).Set(pool.Stats.MaxAvail)
 		p.PercentUsed.WithLabelValues(pool.Name).Set(pool.Stats.PercentUsed)
