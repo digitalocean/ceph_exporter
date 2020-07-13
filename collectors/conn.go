@@ -142,6 +142,58 @@ func (n *NoopConn) MonCommand(args []byte) ([]byte, string, error) {
 	case "osd dump":
 		return []byte(n.cmdOut[n.iteration]["ceph osd dump"]), "", nil
 
+	case "osd crush rule dump":
+		dumpReturn :=
+			`[
+                           {
+                             "rule_id": 0,
+                             "rule_name": "replicated_rule",
+                             "ruleset": 0,
+                             "type": 1,
+                             "min_size": 1,
+                             "max_size": 10,
+                             "steps": [
+                               {
+                                 "op": "take",
+                                 "item": -1,
+                                 "item_name": "default"
+                               },
+                               {
+                                 "op": "chooseleaf_firstn",
+                                 "num": 0,
+                                 "type": "host"
+                               },
+                               {
+                                 "op": "emit"
+                               }
+                             ]
+                           },
+                           {
+                             "rule_id": 1,
+                             "rule_name": "another-rule",
+                             "ruleset": 1,
+                             "type": 1,
+                             "min_size": 1,
+                             "max_size": 10,
+                             "steps": [
+                               {
+                                 "op": "take",
+                                 "item": -53,
+                                 "item_name": "non-default-root"
+                               },
+                               {
+                                 "op": "chooseleaf_firstn",
+                                 "num": 0,
+                                 "type": "rack"
+                               },
+                               {
+                                 "op": "emit"
+                               }
+                             ]
+                           }
+                         ]`
+		return []byte(dumpReturn), "", nil
+
 	case "osd erasure-code-profile get":
 		switch cmd["name"] {
 		case "ec-4-2":
