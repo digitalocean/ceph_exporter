@@ -326,6 +326,7 @@ func (p *PoolInfoCollector) getCrushRuleToRootMappings() map[int64]string {
 		RuleID int64 `json:"rule_id"`
 		Steps  []struct {
 			ItemName string `json:"item_name"`
+			Op       string `json:"op"`
 		} `json:"steps"`
 	}
 
@@ -338,7 +339,15 @@ func (p *PoolInfoCollector) getCrushRuleToRootMappings() map[int64]string {
 		if len(rule.Steps) == 0 {
 			continue
 		}
-		mappings[rule.RuleID] = rule.Steps[0].ItemName
+		for _, step := range rule.Steps {
+			// Although there can be multiple "take" steps, there
+			// usually aren't in practice. The "take" item isn't
+			// necessarily a crush root, but assuming so is good
+			// enough for most cases.
+			if step.Op == "take" {
+				mappings[rule.RuleID] = step.ItemName
+			}
+		}
 	}
 
 	return mappings
