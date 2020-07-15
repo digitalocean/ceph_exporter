@@ -21,6 +21,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -134,10 +135,11 @@ func (c *CephExporter) Collect(ch chan<- prometheus.Metric) {
 
 func main() {
 	var (
-		addr        = flag.String("telemetry.addr", ":9128", "host:port for ceph exporter")
-		metricsPath = flag.String("telemetry.path", "/metrics", "URL path for surfacing collected metrics")
-		cephConfig  = flag.String("ceph.config", "", "path to ceph config file")
-		cephUser    = flag.String("ceph.user", "admin", "Ceph user to connect to cluster.")
+		addr               = flag.String("telemetry.addr", ":9128", "host:port for ceph exporter")
+		metricsPath        = flag.String("telemetry.path", "/metrics", "URL path for surfacing collected metrics")
+		cephConfig         = flag.String("ceph.config", "", "path to Ceph config file")
+		cephUser           = flag.String("ceph.user", "admin", "Ceph user to connect to cluster.")
+		cephRadosOpTimeout = flag.Duration("ceph.rados_op_timeout", 30*time.Second, "Ceph rados_osd_op_timeout and rados_mon_op_timeout used to contact cluster (0s means no limit).")
 
 		rgwMode = flag.Int("rgw.mode", 0, "Enable collection of stats from RGW (0:disabled 1:enabled 2:background)")
 
@@ -162,6 +164,17 @@ func main() {
 			err = conn.ReadConfigFile(cluster.ConfigFile)
 			if err != nil {
 				log.Fatalf("cannot read ceph config file: %s", err)
+			}
+
+			// Set rados_osd_op_timeout and rados_mon_op_timeout to avoid Mon
+			// and PG command hang.
+			// See https://github.com/ceph/ceph/blob/d4872ce97a2825afcb58876559cc73aaa1862c0f/src/common/legacy_config_opts.h#L1258-L1259
+			if err := conn.SetConfigOption("rados_osd_op_timeout", strconv.FormatFloat(cephRadosOpTimeout.Seconds(), 'f', -1, 64)); err != nil {
+				log.Fatalf("cannot set rados_osd_op_timeout for ceph cluster: %s", err)
+			}
+
+			if err := conn.SetConfigOption("rados_mon_op_timeout", strconv.FormatFloat(cephRadosOpTimeout.Seconds(), 'f', -1, 64)); err != nil {
+				log.Fatalf("cannot set rados_mon_op_timeout for ceph cluster: %s", err)
 			}
 
 			if err := conn.Connect(); err != nil {
@@ -189,6 +202,17 @@ func main() {
 		}
 		if err != nil {
 			log.Fatalf("cannot read ceph config file: %s", err)
+		}
+
+		// Set rados_osd_op_timeout and rados_mon_op_timeout to avoid Mon
+		// and PG command hang.
+		// See https://github.com/ceph/ceph/blob/d4872ce97a2825afcb58876559cc73aaa1862c0f/src/common/legacy_config_opts.h#L1258-L1259
+		if err := conn.SetConfigOption("rados_osd_op_timeout", strconv.FormatFloat(cephRadosOpTimeout.Seconds(), 'f', -1, 64)); err != nil {
+			log.Fatalf("cannot set rados_osd_op_timeout for ceph cluster: %s", err)
+		}
+
+		if err := conn.SetConfigOption("rados_mon_op_timeout", strconv.FormatFloat(cephRadosOpTimeout.Seconds(), 'f', -1, 64)); err != nil {
+			log.Fatalf("cannot set rados_mon_op_timeout for ceph cluster: %s", err)
 		}
 
 		if err := conn.Connect(); err != nil {
