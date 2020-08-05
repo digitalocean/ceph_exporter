@@ -36,21 +36,6 @@ type OSDCollector struct {
 	// osdLabelsCache holds a cache of osd labels
 	osdLabelsCache map[int64]*cephOSDLabel
 
-	// osdObjectsBackfilledCache holds the cache of previous increase in number
-	// of objects backfilled of all OSDs
-	osdObjectsBackfilledCache map[int64]int64
-
-	// pgStateCache holds the cache of previous states of all PGs
-	pgStateCache map[string]string
-
-	// pgObjectsRecoveredCache holds the cache of previous number of objects
-	// recovered of all PGs
-	pgObjectsRecoveredCache map[string]int64
-
-	// pgBackfillTargetsCache holds the cache of previous backfill targets OSDs
-	// of all PGs
-	pgBackfillTargetsCache map[string]map[int64]int64
-
 	// pgDumpBrief holds the content of PG dump brief
 	pgDumpBrief cephPGDumpBrief
 
@@ -144,12 +129,8 @@ func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
 	return &OSDCollector{
 		conn: conn,
 
-		osdScrubCache:             make(map[int]int),
-		osdLabelsCache:            make(map[int64]*cephOSDLabel),
-		osdObjectsBackfilledCache: make(map[int64]int64),
-		pgStateCache:              make(map[string]string),
-		pgObjectsRecoveredCache:   make(map[string]int64),
-		pgBackfillTargetsCache:    make(map[string]map[int64]int64),
+		osdScrubCache:  make(map[int]int),
+		osdLabelsCache: make(map[int64]*cephOSDLabel),
 
 		CrushWeight: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -964,62 +945,6 @@ func (o *OSDCollector) collectOSDScrubState(ch chan<- prometheus.Metric) error {
 	return nil
 }
 
-func (o *OSDCollector) collectPGRecoveryState(ch chan<- prometheus.Metric) error {
-	for _, pg := range o.pgDumpBrief {
-
-		// We need previous PG state in order to update the metric when a PG has
-		// completed recovery or backfill. Or it could be an empty string if
-		// unknown.
-		prevPGState, prevPGStateFound := o.pgStateCache[pg.PGID]
-		prevNumObjectsRecovered := o.pgObjectsRecoveredCache[pg.PGID]
-		prevBackfillTargets := o.pgBackfillTargetsCache[pg.PGID]
-
-		if !prevPGStateFound || strings.Contains(prevPGState, "recovering") || strings.Contains(pg.State, "recovering") ||
-			strings.Contains(prevPGState, "backfilling") || strings.Contains(pg.State, "backfilling") {
-			query, err := o.performPGQuery(pg.PGID)
-			if err != nil {
-				continue
-			}
-
-			o.pgStateCache[pg.PGID] = pg.State
-			o.pgObjectsRecoveredCache[pg.PGID] = query.Info.Stats.StatSum.NumObjectsRecovered
-			o.pgBackfillTargetsCache[pg.PGID] = query.backfillTargets()
-
-			// There is no previous backfill_targets, and we have just cached
-			// it. Wait for the next time so that we can know the increased
-			// number of objects backfilled for this entire PG and compute the
-			// average increased number of objects backfilled for each OSD in
-			// the backfill_targets.
-			if prevBackfillTargets == nil || len(prevBackfillTargets) == 0 {
-				continue
-			}
-
-			// Average out the total number of objects backfilled to each OSD
-			// The average number rounds to the nearest integer, rounding half
-			// away from zero.
-			eachOSDIncrease := math.Round(float64(o.pgObjectsRecoveredCache[pg.PGID]-prevNumObjectsRecovered) / float64(len(prevBackfillTargets)))
-
-			for osdID := range prevBackfillTargets {
-				lb := o.getOSDLabelFromID(osdID)
-				// It is possible that osdID has gone from the backfill_targets
-				// this time if backfill has completed on it. In this case we
-				// still count the increase to this OSD.
-				o.OSDObjectsBackfilled.WithLabelValues(pg.PGID, fmt.Sprintf(osdLabelFormat, osdID), lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Add(eachOSDIncrease)
-			}
-		}
-	}
-
-	for pgid, v := range o.pgObjectsRecoveredCache {
-		ch <- prometheus.MustNewConstMetric(
-			o.PGObjectsRecoveredDesc,
-			prometheus.GaugeValue,
-			float64(v),
-			pgid)
-	}
-
-	return nil
-}
-
 func (o *OSDCollector) cephOSDDump() []byte {
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix": "osd dump",
@@ -1146,10 +1071,6 @@ func (o *OSDCollector) Collect(ch chan<- prometheus.Metric) {
 
 	if err := o.collectOSDScrubState(ch); err != nil {
 		log.Println("failed collecting OSD scrub metrics:", err)
-	}
-
-	if err := o.collectPGRecoveryState(ch); err != nil {
-		log.Println("failed collecting PG recovery metrics:", err)
 	}
 
 	for _, metric := range o.collectorList() {
