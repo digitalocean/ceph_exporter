@@ -896,22 +896,6 @@ func (o *OSDCollector) performPGDumpBrief() error {
 	return nil
 }
 
-func (o *OSDCollector) performPGQuery(pgid string) (*cephPGQuery, error) {
-	cmd := o.cephPGQueryCommand(pgid)
-	buf, _, err := o.conn.PGCommand([]byte(pgid), cmd)
-	if err != nil {
-		log.Printf("failed sending PG command %s: %s", cmd, err)
-		return nil, err
-	}
-
-	pgQuery := cephPGQuery{}
-	if err := json.Unmarshal(buf, &pgQuery); err != nil {
-		return nil, err
-	}
-
-	return &pgQuery, nil
-}
-
 func (o *OSDCollector) collectOSDScrubState(ch chan<- prometheus.Metric) error {
 	// need to reset the PG scrub state since the scrub might have ended within
 	// the last prom scrape interval.
