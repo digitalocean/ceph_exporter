@@ -31,6 +31,7 @@ type Conn interface {
 	Connect() error
 	Shutdown()
 	MonCommand([]byte) ([]byte, string, error)
+	OpenIOContext(string) (*rados.IOContext, error)
 }
 
 // Verify that *rados.Conn implements Conn correctly.
@@ -221,4 +222,12 @@ func (n *NoopConn) MonCommand(args []byte) ([]byte, string, error) {
 		return []byte("{}"), "", nil
 	}
 	return []byte(n.output), "", nil
+}
+
+// OpenIOContext always returns a nil rados.IOContext, and "not implemented"
+// error. The OpenIOContext method in the rados package returns a pointer of
+// rados.IOContext that contains an actual C.rados_ioctx_t, which is not
+// available in this NoopConn.
+func (n *NoopConn) OpenIOContext(pool string) (*rados.IOContext, error) {
+	return nil, errors.New("not implemented")
 }
