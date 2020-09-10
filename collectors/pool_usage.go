@@ -46,6 +46,9 @@ type PoolUsageCollector struct {
 	// http://lists.ceph.com/pipermail/ceph-users-ceph.com/2015-April/000557.html
 	DirtyObjects *prometheus.GaugeVec
 
+	// UnfoundObjects shows the no. of RADOS unfound object within each pool.
+	UnfoundObjects *prometheus.GaugeVec
+
 	// ReadIO tracks the read IO calls made for the images within each pool.
 	ReadIO *prometheus.GaugeVec
 
@@ -98,7 +101,7 @@ func NewPoolUsageCollector(conn Conn, cluster string) *PoolUsageCollector {
 				Namespace:   cephNamespace,
 				Subsystem:   subSystem,
 				Name:        "available_bytes",
-				Help:        "Free space for this ceph pool",
+				Help:        "Free space for the pool",
 				ConstLabels: labels,
 			},
 			poolLabel,
@@ -123,12 +126,22 @@ func NewPoolUsageCollector(conn Conn, cluster string) *PoolUsageCollector {
 			},
 			poolLabel,
 		),
+		UnfoundObjects: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Subsystem:   subSystem,
+				Name:        "unfound_objects_total",
+				Help:        "Total no. of unfound objects for the pool",
+				ConstLabels: labels,
+			},
+			poolLabel,
+		),
 		ReadIO: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace:   cephNamespace,
 				Subsystem:   subSystem,
 				Name:        "read_total",
-				Help:        "Total read i/o calls for the pool",
+				Help:        "Total read I/O calls for the pool",
 				ConstLabels: labels,
 			},
 			poolLabel,
@@ -148,7 +161,7 @@ func NewPoolUsageCollector(conn Conn, cluster string) *PoolUsageCollector {
 				Namespace:   cephNamespace,
 				Subsystem:   subSystem,
 				Name:        "write_total",
-				Help:        "Total write i/o calls for the pool",
+				Help:        "Total write I/O calls for the pool",
 				ConstLabels: labels,
 			},
 			poolLabel,
@@ -173,6 +186,7 @@ func (p *PoolUsageCollector) collectorList() []prometheus.Collector {
 		p.MaxAvail,
 		p.Objects,
 		p.DirtyObjects,
+		p.UnfoundObjects,
 		p.ReadIO,
 		p.ReadBytes,
 		p.WriteIO,
@@ -216,6 +230,7 @@ func (p *PoolUsageCollector) collect() error {
 	p.MaxAvail.Reset()
 	p.Objects.Reset()
 	p.DirtyObjects.Reset()
+	p.UnfoundObjects.Reset()
 	p.ReadIO.Reset()
 	p.ReadBytes.Reset()
 	p.WriteIO.Reset()
@@ -231,6 +246,21 @@ func (p *PoolUsageCollector) collect() error {
 		p.ReadBytes.WithLabelValues(pool.Name).Set(pool.Stats.ReadBytes)
 		p.WriteIO.WithLabelValues(pool.Name).Set(pool.Stats.WriteIO)
 		p.WriteBytes.WithLabelValues(pool.Name).Set(pool.Stats.WriteBytes)
+
+		ioCtx, err := p.conn.OpenIOContext(pool.Name)
+		if err != nil {
+			log.Println("[ERROR] failed to open IOContext:", err)
+			continue
+		}
+		defer ioCtx.Destroy()
+
+		st, err := ioCtx.GetPoolStats()
+		if err != nil {
+			log.Println("[ERROR] failed to get pool stats:", err)
+			continue
+		}
+
+		p.UnfoundObjects.WithLabelValues(pool.Name).Set(float64(st.Num_objects_unfound))
 	}
 
 	return nil
@@ -262,7 +292,7 @@ func (p *PoolUsageCollector) Describe(ch chan<- *prometheus.Desc) {
 // prometheus channel.
 func (p *PoolUsageCollector) Collect(ch chan<- prometheus.Metric) {
 	if err := p.collect(); err != nil {
-		log.Println("[ERROR] failed collecting pool usage metrics:", err)
+		log.Println("[ERROR] failed to collect pool usage metrics:", err)
 		return
 	}
 
