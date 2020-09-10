@@ -17,6 +17,7 @@ package collectors
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/ceph/go-ceph/rados"
 )
@@ -31,6 +32,8 @@ type Conn interface {
 	Connect() error
 	Shutdown()
 	MonCommand([]byte) ([]byte, string, error)
+	PGCommand([]byte, []byte) ([]byte, string, error)
+	OpenIOContext(string) (*rados.IOContext, error)
 }
 
 // Verify that *rados.Conn implements Conn correctly.
@@ -221,4 +224,31 @@ func (n *NoopConn) MonCommand(args []byte) ([]byte, string, error) {
 		return []byte("{}"), "", nil
 	}
 	return []byte(n.output), "", nil
+}
+
+// PGCommand returns the provided output string to NoopConn as is, making
+// it seem like it actually ran something and produced that string as a result.
+func (n *NoopConn) PGCommand(pgid, args []byte) ([]byte, string, error) {
+	// Unmarshal the input command and see if we need to intercept
+	cmd := map[string]interface{}{}
+	err := json.Unmarshal(args, &cmd)
+	if err != nil {
+		return []byte(n.output), "", err
+	}
+
+	// Intercept and mock the output
+	switch prefix := cmd["prefix"]; prefix {
+	case "query":
+		return []byte(n.cmdOut[n.iteration][fmt.Sprintf("ceph tell %s query", string(pgid))]), "", nil
+	}
+
+	return []byte(n.output), "", nil
+}
+
+// OpenIOContext always returns a nil rados.IOContext, and "not implemented"
+// error. The OpenIOContext method in the rados package returns a pointer of
+// rados.IOContext that contains an actual C.rados_ioctx_t, which is not
+// available in this NoopConn.
+func (n *NoopConn) OpenIOContext(pool string) (*rados.IOContext, error) {
+	return nil, errors.New("not implemented")
 }
