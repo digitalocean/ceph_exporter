@@ -240,6 +240,9 @@ type ClusterHealthCollector struct {
 
 	// MgrsNum shows the total number of mgrs, including standbys.
 	MgrsNum prometheus.Gauge
+
+	// RbdMirrorUp shows the alive rbd-mirror daemons
+	RbdMirrorUp *prometheus.GaugeVec
 }
 
 const (
@@ -817,6 +820,15 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 				ConstLabels: labels,
 			},
 		),
+		RbdMirrorUp: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "rbd_mirror_up",
+				Help:        "Alive rbd-mirror daemons",
+				ConstLabels: labels,
+			},
+			[]string{"name"},
+		),
 	}
 }
 
@@ -886,6 +898,7 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 func (c *ClusterHealthCollector) collectorList() []prometheus.Collector {
 	return []prometheus.Collector{
 		c.PGState,
+		c.RbdMirrorUp,
 	}
 }
 
@@ -937,6 +950,13 @@ type cephHealthStats struct {
 			Name string `json:"name"`
 		} `json:"standbys"`
 	} `json:"mgrmap"`
+	ServiceMap struct {
+		Services struct {
+			RbdMirror struct {
+				Daemons map[string]interface{} `json:"daemons"`
+			} `json:"rbd-mirror"`
+		} `json:"services"`
+	} `json:"servicemap"`
 }
 
 type cephHealthDetailStats struct {
@@ -1278,6 +1298,14 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 
 	c.MgrsActive.Set(float64(activeMgr))
 	c.MgrsNum.Set(float64(activeMgr + len(stats.MgrMap.StandBys)))
+
+	for name := range stats.ServiceMap.Services.RbdMirror.Daemons {
+		if name == "summary" {
+			continue
+		}
+
+		c.RbdMirrorUp.With(prometheus.Labels{"name": name}).Set(1)
+	}
 
 	return nil
 }
