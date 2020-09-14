@@ -238,7 +238,7 @@ type ClusterHealthCollector struct {
 	MgrsNum prometheus.Gauge
 
 	// RbdMirrorUp shows the alive rbd-mirror daemons
-	RbdMirrorUp *prometheus.GaugeVec
+	RbdMirrorUp *prometheus.Desc
 }
 
 const (
@@ -821,14 +821,11 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 				ConstLabels: labels,
 			},
 		),
-		RbdMirrorUp: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Namespace:   cephNamespace,
-				Name:        "rbd_mirror_up",
-				Help:        "Alive rbd-mirror daemons",
-				ConstLabels: labels,
-			},
+		RbdMirrorUp: prometheus.NewDesc(
+			fmt.Sprintf("%s_rbd_mirror_up", cephNamespace),
+			"Alive rbd-mirror daemons",
 			[]string{"name"},
+			labels,
 		),
 	}
 }
@@ -900,7 +897,6 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 func (c *ClusterHealthCollector) collectorList() []prometheus.Collector {
 	return []prometheus.Collector{
 		c.PGState,
-		c.RbdMirrorUp,
 	}
 }
 
@@ -1301,7 +1297,8 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 			continue
 		}
 
-		c.RbdMirrorUp.With(prometheus.Labels{"name": name}).Set(1)
+		ch <- prometheus.MustNewConstMetric(
+			c.RbdMirrorUp, prometheus.GaugeValue, 1.0, name)
 	}
 
 	return nil
@@ -1585,6 +1582,8 @@ func (c *ClusterHealthCollector) collectCacheIO(clientStr string) error {
 // Describe sends all the descriptions of individual metrics of ClusterHealthCollector
 // to the provided prometheus channel.
 func (c *ClusterHealthCollector) Describe(ch chan<- *prometheus.Desc) {
+	ch <- c.RbdMirrorUp
+
 	for _, metric := range c.metricsList() {
 		ch <- metric.Desc()
 	}
