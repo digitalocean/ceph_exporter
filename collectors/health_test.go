@@ -696,6 +696,38 @@ $ sudo ceph -s
 				regexp.MustCompile(`mgrs{cluster="ceph"} 3`),
 			},
 		},
+		{
+			input: `
+{
+    "servicemap": {
+        "epoch": 30,
+        "modified": "2020-07-13 22:21:53.278589",
+        "services": {
+            "rbd-mirror": {
+                "daemons": {
+                    "summary": "",
+                    "prod-mon01-block01": {
+                        "addr": "10.78.41.10:0/1272328707",
+                        "metadata": {
+                            "arch": "x86_64"
+                        }
+                    },
+                    "prod-mon02-block01": {
+                        "addr": "10.78.41.11:0/2337288266",
+                        "metadata": {
+                            "arch": "x86_64"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`rbd_mirror_up{cluster="ceph",\s*name="prod-mon01-block01"} 1`),
+				regexp.MustCompile(`rbd_mirror_up{cluster="ceph",\s*name="prod-mon02-block01"} 1`),
+			},
+		},
 	} {
 		func() {
 			collector := NewClusterHealthCollector(NewNoopConn(tt.input), "ceph")
