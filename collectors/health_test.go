@@ -329,6 +329,10 @@ $ sudo ceph -s
 			{
 				"state_name": "active+clean+scrubbing+deep",
 				"count": 5
+			},
+			{
+				"state_name": "active+clean+inconsistent",
+				"count": 1
 			}
 		],
 		"num_pgs": 52000
@@ -336,9 +340,10 @@ $ sudo ceph -s
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "7 pgs undersized"}]}
 }`,
 			regexes: []*regexp.Regexp{
-				regexp.MustCompile(`active_pgs{cluster="ceph"} 7`),
+				regexp.MustCompile(`active_pgs{cluster="ceph"} 8`),
 				regexp.MustCompile(`scrubbing_pgs{cluster="ceph"} 2`),
 				regexp.MustCompile(`deep_scrubbing_pgs{cluster="ceph"} 5`),
+				regexp.MustCompile(`inconsistent_pgs{cluster="ceph"} 1`),
 			},
 		},
 		{
