@@ -146,6 +146,9 @@ type ClusterHealthCollector struct {
 	// IncompletePGs depicts no. of PGs that are currently incomplete and not able to serve traffic.
 	IncompletePGs prometheus.Gauge
 
+	// InconsistentPGs depicts no. of PGs that are currently inconsistent
+	InconsistentPGs prometheus.Gauge
+
 	// SlowOps depicts no. of total slow ops in the cluster
 	SlowOps prometheus.Gauge
 
@@ -455,6 +458,14 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 				Namespace:   cephNamespace,
 				Name:        "incomplete_pgs",
 				Help:        "No. of PGs in the cluster in incomplete state",
+				ConstLabels: labels,
+			},
+		),
+		InconsistentPGs: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "inconsistent_pgs",
+				Help:        "No. of PGs in the cluster in inconsistent state",
 				ConstLabels: labels,
 			},
 		),
@@ -855,6 +866,7 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.ForcedBackfillPGs,
 		c.DownPGs,
 		c.IncompletePGs,
+		c.InconsistentPGs,
 		c.SlowOps,
 		c.DegradedObjectsCount,
 		c.MisplacedObjectsCount,
@@ -1201,6 +1213,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 		forcedBackfillPGs float64
 		downPGs           float64
 		incompletePGs     float64
+		inconsistentPGs   float64
 
 		pgStateCounterMap = map[string]*float64{
 			"degraded":        &degradedPGs,
@@ -1219,6 +1232,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 			"forced_backfill": &forcedBackfillPGs,
 			"down":            &downPGs,
 			"incomplete":      &incompletePGs,
+			"inconsistent":    &inconsistentPGs,
 		}
 		pgStateGaugeMap = map[string]prometheus.Gauge{
 			"degraded":        c.DegradedPGs,
@@ -1237,6 +1251,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 			"forced_backfill": c.ForcedBackfillPGs,
 			"down":            c.DownPGs,
 			"incomplete":      c.IncompletePGs,
+			"inconsistent":    c.InconsistentPGs,
 		}
 	)
 
