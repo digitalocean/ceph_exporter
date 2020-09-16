@@ -147,6 +147,9 @@ type ClusterHealthCollector struct {
 	// IncompletePGs depicts no. of PGs that are currently incomplete and not able to serve traffic.
 	IncompletePGs prometheus.Gauge
 
+	// InconsistentPGs depicts no. of PGs that are currently inconsistent
+	InconsistentPGs prometheus.Gauge
+
 	// SlowRequests depicts no. of total slow requests in the cluster
 	// This stat exists only for backwards compatbility.
 	SlowRequests prometheus.Gauge
@@ -459,6 +462,14 @@ func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollecto
 				Namespace:   cephNamespace,
 				Name:        "incomplete_pgs",
 				Help:        "No. of PGs in the cluster in incomplete state",
+				ConstLabels: labels,
+			},
+		),
+		InconsistentPGs: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "inconsistent_pgs",
+				Help:        "No. of PGs in the cluster in inconsistent state",
 				ConstLabels: labels,
 			},
 		),
@@ -854,6 +865,7 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.ForcedBackfillPGs,
 		c.DownPGs,
 		c.IncompletePGs,
+		c.InconsistentPGs,
 		c.SlowRequests,
 		c.StuckRequests,
 		c.DegradedObjectsCount,
@@ -1199,6 +1211,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 		forcedBackfillPGs float64
 		downPGs           float64
 		incompletePGs     float64
+		inconsistentPGs   float64
 
 		pgStateCounterMap = map[string]*float64{
 			"degraded":        &degradedPGs,
@@ -1217,6 +1230,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 			"forced_backfill": &forcedBackfillPGs,
 			"down":            &downPGs,
 			"incomplete":      &incompletePGs,
+			"inconsistent":    &inconsistentPGs,
 		}
 		pgStateGaugeMap = map[string]prometheus.Gauge{
 			"degraded":        c.DegradedPGs,
@@ -1235,6 +1249,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 			"forced_backfill": c.ForcedBackfillPGs,
 			"down":            c.DownPGs,
 			"incomplete":      c.IncompletePGs,
+			"inconsistent":    c.InconsistentPGs,
 		}
 	)
 
