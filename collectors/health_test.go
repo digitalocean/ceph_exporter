@@ -711,16 +711,23 @@ $ sudo ceph -s
             "rbd-mirror": {
                 "daemons": {
                     "summary": "",
-                    "prod-mon01-block01": {
-                        "addr": "10.78.41.10:0/1272328707",
+                    "681363": {
+                        "start_epoch": 4,
+                        "start_stamp": "2020-09-24 04:27:12.310285",
+                        "addr": "10.39.70.112:0/2856123533",
                         "metadata": {
-                            "arch": "x86_64"
+                            "arch": "x86_64",
+                            "id": "prod-mon01-block01"
                         }
                     },
-                    "prod-mon02-block01": {
-                        "addr": "10.78.41.11:0/2337288266",
+
+                    "681474": {
+                        "start_epoch": 6,
+                        "start_stamp": "2020-09-24 04:28:44.500861",
+                        "addr": "10.39.70.111:0/3132809711",
                         "metadata": {
-                            "arch": "x86_64"
+                            "arch": "x86_64",
+                            "id": "prod-mon02-block01"
                         }
                     }
                 }

@@ -964,7 +964,7 @@ type cephHealthStats struct {
 	ServiceMap struct {
 		Services struct {
 			RbdMirror struct {
-				Daemons map[string]interface{} `json:"daemons"`
+				Daemons map[string]json.RawMessage `json:"daemons"`
 			} `json:"rbd-mirror"`
 		} `json:"services"`
 	} `json:"servicemap"`
@@ -1307,13 +1307,22 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 	c.MgrsActive.Set(float64(activeMgr))
 	c.MgrsNum.Set(float64(activeMgr + len(stats.MgrMap.StandBys)))
 
-	for name := range stats.ServiceMap.Services.RbdMirror.Daemons {
+	for name, data := range stats.ServiceMap.Services.RbdMirror.Daemons {
 		if name == "summary" {
 			continue
 		}
 
-		ch <- prometheus.MustNewConstMetric(
-			c.RbdMirrorUp, prometheus.GaugeValue, 1.0, name)
+		md := struct {
+			Metadata struct {
+				Id string `json:"id"`
+			} `json:"metadata"`
+		}{}
+
+		// Extract id from metadata
+		if err := json.Unmarshal(data, &md); err == nil {
+			ch <- prometheus.MustNewConstMetric(
+				c.RbdMirrorUp, prometheus.GaugeValue, 1.0, md.Metadata.Id)
+		}
 	}
 
 	return nil
