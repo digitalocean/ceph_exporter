@@ -24,7 +24,7 @@ RUN \
 ADD . $APPLOC
 WORKDIR $APPLOC
 RUN go get -d
-RUN if [ -n "${TEST}" ]; then go test -v ./...; fi
+RUN if [ -n "${TEST}" ]; then go test -v -race -count=1 ./...; fi
 RUN go build -o /bin/ceph_exporter
 
 FROM ubuntu:18.04
