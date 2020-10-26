@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func TestRGWCollector(t *testing.T) {
@@ -127,7 +128,7 @@ func TestRGWCollector(t *testing.T) {
 			}
 			defer prometheus.Unregister(collector)
 
-			server := httptest.NewServer(prometheus.Handler())
+			server := httptest.NewServer(promhttp.Handler())
 			defer server.Close()
 
 			resp, err := http.Get(server.URL)

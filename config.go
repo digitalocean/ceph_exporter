@@ -1,10 +1,10 @@
 package main
 
 import (
-	"fmt"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
+
+	"gopkg.in/yaml.v2"
 )
 
 type ClusterConfig struct {
@@ -25,19 +25,15 @@ func fileExists(path string) bool {
 }
 
 func ParseConfig(p string) (*Config, error) {
-	if !fileExists(p) {
-		return nil, fmt.Errorf("Config file does not exist.")
-	}
-
 	cfgData, err := ioutil.ReadFile(p)
 	if err != nil {
-		return nil, fmt.Errorf("ReadFile: %v", err)
+		return nil, err
 	}
 
 	var cfg Config
 	err = yaml.Unmarshal(cfgData, &cfg)
 	if err != nil {
-		return nil, fmt.Errorf("yaml parse: %v", err)
+		return nil, err
 	}
 
 	return &cfg, nil
