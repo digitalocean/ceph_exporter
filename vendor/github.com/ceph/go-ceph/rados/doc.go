@@ -1,4 +1,4 @@
 /*
-Package rados contains a set of wrappers around Ceph's librados API.
+Set of wrappers around librados API.
 */
 package rados
