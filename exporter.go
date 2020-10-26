@@ -21,7 +21,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -155,31 +154,11 @@ func main() {
 		}
 
 		for _, cluster := range cfg.Cluster {
-
-			conn, err := rados.NewConnWithUser(cluster.User)
+			conn, err := collectors.CreateRadosConn(cluster.User, cluster.ConfigFile, *cephRadosOpTimeout)
 			if err != nil {
-				log.Fatalf("cannot create new ceph connection: %s", err)
+				log.Fatal(err)
 			}
 
-			err = conn.ReadConfigFile(cluster.ConfigFile)
-			if err != nil {
-				log.Fatalf("cannot read ceph config file: %s", err)
-			}
-
-			// Set rados_osd_op_timeout and rados_mon_op_timeout to avoid Mon
-			// and PG command hang.
-			// See https://github.com/ceph/ceph/blob/d4872ce97a2825afcb58876559cc73aaa1862c0f/src/common/legacy_config_opts.h#L1258-L1259
-			if err := conn.SetConfigOption("rados_osd_op_timeout", strconv.FormatFloat(cephRadosOpTimeout.Seconds(), 'f', -1, 64)); err != nil {
-				log.Fatalf("cannot set rados_osd_op_timeout for ceph cluster: %s", err)
-			}
-
-			if err := conn.SetConfigOption("rados_mon_op_timeout", strconv.FormatFloat(cephRadosOpTimeout.Seconds(), 'f', -1, 64)); err != nil {
-				log.Fatalf("cannot set rados_mon_op_timeout for ceph cluster: %s", err)
-			}
-
-			if err := conn.Connect(); err != nil {
-				log.Fatalf("cannot connect to ceph cluster: %s", err)
-			}
 			// defer Shutdown to program exit
 			defer conn.Shutdown()
 
@@ -190,34 +169,11 @@ func main() {
 			}
 		}
 	} else {
-		conn, err := rados.NewConnWithUser(*cephUser)
+		conn, err := collectors.CreateRadosConn(*cephUser, *cephConfig, *cephRadosOpTimeout)
 		if err != nil {
-			log.Fatalf("cannot create new ceph connection: %s", err)
+			log.Fatal(err)
 		}
 
-		if *cephConfig != "" {
-			err = conn.ReadConfigFile(*cephConfig)
-		} else {
-			err = conn.ReadDefaultConfigFile()
-		}
-		if err != nil {
-			log.Fatalf("cannot read ceph config file: %s", err)
-		}
-
-		// Set rados_osd_op_timeout and rados_mon_op_timeout to avoid Mon
-		// and PG command hang.
-		// See https://github.com/ceph/ceph/blob/d4872ce97a2825afcb58876559cc73aaa1862c0f/src/common/legacy_config_opts.h#L1258-L1259
-		if err := conn.SetConfigOption("rados_osd_op_timeout", strconv.FormatFloat(cephRadosOpTimeout.Seconds(), 'f', -1, 64)); err != nil {
-			log.Fatalf("cannot set rados_osd_op_timeout for ceph cluster: %s", err)
-		}
-
-		if err := conn.SetConfigOption("rados_mon_op_timeout", strconv.FormatFloat(cephRadosOpTimeout.Seconds(), 'f', -1, 64)); err != nil {
-			log.Fatalf("cannot set rados_mon_op_timeout for ceph cluster: %s", err)
-		}
-
-		if err := conn.Connect(); err != nil {
-			log.Fatalf("cannot connect to ceph cluster: %s", err)
-		}
 		defer conn.Shutdown()
 
 		prometheus.MustRegister(NewCephExporter(conn, defaultCephClusterLabel, defaultCephConfigPath, *rgwMode))

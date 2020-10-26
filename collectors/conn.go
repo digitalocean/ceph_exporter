@@ -17,6 +17,9 @@ package collectors
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strconv"
+	"time"
 
 	"github.com/ceph/go-ceph/rados"
 )
@@ -36,6 +39,44 @@ type Conn interface {
 
 // Verify that *rados.Conn implements Conn correctly.
 var _ Conn = &rados.Conn{}
+
+// CreateRadosConn creates an established rados connection to the Ceph cluster
+// using the provided Ceph user and configFile. Ceph parameters
+// rados_osd_op_timeout and rados_mon_op_timeout are specified by the timeout
+// value, where 0 means no limit.
+func CreateRadosConn(user, configFile string, timeout time.Duration) (*rados.Conn, error) {
+	conn, err := rados.NewConnWithUser(user)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create new ceph connection: %s", err)
+	}
+
+	err = conn.ReadConfigFile(configFile)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read ceph config file: %s", err)
+	}
+
+	tv := strconv.FormatFloat(timeout.Seconds(), 'f', -1, 64)
+	// Set rados_osd_op_timeout and rados_mon_op_timeout to avoid Mon
+	// and PG command hang.
+	// See
+	// https://github.com/ceph/ceph/blob/d4872ce97a2825afcb58876559cc73aaa1862c0f/src/common/legacy_config_opts.h#L1258-L1259
+	err = conn.SetConfigOption("rados_osd_op_timeout", tv)
+	if err != nil {
+		return nil, fmt.Errorf("cannot set rados_osd_op_timeout for ceph cluster: %s", err)
+	}
+
+	err = conn.SetConfigOption("rados_mon_op_timeout", tv)
+	if err != nil {
+		return nil, fmt.Errorf("cannot set rados_mon_op_timeout for ceph cluster: %s", err)
+	}
+
+	err = conn.Connect()
+	if err != nil {
+		return nil, fmt.Errorf("cannot connect to ceph cluster: %s", err)
+	}
+
+	return conn, nil
+}
 
 // NoopConn is the stub we use for mocking rados Conn. Unit testing
 // each individual collectors becomes a lot easier after that.
