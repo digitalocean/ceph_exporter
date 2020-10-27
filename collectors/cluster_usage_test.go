@@ -16,7 +16,6 @@ package collectors
 
 import (
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -24,11 +23,10 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sirupsen/logrus"
 )
 
 func TestClusterUsage(t *testing.T) {
-	log.SetOutput(ioutil.Discard)
-
 	for _, tt := range []struct {
 		input              string
 		reMatch, reUnmatch []*regexp.Regexp
@@ -128,7 +126,7 @@ func TestClusterUsage(t *testing.T) {
 		},
 	} {
 		func() {
-			collector := NewClusterUsageCollector(NewNoopConn(tt.input), "ceph")
+			collector := NewClusterUsageCollector(NewNoopConn(tt.input), "ceph", logrus.New())
 			if err := prometheus.Register(collector); err != nil {
 				t.Fatalf("collector failed to register: %s", err)
 			}

@@ -23,12 +23,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ceph/go-ceph/rados"
 	"github.com/digitalocean/ceph_exporter/collectors"
 	"github.com/ianschenck/envflag"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	log "github.com/sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -45,7 +44,7 @@ const keepAlive time.Duration = 3 * time.Minute
 
 type emfileAwareTcpListener struct {
 	*net.TCPListener
-	logger *log.Logger
+	logger *logrus.Logger
 }
 
 func (ln emfileAwareTcpListener) Accept() (c net.Conn, err error) {
@@ -57,7 +56,7 @@ func (ln emfileAwareTcpListener) Accept() (c net.Conn, err error) {
 			}
 		}
 		// Default return
-		return nil, err
+		return
 	}
 	tc.SetKeepAlive(true)
 	tc.SetKeepAlivePeriod(keepAlive)
@@ -72,7 +71,7 @@ func (ln emfileAwareTcpListener) Accept() (c net.Conn, err error) {
 type CephExporter struct {
 	mu         sync.Mutex
 	collectors []prometheus.Collector
-	logger     *log.Logger
+	logger     *logrus.Logger
 }
 
 // Verify that the exporter implements the interface correctly.
@@ -81,15 +80,15 @@ var _ prometheus.Collector = &CephExporter{}
 // NewCephExporter creates an instance to CephExporter and returns a reference
 // to it. We can choose to enable a collector to extract stats out of by adding
 // it to the list of collectors.
-func NewCephExporter(conn *rados.Conn, cluster string, config string, rgwMode int, logger *log.Logger) *CephExporter {
+func NewCephExporter(conn collectors.Conn, cluster string, config string, rgwMode int, logger *logrus.Logger) *CephExporter {
 	c := &CephExporter{
 		collectors: []prometheus.Collector{
-			collectors.NewClusterUsageCollector(conn, cluster),
-			collectors.NewPoolUsageCollector(conn, cluster),
-			collectors.NewPoolInfoCollector(conn, cluster),
-			collectors.NewClusterHealthCollector(conn, cluster),
-			collectors.NewMonitorCollector(conn, cluster),
-			collectors.NewOSDCollector(conn, cluster),
+			collectors.NewClusterUsageCollector(conn, cluster, logger),
+			collectors.NewPoolUsageCollector(conn, cluster, logger),
+			collectors.NewPoolInfoCollector(conn, cluster, logger),
+			collectors.NewClusterHealthCollector(conn, cluster, logger),
+			collectors.NewMonitorCollector(conn, cluster, logger),
+			collectors.NewOSDCollector(conn, cluster, logger),
 		},
 		logger: logger,
 	}
@@ -97,12 +96,12 @@ func NewCephExporter(conn *rados.Conn, cluster string, config string, rgwMode in
 	switch rgwMode {
 	case collectors.RGWModeForeground:
 		c.collectors = append(c.collectors,
-			collectors.NewRGWCollector(cluster, config, false),
+			collectors.NewRGWCollector(cluster, config, false, logger),
 		)
 
 	case collectors.RGWModeBackground:
 		c.collectors = append(c.collectors,
-			collectors.NewRGWCollector(cluster, config, true),
+			collectors.NewRGWCollector(cluster, config, true, logger),
 		)
 
 	case collectors.RGWModeDisabled:
@@ -152,9 +151,14 @@ func main() {
 
 	envflag.Parse()
 
-	logger := log.New()
+	logger := logrus.New()
+	logger.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+	})
 
-	if v, err := log.ParseLevel(*logLevel); err != nil {
+	if v, err := logrus.ParseLevel(*logLevel); err != nil {
+		logger.WithError(err).Warn("error setting log level")
+	} else {
 		logger.SetLevel(v)
 	}
 
@@ -179,21 +183,20 @@ func main() {
 	}
 
 	for _, cluster := range clusterConfigs {
-		conn, err := collectors.CreateRadosConn(cluster.User, cluster.ConfigFile, *cephRadosOpTimeout)
-		if err != nil {
-			logger.WithError(err).WithFields(log.Fields{
-				"cephCluster": cluster.ClusterLabel,
-				"cephUser":    cluster.User,
-				"cephConfig":  cluster.ConfigFile,
-			}).Fatal("error creating rados connection")
-		}
+		conn := collectors.NewRadosConn(
+			cluster.User,
+			cluster.ConfigFile,
+			*cephRadosOpTimeout,
+			logger)
 
-		// defer Shutdown to program exit
-		defer conn.Shutdown()
+		prometheus.MustRegister(NewCephExporter(
+			conn,
+			cluster.ClusterLabel,
+			cluster.ConfigFile,
+			*rgwMode,
+			logger))
 
-		prometheus.MustRegister(NewCephExporter(conn, cluster.ClusterLabel, cluster.ConfigFile, *rgwMode, logger))
-
-		log.WithField("cephCluster", cluster.ClusterLabel).Info("exporting cluster")
+		logger.WithField("cluster", cluster.ClusterLabel).Info("exporting cluster")
 	}
 
 	http.Handle(*metricsPath, promhttp.Handler())
@@ -207,17 +210,17 @@ func main() {
 			</html>`))
 	})
 
-	logger.WithField("endpoint", *metricsAddr).Info("starting ceph_exporter")
+	logger.WithField("endpoint", *metricsAddr).Info("starting ceph_exporter listener")
 
 	// Below is essentially http.ListenAndServe(), but using our custom
 	// emfileAwareTcpListener that will die if we run out of file descriptors
 	ln, err := net.Listen("tcp", *metricsAddr)
 	if err != nil {
-		log.WithError(err).Fatal("error creating listener")
+		logrus.WithError(err).Fatal("error creating listener")
 	}
 
 	err = http.Serve(emfileAwareTcpListener{ln.(*net.TCPListener), logger}, nil)
 	if err != nil {
-		log.WithError(err).Fatal("error serving requests")
+		logrus.WithError(err).Fatal("error serving requests")
 	}
 }

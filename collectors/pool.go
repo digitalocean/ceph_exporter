@@ -17,11 +17,11 @@ package collectors
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"math"
 	"strconv"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -32,7 +32,8 @@ const (
 // PoolInfoCollector gives information about each pool that exists in a given
 // ceph cluster.
 type PoolInfoCollector struct {
-	conn Conn
+	conn   Conn
+	logger *logrus.Logger
 
 	// PGNum contains the count of PGs allotted to a particular pool.
 	PGNum *prometheus.GaugeVec
@@ -63,7 +64,7 @@ type PoolInfoCollector struct {
 }
 
 // NewPoolInfoCollector displays information about each pool in the cluster.
-func NewPoolInfoCollector(conn Conn, cluster string) *PoolInfoCollector {
+func NewPoolInfoCollector(conn Conn, cluster string, logger *logrus.Logger) *PoolInfoCollector {
 	var (
 		subSystem  = "pool"
 		poolLabels = []string{"pool", "profile", "root"}
@@ -73,7 +74,8 @@ func NewPoolInfoCollector(conn Conn, cluster string) *PoolInfoCollector {
 	labels["cluster"] = cluster
 
 	return &PoolInfoCollector{
-		conn: conn,
+		conn:   conn,
+		logger: logger,
 
 		PGNum: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -193,6 +195,10 @@ func (p *PoolInfoCollector) collect() error {
 	cmd := p.cephInfoCommand()
 	buf, _, err := p.conn.MonCommand(cmd)
 	if err != nil {
+		p.logger.WithError(err).WithField(
+			"args", string(cmd),
+		).Error("error executing mon command")
+
 		return err
 	}
 
@@ -238,9 +244,7 @@ func (p *PoolInfoCollector) cephInfoCommand() []byte {
 		"format": "json",
 	})
 	if err != nil {
-		// panic! because ideally in no world this hard-coded input
-		// should fail.
-		panic(err)
+		p.logger.WithError(err).Panic("error marshalling ceph osd pool ls")
 	}
 	return cmd
 }
@@ -256,8 +260,9 @@ func (p *PoolInfoCollector) Describe(ch chan<- *prometheus.Desc) {
 // Collect extracts the current values of all the metrics and sends them to the
 // prometheus channel.
 func (p *PoolInfoCollector) Collect(ch chan<- prometheus.Metric) {
+	p.logger.Debug("collecting pool metrics")
 	if err := p.collect(); err != nil {
-		log.Println("[ERROR] failed collecting pool usage metrics:", err)
+		p.logger.WithError(err).Error("error collecting pool metrics")
 		return
 	}
 
@@ -314,11 +319,15 @@ func (p *PoolInfoCollector) getCrushRuleToRootMappings() map[int64]string {
 		"format": "json",
 	})
 	if err != nil {
-		panic(err)
+		p.logger.WithError(err).Panic("error marshalling ceph osd crush rule dump")
 	}
 
 	buf, _, err := p.conn.MonCommand(cmd)
 	if err != nil {
+		p.logger.WithError(err).WithField(
+			"args", string(cmd),
+		).Error("error executing mon command")
+
 		return mappings
 	}
 
@@ -332,6 +341,8 @@ func (p *PoolInfoCollector) getCrushRuleToRootMappings() map[int64]string {
 
 	err = json.Unmarshal(buf, &rules)
 	if err != nil {
+		p.logger.WithError(err).Error("error unmarshalling crush rules")
+
 		return mappings
 	}
 

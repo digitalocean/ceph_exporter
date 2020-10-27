@@ -2,12 +2,12 @@ package collectors
 
 import (
 	"encoding/json"
-	"log"
 	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
 )
 
 const rgwGCTimeFormat = "2006-01-02 15:04:05"
@@ -60,6 +60,7 @@ func rgwGetGCTaskList(config string) ([]byte, error) {
 type RGWCollector struct {
 	config     string
 	background bool
+	logger     *logrus.Logger
 
 	// ActiveTasks reports the number of (expired) RGW GC tasks
 	ActiveTasks *prometheus.GaugeVec
@@ -76,12 +77,13 @@ type RGWCollector struct {
 
 // NewRGWCollector creates an instance of the RGWCollector and instantiates
 // the individual metrics that we can collect from the RGW service
-func NewRGWCollector(cluster string, config string, background bool) *RGWCollector {
+func NewRGWCollector(cluster string, config string, background bool, logger *logrus.Logger) *RGWCollector {
 	labels := make(prometheus.Labels)
 	labels["cluster"] = cluster
 	rgw := &RGWCollector{
 		config:           config,
 		background:       background,
+		logger:           logger,
 		getRGWGCTaskList: rgwGetGCTaskList,
 
 		ActiveTasks: prometheus.NewGaugeVec(
@@ -142,9 +144,10 @@ func (r *RGWCollector) collectorList() []prometheus.Collector {
 
 func (r *RGWCollector) backgroundCollect() error {
 	for {
+		r.logger.WithField("background", r.background).Debug("collecting RGW GC stats")
 		err := r.collect()
 		if err != nil {
-			log.Println("Failed to collect RGW GC stats", err)
+			r.logger.WithField("background", r.background).WithError(err).Error("error collecting RGW GC stats")
 		}
 		time.Sleep(backgroundCollectInterval)
 	}
@@ -200,9 +203,10 @@ func (r *RGWCollector) Describe(ch chan<- *prometheus.Desc) {
 // It requires the caller to handle synchronization.
 func (r *RGWCollector) Collect(ch chan<- prometheus.Metric) {
 	if !r.background {
+		r.logger.WithField("background", r.background).Debug("collecting RGW GC stats")
 		err := r.collect()
 		if err != nil {
-			log.Println("Failed to collect RGW GC stats", err)
+			r.logger.WithField("background", r.background).WithError(err).Error("error collecting RGW GC stats")
 		}
 	}
 

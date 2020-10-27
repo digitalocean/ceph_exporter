@@ -23,6 +23,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sirupsen/logrus"
 )
 
 func TestMonitorCollector(t *testing.T) {
@@ -263,7 +264,7 @@ func TestMonitorCollector(t *testing.T) {
 		},
 	} {
 		func() {
-			collector := NewMonitorCollector(NewNoopConn(tt.input), "ceph")
+			collector := NewMonitorCollector(NewNoopConn(tt.input), "ceph", logrus.New())
 			if err := prometheus.Register(collector); err != nil {
 				t.Fatalf("collector failed to register: %s", err)
 			}
@@ -384,7 +385,7 @@ func TestMonitorTimeSyncStats(t *testing.T) {
 		},
 	} {
 		func() {
-			collector := NewMonitorCollector(NewNoopConn(tt.input), "ceph")
+			collector := NewMonitorCollector(NewNoopConn(tt.input), "ceph", logrus.New())
 			if err := prometheus.Register(collector); err != nil {
 				t.Fatalf("collector failed to register: %s", err)
 			}

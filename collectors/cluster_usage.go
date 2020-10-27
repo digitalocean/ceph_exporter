@@ -16,42 +16,46 @@ package collectors
 
 import (
 	"encoding/json"
-	"log"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
 )
 
 const (
 	cephNamespace = "ceph"
 )
 
-// A ClusterUsageCollector is used to gather all the global stats about a given
-// ceph cluster. It is sometimes essential to know how fast the cluster is growing
-// or shrinking as a whole in order to zero in on the cause. The pool specific
-// stats are provided separately.
+// A ClusterUsageCollector is used to gather all the global stats about a
+// given ceph cluster. It is sometimes essential to know how fast the cluster
+// is growing or shrinking as a whole in order to zero in on the cause. The
+// pool specific stats are provided separately.
 type ClusterUsageCollector struct {
-	conn Conn
+	conn   Conn
+	logger *logrus.Logger
 
 	// GlobalCapacity displays the total storage capacity of the cluster. This
-	// information is based on the actual no. of objects that are allocated. It
-	// does not take overcommitment into consideration.
+	// information is based on the actual no. of objects that are
+	// allocated. It does not take overcommitment into consideration.
 	GlobalCapacity prometheus.Gauge
 
 	// UsedCapacity shows the storage under use.
 	UsedCapacity prometheus.Gauge
 
-	// AvailableCapacity shows the remaining capacity of the cluster that is left unallocated.
+	// AvailableCapacity shows the remaining capacity of the cluster that is
+	// left unallocated.
 	AvailableCapacity prometheus.Gauge
 }
 
-// NewClusterUsageCollector creates and returns the reference to ClusterUsageCollector
-// and internally defines each metric that display cluster stats.
-func NewClusterUsageCollector(conn Conn, cluster string) *ClusterUsageCollector {
+// NewClusterUsageCollector creates and returns the reference to
+// ClusterUsageCollector and internally defines each metric that display
+// cluster stats.
+func NewClusterUsageCollector(conn Conn, cluster string, logger *logrus.Logger) *ClusterUsageCollector {
 	labels := make(prometheus.Labels)
 	labels["cluster"] = cluster
 
 	return &ClusterUsageCollector{
-		conn: conn,
+		conn:   conn,
+		logger: logger,
 
 		GlobalCapacity: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace:   cephNamespace,
@@ -94,6 +98,10 @@ func (c *ClusterUsageCollector) collect() error {
 	cmd := c.cephUsageCommand()
 	buf, _, err := c.conn.MonCommand(cmd)
 	if err != nil {
+		c.logger.WithError(err).WithField(
+			"args", string(cmd),
+		).Error("error executing mon command")
+
 		return err
 	}
 
@@ -106,17 +114,17 @@ func (c *ClusterUsageCollector) collect() error {
 
 	totBytes, err = stats.Stats.TotalBytes.Float64()
 	if err != nil {
-		log.Println("[ERROR] cannot extract total bytes:", err)
+		c.logger.WithError(err).Error("error extracting total bytes")
 	}
 
 	usedBytes, err = stats.Stats.TotalUsedBytes.Float64()
 	if err != nil {
-		log.Println("[ERROR] cannot extract used bytes:", err)
+		c.logger.WithError(err).Error("error extracting used bytes")
 	}
 
 	availBytes, err = stats.Stats.TotalAvailBytes.Float64()
 	if err != nil {
-		log.Println("[ERROR] cannot extract available bytes:", err)
+		c.logger.WithError(err).Error("error extracting available bytes")
 	}
 
 	c.GlobalCapacity.Set(totBytes)
@@ -135,7 +143,7 @@ func (c *ClusterUsageCollector) cephUsageCommand() []byte {
 	if err != nil {
 		// panic! because ideally in no world this hard-coded input
 		// should fail.
-		panic(err)
+		c.logger.WithError(err).Panic("error marshalling ceph df detail")
 	}
 	return cmd
 }
@@ -151,8 +159,9 @@ func (c *ClusterUsageCollector) Describe(ch chan<- *prometheus.Desc) {
 // Collect sends the metric values for each metric pertaining to the global
 // cluster usage over to the provided prometheus Metric channel.
 func (c *ClusterUsageCollector) Collect(ch chan<- prometheus.Metric) {
+	c.logger.Debug("collecting cluster usage metrics")
 	if err := c.collect(); err != nil {
-		log.Println("[ERROR] failed collecting cluster usage metrics:", err)
+		c.logger.WithError(err).Error("error collecting cluster usage metrics")
 		return
 	}
 

@@ -9,6 +9,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -912,7 +913,7 @@ func TestOSDCollector(t *testing.T) {
 	} {
 		func() {
 			conn := NewNoopConnWithCmdOut(tt.cmdOut)
-			collector := NewOSDCollector(conn, "ceph")
+			collector := NewOSDCollector(conn, "ceph", logrus.New())
 			if err := prometheus.Register(collector); err != nil {
 				t.Fatalf("collector failed to register: %s", err)
 			}

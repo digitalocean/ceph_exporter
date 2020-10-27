@@ -16,9 +16,9 @@ package collectors
 
 import (
 	"encoding/json"
-	"log"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
 )
 
 // MonitorCollector is used to extract stats related to monitors
@@ -26,7 +26,8 @@ import (
 // to each monitor instance, there are various vector metrics we
 // need to use.
 type MonitorCollector struct {
-	conn Conn
+	conn   Conn
+	logger *logrus.Logger
 
 	// TotalKBs display the total storage a given monitor node has.
 	TotalKBs *prometheus.GaugeVec
@@ -77,12 +78,13 @@ type Store struct {
 
 // NewMonitorCollector creates an instance of the MonitorCollector and instantiates
 // the individual metrics that show information about the monitor processes.
-func NewMonitorCollector(conn Conn, cluster string) *MonitorCollector {
+func NewMonitorCollector(conn Conn, cluster string, logger *logrus.Logger) *MonitorCollector {
 	labels := make(prometheus.Labels)
 	labels["cluster"] = cluster
 
 	return &MonitorCollector{
-		conn: conn,
+		conn:   conn,
+		logger: logger,
 
 		TotalKBs: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -252,6 +254,10 @@ func (m *MonitorCollector) collect() error {
 	cmd := m.cephUsageCommand()
 	buf, _, err := m.conn.MonCommand(cmd)
 	if err != nil {
+		m.logger.WithError(err).WithField(
+			"args", string(cmd),
+		).Error("error executing mon command")
+
 		return err
 	}
 
@@ -263,6 +269,10 @@ func (m *MonitorCollector) collect() error {
 	cmd = m.cephTimeSyncStatusCommand()
 	buf, _, err = m.conn.MonCommand(cmd)
 	if err != nil {
+		m.logger.WithError(err).WithField(
+			"args", string(cmd),
+		).Error("error executing mon command")
+
 		return err
 	}
 
@@ -370,9 +380,7 @@ func (m *MonitorCollector) cephUsageCommand() []byte {
 		"format": "json",
 	})
 	if err != nil {
-		// panic! because ideally in no world this hard-coded input
-		// should fail.
-		panic(err)
+		m.logger.WithError(err).Panic("error marshalling ceph status")
 	}
 	return cmd
 }
@@ -383,9 +391,7 @@ func (m *MonitorCollector) cephTimeSyncStatusCommand() []byte {
 		"format": "json",
 	})
 	if err != nil {
-		// panic! because ideally in no world this hard-coded input
-		// should fail.
-		panic(err)
+		m.logger.WithError(err).Panic("error marshalling ceph time-sync-status")
 	}
 	return cmd
 }
@@ -405,8 +411,9 @@ func (m *MonitorCollector) Describe(ch chan<- *prometheus.Desc) {
 // Collect extracts the given metrics from the Monitors and sends it to the prometheus
 // channel.
 func (m *MonitorCollector) Collect(ch chan<- prometheus.Metric) {
+	m.logger.Debug("collecting ceph monitor metrics")
 	if err := m.collect(); err != nil {
-		log.Println("failed collecting monitor metrics:", err)
+		m.logger.WithError(err).Error("error collecting ceph monitor metrics")
 		return
 	}
 

@@ -10,6 +10,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sirupsen/logrus"
 )
 
 func TestRGWCollector(t *testing.T) {
@@ -115,7 +116,7 @@ func TestRGWCollector(t *testing.T) {
 		},
 	} {
 		func() {
-			collector := NewRGWCollector("ceph", "", false) // run in foreground for testing
+			collector := NewRGWCollector("ceph", "", false, logrus.New()) // run in foreground for testing
 			collector.getRGWGCTaskList = func(cluster string) ([]byte, error) {
 				if tt.input != nil {
 					return tt.input, nil

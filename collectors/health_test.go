@@ -23,6 +23,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sirupsen/logrus"
 )
 
 func TestClusterHealthCollector(t *testing.T) {
@@ -743,7 +744,7 @@ $ sudo ceph -s
 		},
 	} {
 		func() {
-			collector := NewClusterHealthCollector(NewNoopConn(tt.input), "ceph")
+			collector := NewClusterHealthCollector(NewNoopConn(tt.input), "ceph", logrus.New())
 			if err := prometheus.Register(collector); err != nil {
 				t.Fatalf("collector failed to register: %s", err)
 			}
