@@ -21,9 +21,12 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/digitalocean/ceph_exporter/mocks"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestClusterUsage(t *testing.T) {
@@ -126,35 +129,31 @@ func TestClusterUsage(t *testing.T) {
 		},
 	} {
 		func() {
-			collector := NewClusterUsageCollector(NewNoopConn(tt.input), "ceph", logrus.New())
-			if err := prometheus.Register(collector); err != nil {
-				t.Fatalf("collector failed to register: %s", err)
-			}
+			conn := &mocks.Conn{}
+			conn.On("MonCommand", mock.Anything).Return(
+				[]byte(tt.input), "", nil,
+			)
+
+			collector := NewClusterUsageCollector(conn, "ceph", logrus.New())
+			err := prometheus.Register(collector)
+			require.NoError(t, err)
 			defer prometheus.Unregister(collector)
 
 			server := httptest.NewServer(promhttp.Handler())
 			defer server.Close()
 
 			resp, err := http.Get(server.URL)
-			if err != nil {
-				t.Fatalf("unexpected failed response from prometheus: %s", err)
-			}
+			require.NoError(t, err)
 			defer resp.Body.Close()
 
 			buf, err := ioutil.ReadAll(resp.Body)
-			if err != nil {
-				t.Fatalf("failed reading server response: %s", err)
-			}
+			require.NoError(t, err)
 
 			for _, re := range tt.reMatch {
-				if !re.Match(buf) {
-					t.Errorf("failed matching: %q", re)
-				}
+				require.True(t, re.Match(buf))
 			}
 			for _, re := range tt.reUnmatch {
-				if re.Match(buf) {
-					t.Errorf("should not have matched: %q", re)
-				}
+				require.False(t, re.Match(buf))
 			}
 		}()
 	}

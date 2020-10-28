@@ -16,7 +16,6 @@ package collectors
 
 import (
 	"encoding/json"
-	"fmt"
 	"math"
 	"strconv"
 
@@ -280,9 +279,8 @@ func (p *PoolInfoCollector) getExpansionFactor(pool poolInfo) float64 {
 }
 
 func (p *PoolInfoCollector) getECExpansionFactor(pool poolInfo) (float64, bool) {
-	prefix := fmt.Sprintf("osd erasure-code-profile get")
 	cmd, err := json.Marshal(map[string]interface{}{
-		"prefix": prefix,
+		"prefix": "osd erasure-code-profile get",
 		"name":   pool.Profile,
 		"format": "json",
 	})
