@@ -88,9 +88,9 @@ func (c *ClusterUsageCollector) metricsList() []prometheus.Metric {
 
 type cephClusterStats struct {
 	Stats struct {
-		TotalBytes      json.Number `json:"total_bytes"`
-		TotalUsedBytes  json.Number `json:"total_used_bytes"`
-		TotalAvailBytes json.Number `json:"total_avail_bytes"`
+		TotalBytes      float64 `json:"total_bytes"`
+		TotalUsedBytes  float64 `json:"total_used_bytes"`
+		TotalAvailBytes float64 `json:"total_avail_bytes"`
 	} `json:"stats"`
 }
 
@@ -110,26 +110,9 @@ func (c *ClusterUsageCollector) collect() error {
 		return err
 	}
 
-	var totBytes, usedBytes, availBytes float64
-
-	totBytes, err = stats.Stats.TotalBytes.Float64()
-	if err != nil {
-		c.logger.WithError(err).Error("error extracting total bytes")
-	}
-
-	usedBytes, err = stats.Stats.TotalUsedBytes.Float64()
-	if err != nil {
-		c.logger.WithError(err).Error("error extracting used bytes")
-	}
-
-	availBytes, err = stats.Stats.TotalAvailBytes.Float64()
-	if err != nil {
-		c.logger.WithError(err).Error("error extracting available bytes")
-	}
-
-	c.GlobalCapacity.Set(totBytes)
-	c.UsedCapacity.Set(usedBytes)
-	c.AvailableCapacity.Set(availBytes)
+	c.GlobalCapacity.Set(stats.Stats.TotalBytes)
+	c.UsedCapacity.Set(stats.Stats.TotalUsedBytes)
+	c.AvailableCapacity.Set(stats.Stats.TotalAvailBytes)
 
 	return nil
 }
