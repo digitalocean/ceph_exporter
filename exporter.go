@@ -136,12 +136,12 @@ func (c *CephExporter) Collect(ch chan<- prometheus.Metric) {
 
 func main() {
 	var (
-		metricsAddr    = envflag.String("TELEMETRY_ADDR", ":9128", "host:port for ceph_exporter's metrics endpoint")
-		metricsPath    = envflag.String("TELEMETRY_PATH", "/metrics", "URL path for surfacing collected metrics")
+		metricsAddr    = envflag.String("TELEMETRY_ADDR", ":9128", "Host:Port for ceph_exporter's metrics endpoint")
+		metricsPath    = envflag.String("TELEMETRY_PATH", "/metrics", "URL path for surfacing metrics to Prometheus")
 		exporterConfig = envflag.String("EXPORTER_CONFIG", "/etc/ceph/exporter.yml", "Path to ceph_exporter config")
 		rgwMode        = envflag.Int("RGW_MODE", 0, "Enable collection of stats from RGW (0:disabled 1:enabled 2:background)")
 
-		logLevel = envflag.String("LOG_LEVEL", "info", "logging level. One of: [trace, debug, info, warn, error, fatal, panic]")
+		logLevel = envflag.String("LOG_LEVEL", "info", "Logging level. One of: [trace, debug, info, warn, error, fatal, panic]")
 
 		cephCluster        = envflag.String("CEPH_CLUSTER", defaultCephClusterLabel, "Ceph cluster name")
 		cephConfig         = envflag.String("CEPH_CONFIG", defaultCephConfigPath, "Path to Ceph config file")
