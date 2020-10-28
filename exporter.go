@@ -16,35 +16,35 @@
 package main
 
 import (
-	"flag"
-	"log"
 	"net"
 	"net/http"
 	"os"
-	"strconv"
 	"sync"
 	"syscall"
 	"time"
 
-	"github.com/ceph/go-ceph/rados"
 	"github.com/digitalocean/ceph_exporter/collectors"
+	"github.com/ianschenck/envflag"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sirupsen/logrus"
 )
 
 const (
 	defaultCephClusterLabel = "ceph"
 	defaultCephConfigPath   = "/etc/ceph/ceph.conf"
+	defaultCephUser         = "admin"
+	defaultRadosOpTimeout   = 30 * time.Second
 )
 
 // This horrible thing is a copy of tcpKeepAliveListener, tweaked to
 // specifically check if it hits EMFILE when doing an accept, and if so,
 // terminate the process.
-
 const keepAlive time.Duration = 3 * time.Minute
 
 type emfileAwareTcpListener struct {
 	*net.TCPListener
+	logger *logrus.Logger
 }
 
 func (ln emfileAwareTcpListener) Accept() (c net.Conn, err error) {
@@ -52,8 +52,7 @@ func (ln emfileAwareTcpListener) Accept() (c net.Conn, err error) {
 	if err != nil {
 		if oerr, ok := err.(*net.OpError); ok {
 			if serr, ok := oerr.Err.(*os.SyscallError); ok && serr.Err == syscall.EMFILE {
-				// This calls os.Exit(1) and terminates the process
-				log.Fatalf("%v", err)
+				ln.logger.WithError(err).Fatal("running out of file descriptors")
 			}
 		}
 		// Default return
@@ -72,6 +71,7 @@ func (ln emfileAwareTcpListener) Accept() (c net.Conn, err error) {
 type CephExporter struct {
 	mu         sync.Mutex
 	collectors []prometheus.Collector
+	logger     *logrus.Logger
 }
 
 // Verify that the exporter implements the interface correctly.
@@ -80,34 +80,35 @@ var _ prometheus.Collector = &CephExporter{}
 // NewCephExporter creates an instance to CephExporter and returns a reference
 // to it. We can choose to enable a collector to extract stats out of by adding
 // it to the list of collectors.
-func NewCephExporter(conn *rados.Conn, cluster string, config string, rgwMode int) *CephExporter {
+func NewCephExporter(conn collectors.Conn, cluster string, config string, rgwMode int, logger *logrus.Logger) *CephExporter {
 	c := &CephExporter{
 		collectors: []prometheus.Collector{
-			collectors.NewClusterUsageCollector(conn, cluster),
-			collectors.NewPoolUsageCollector(conn, cluster),
-			collectors.NewPoolInfoCollector(conn, cluster),
-			collectors.NewClusterHealthCollector(conn, cluster),
-			collectors.NewMonitorCollector(conn, cluster),
-			collectors.NewOSDCollector(conn, cluster),
+			collectors.NewClusterUsageCollector(conn, cluster, logger),
+			collectors.NewPoolUsageCollector(conn, cluster, logger),
+			collectors.NewPoolInfoCollector(conn, cluster, logger),
+			collectors.NewClusterHealthCollector(conn, cluster, logger),
+			collectors.NewMonitorCollector(conn, cluster, logger),
+			collectors.NewOSDCollector(conn, cluster, logger),
 		},
+		logger: logger,
 	}
 
 	switch rgwMode {
 	case collectors.RGWModeForeground:
 		c.collectors = append(c.collectors,
-			collectors.NewRGWCollector(cluster, config, false),
+			collectors.NewRGWCollector(cluster, config, false, logger),
 		)
 
 	case collectors.RGWModeBackground:
 		c.collectors = append(c.collectors,
-			collectors.NewRGWCollector(cluster, config, true),
+			collectors.NewRGWCollector(cluster, config, true, logger),
 		)
 
 	case collectors.RGWModeDisabled:
 		// nothing to do
 
 	default:
-		log.Printf("RGW Collector Disabled do to invalid mode (%d)\n", rgwMode)
+		logger.WithField("rgwMode", rgwMode).Warn("RGW Collector Disabled do to invalid mode")
 	}
 
 	return c
@@ -135,92 +136,67 @@ func (c *CephExporter) Collect(ch chan<- prometheus.Metric) {
 
 func main() {
 	var (
-		addr               = flag.String("telemetry.addr", ":9128", "host:port for ceph exporter")
-		metricsPath        = flag.String("telemetry.path", "/metrics", "URL path for surfacing collected metrics")
-		cephConfig         = flag.String("ceph.config", "", "path to Ceph config file")
-		cephUser           = flag.String("ceph.user", "admin", "Ceph user to connect to cluster.")
-		cephRadosOpTimeout = flag.Duration("ceph.rados_op_timeout", 30*time.Second, "Ceph rados_osd_op_timeout and rados_mon_op_timeout used to contact cluster (0s means no limit).")
+		metricsAddr    = envflag.String("TELEMETRY_ADDR", ":9128", "Host:Port for ceph_exporter's metrics endpoint")
+		metricsPath    = envflag.String("TELEMETRY_PATH", "/metrics", "URL path for surfacing metrics to Prometheus")
+		exporterConfig = envflag.String("EXPORTER_CONFIG", "/etc/ceph/exporter.yml", "Path to ceph_exporter config")
+		rgwMode        = envflag.Int("RGW_MODE", 0, "Enable collection of stats from RGW (0:disabled 1:enabled 2:background)")
 
-		rgwMode = flag.Int("rgw.mode", 0, "Enable collection of stats from RGW (0:disabled 1:enabled 2:background)")
+		logLevel = envflag.String("LOG_LEVEL", "info", "Logging level. One of: [trace, debug, info, warn, error, fatal, panic]")
 
-		exporterConfig = flag.String("exporter.config", "/etc/ceph/exporter.yml", "Path to ceph exporter config.")
+		cephCluster        = envflag.String("CEPH_CLUSTER", defaultCephClusterLabel, "Ceph cluster name")
+		cephConfig         = envflag.String("CEPH_CONFIG", defaultCephConfigPath, "Path to Ceph config file")
+		cephUser           = envflag.String("CEPH_USER", defaultCephUser, "Ceph user to connect to cluster")
+		cephRadosOpTimeout = envflag.Duration("CEPH_RADOS_OP_TIMEOUT", defaultRadosOpTimeout, "Ceph rados_osd_op_timeout and rados_mon_op_timeout used to contact cluster (0s means no limit)")
 	)
-	flag.Parse()
+
+	envflag.Parse()
+
+	logger := logrus.New()
+	logger.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+	})
+
+	if v, err := logrus.ParseLevel(*logLevel); err != nil {
+		logger.WithError(err).Warn("error setting log level")
+	} else {
+		logger.SetLevel(v)
+	}
+
+	clusterConfigs := ([]*ClusterConfig)(nil)
 
 	if fileExists(*exporterConfig) {
-
 		cfg, err := ParseConfig(*exporterConfig)
 		if err != nil {
-			log.Fatalf("Error: %v", err)
+			logger.WithError(err).WithField(
+				"file", *exporterConfig,
+			).Fatal("error parsing ceph_exporter config file")
 		}
-
-		for _, cluster := range cfg.Cluster {
-
-			conn, err := rados.NewConnWithUser(cluster.User)
-			if err != nil {
-				log.Fatalf("cannot create new ceph connection: %s", err)
-			}
-
-			err = conn.ReadConfigFile(cluster.ConfigFile)
-			if err != nil {
-				log.Fatalf("cannot read ceph config file: %s", err)
-			}
-
-			// Set rados_osd_op_timeout and rados_mon_op_timeout to avoid Mon
-			// and PG command hang.
-			// See https://github.com/ceph/ceph/blob/d4872ce97a2825afcb58876559cc73aaa1862c0f/src/common/legacy_config_opts.h#L1258-L1259
-			if err := conn.SetConfigOption("rados_osd_op_timeout", strconv.FormatFloat(cephRadosOpTimeout.Seconds(), 'f', -1, 64)); err != nil {
-				log.Fatalf("cannot set rados_osd_op_timeout for ceph cluster: %s", err)
-			}
-
-			if err := conn.SetConfigOption("rados_mon_op_timeout", strconv.FormatFloat(cephRadosOpTimeout.Seconds(), 'f', -1, 64)); err != nil {
-				log.Fatalf("cannot set rados_mon_op_timeout for ceph cluster: %s", err)
-			}
-
-			if err := conn.Connect(); err != nil {
-				log.Fatalf("cannot connect to ceph cluster: %s", err)
-			}
-			// defer Shutdown to program exit
-			defer conn.Shutdown()
-
-			log.Printf("Starting ceph exporter for cluster: %s", cluster.ClusterLabel)
-			err = prometheus.Register(NewCephExporter(conn, cluster.ClusterLabel, cluster.ConfigFile, *rgwMode))
-			if err != nil {
-				log.Fatalf("cannot export cluster: %s error: %v", cluster.ClusterLabel, err)
-			}
-		}
+		clusterConfigs = cfg.Cluster
 	} else {
-		conn, err := rados.NewConnWithUser(*cephUser)
-		if err != nil {
-			log.Fatalf("cannot create new ceph connection: %s", err)
+		clusterConfigs = []*ClusterConfig{
+			{
+				ClusterLabel: *cephCluster,
+				User:         *cephUser,
+				ConfigFile:   *cephConfig,
+			},
 		}
+	}
 
-		if *cephConfig != "" {
-			err = conn.ReadConfigFile(*cephConfig)
-		} else {
-			err = conn.ReadDefaultConfigFile()
-		}
-		if err != nil {
-			log.Fatalf("cannot read ceph config file: %s", err)
-		}
+	for _, cluster := range clusterConfigs {
+		conn := collectors.NewRadosConn(
+			cluster.User,
+			cluster.ConfigFile,
+			*cephRadosOpTimeout,
+			logger)
 
-		// Set rados_osd_op_timeout and rados_mon_op_timeout to avoid Mon
-		// and PG command hang.
-		// See https://github.com/ceph/ceph/blob/d4872ce97a2825afcb58876559cc73aaa1862c0f/src/common/legacy_config_opts.h#L1258-L1259
-		if err := conn.SetConfigOption("rados_osd_op_timeout", strconv.FormatFloat(cephRadosOpTimeout.Seconds(), 'f', -1, 64)); err != nil {
-			log.Fatalf("cannot set rados_osd_op_timeout for ceph cluster: %s", err)
-		}
+		prometheus.MustRegister(NewCephExporter(
+			conn,
+			cluster.ClusterLabel,
+			cluster.ConfigFile,
+			*rgwMode,
+			logger))
 
-		if err := conn.SetConfigOption("rados_mon_op_timeout", strconv.FormatFloat(cephRadosOpTimeout.Seconds(), 'f', -1, 64)); err != nil {
-			log.Fatalf("cannot set rados_mon_op_timeout for ceph cluster: %s", err)
-		}
-
-		if err := conn.Connect(); err != nil {
-			log.Fatalf("cannot connect to ceph cluster: %s", err)
-		}
-		defer conn.Shutdown()
-
-		prometheus.MustRegister(NewCephExporter(conn, defaultCephClusterLabel, defaultCephConfigPath, *rgwMode))
+		logger.WithField("cluster", cluster.ClusterLabel).Info("exporting cluster")
 	}
 
 	http.Handle(*metricsPath, promhttp.Handler())
@@ -234,17 +210,17 @@ func main() {
 			</html>`))
 	})
 
-	log.Printf("Starting ceph exporter on %q", *addr)
+	logger.WithField("endpoint", *metricsAddr).Info("starting ceph_exporter listener")
+
 	// Below is essentially http.ListenAndServe(), but using our custom
 	// emfileAwareTcpListener that will die if we run out of file descriptors
-	ln, err := net.Listen("tcp", *addr)
-	if err == nil {
-		err := http.Serve(emfileAwareTcpListener{ln.(*net.TCPListener)}, nil)
-		if err != nil {
-			log.Fatalf("unable to serve requests: %s", err)
-		}
-	}
+	ln, err := net.Listen("tcp", *metricsAddr)
 	if err != nil {
-		log.Fatalf("unable to create listener: %s", err)
+		logrus.WithError(err).Fatal("error creating listener")
+	}
+
+	err = http.Serve(emfileAwareTcpListener{ln.(*net.TCPListener), logger}, nil)
+	if err != nil {
+		logrus.WithError(err).Fatal("error serving requests")
 	}
 }

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"math"
 	"regexp"
 	"strconv"
@@ -12,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -28,7 +28,8 @@ const (
 // An important aspect of monitoring OSDs is to ensure that when the cluster is
 // up and running that all OSDs that are in the cluster are up and running, too
 type OSDCollector struct {
-	conn Conn
+	conn   Conn
+	logger *logrus.Logger
 
 	// osdScrubCache holds the cache of previous PG scrubs
 	osdScrubCache map[int]int
@@ -121,13 +122,14 @@ var _ prometheus.Collector = &OSDCollector{}
 
 // NewOSDCollector creates an instance of the OSDCollector and instantiates the
 // individual metrics that show information about the OSD.
-func NewOSDCollector(conn Conn, cluster string) *OSDCollector {
+func NewOSDCollector(conn Conn, cluster string, logger *logrus.Logger) *OSDCollector {
 	labels := make(prometheus.Labels)
 	labels["cluster"] = cluster
 	osdLabels := []string{"osd", "device_class", "host", "rack", "root"}
 
 	return &OSDCollector{
-		conn: conn,
+		conn:   conn,
+		logger: logger,
 
 		osdScrubCache:  make(map[int]int),
 		osdLabelsCache: make(map[int64]*cephOSDLabel),
@@ -542,10 +544,12 @@ func (c cephPGQuery) backfillTargets() map[int64]int64 {
 
 func (o *OSDCollector) collectOSDDF() error {
 	cmd := o.cephOSDDFCommand()
-
 	buf, _, err := o.conn.MonCommand(cmd)
 	if err != nil {
-		log.Printf("failed sending Mon command %s: %s", cmd, err)
+		o.logger.WithError(err).WithField(
+			"args", string(cmd),
+		).Error("error executing mon command")
+
 		return err
 	}
 
@@ -661,7 +665,10 @@ func (o *OSDCollector) collectOSDPerf() error {
 	cmd := o.cephOSDPerfCommand()
 	buf, _, err := o.conn.MonCommand(cmd)
 	if err != nil {
-		log.Printf("failed sending Mon command %s: %s", cmd, err)
+		o.logger.WithError(err).WithField(
+			"args", string(cmd),
+		).Error("error executing mon command")
+
 		return err
 	}
 
@@ -761,13 +768,15 @@ func (o *OSDCollector) buildOSDLabelCache() error {
 	cmd := o.cephOSDTreeCommand()
 	data, _, err := o.conn.MonCommand(cmd)
 	if err != nil {
-		log.Printf("failed sending Mon command %s: %s", cmd, err)
+		o.logger.WithError(err).WithField(
+			"args", string(cmd),
+		).Error("error executing mon command")
+
 		return err
 	}
 
 	cache, err := buildOSDLabels(data)
 	if err != nil {
-		log.Printf("failed to decode OSD lables: %s", err)
 		return err
 	}
 	o.osdLabelsCache = cache
@@ -795,7 +804,10 @@ func (o *OSDCollector) collectOSDTreeDown(ch chan<- prometheus.Metric) error {
 	cmd := o.cephOSDTreeCommand("down")
 	buff, _, err := o.conn.MonCommand(cmd)
 	if err != nil {
-		log.Printf("failed sending Mon command %s: %s", cmd, err)
+		o.logger.WithError(err).WithField(
+			"args", string(cmd),
+		).Error("error executing mon command")
+
 		return err
 	}
 
@@ -830,7 +842,10 @@ func (o *OSDCollector) collectOSDDump() error {
 	cmd := o.cephOSDDump()
 	buff, _, err := o.conn.MonCommand(cmd)
 	if err != nil {
-		log.Printf("failed sending Mon command %s: %s", cmd, err)
+		o.logger.WithError(err).WithField(
+			"args", string(cmd),
+		).Error("error executing mon command")
+
 		return err
 	}
 
@@ -884,7 +899,10 @@ func (o *OSDCollector) performPGDumpBrief() error {
 	cmd := o.cephPGDumpCommand()
 	buf, _, err := o.conn.MonCommand(cmd)
 	if err != nil {
-		log.Printf("failed sending Mon command %s: %s", cmd, err)
+		o.logger.WithError(err).WithField(
+			"args", string(cmd),
+		).Error("error executing mon command")
+
 		return err
 	}
 
@@ -941,7 +959,7 @@ func (o *OSDCollector) cephOSDDump() []byte {
 		"format": jsonFormat,
 	})
 	if err != nil {
-		panic(err)
+		o.logger.WithError(err).Panic("error marshalling ceph osd dump")
 	}
 	return cmd
 }
@@ -952,7 +970,7 @@ func (o *OSDCollector) cephOSDDFCommand() []byte {
 		"format": jsonFormat,
 	})
 	if err != nil {
-		panic(err)
+		o.logger.WithError(err).Panic("error marshalling ceph osd df")
 	}
 	return cmd
 }
@@ -963,7 +981,7 @@ func (o *OSDCollector) cephOSDPerfCommand() []byte {
 		"format": jsonFormat,
 	})
 	if err != nil {
-		panic(err)
+		o.logger.WithError(err).Panic("error marshalling ceph osd perf")
 	}
 	return cmd
 }
@@ -979,7 +997,7 @@ func (o *OSDCollector) cephOSDTreeCommand(states ...string) []byte {
 
 	cmd, err := json.Marshal(req)
 	if err != nil {
-		panic(err)
+		o.logger.WithError(err).Panic("error marshalling ceph osd tree")
 	}
 	return cmd
 }
@@ -991,7 +1009,7 @@ func (o *OSDCollector) cephPGDumpCommand() []byte {
 		"format":       jsonFormat,
 	})
 	if err != nil {
-		panic(err)
+		o.logger.WithError(err).Panic("error marshalling ceph pg dump")
 	}
 	return cmd
 }
@@ -1003,7 +1021,7 @@ func (o *OSDCollector) cephPGQueryCommand(pgid string) []byte {
 		"format": jsonFormat,
 	})
 	if err != nil {
-		panic(err)
+		o.logger.WithError(err).Panic("error marshalling ceph pg query")
 	}
 	return cmd
 }
@@ -1022,7 +1040,6 @@ func (o *OSDCollector) Describe(ch chan<- *prometheus.Desc) {
 // Collect sends all the collected metrics to the provided Prometheus channel.
 // It requires the caller to handle synchronization.
 func (o *OSDCollector) Collect(ch chan<- prometheus.Metric) {
-
 	// Reset daemon specifc metrics; daemons can leave the cluster
 	o.CrushWeight.Reset()
 	o.Depth.Reset()
@@ -1039,28 +1056,34 @@ func (o *OSDCollector) Collect(ch chan<- prometheus.Metric) {
 	o.OSDUp.Reset()
 	o.buildOSDLabelCache()
 
+	o.logger.Debug("collecting OSD perf metrics")
 	if err := o.collectOSDPerf(); err != nil {
-		log.Println("failed collecting OSD perf metrics:", err)
+		o.logger.WithError(err).Error("error collecting OSD perf metrics")
 	}
 
+	o.logger.Debug("collecting OSD dump metrics")
 	if err := o.collectOSDDump(); err != nil {
-		log.Println("failed collecting OSD dump metrics:", err)
+		o.logger.WithError(err).Error("error collecting OSD dump metrics")
 	}
 
+	o.logger.Debug("collecting OSD df metrics")
 	if err := o.collectOSDDF(); err != nil {
-		log.Println("failed collecting OSD df metrics:", err)
+		o.logger.WithError(err).Error("error collecting OSD df metrics")
 	}
 
+	o.logger.Debug("collecting OSD tree down metrics")
 	if err := o.collectOSDTreeDown(ch); err != nil {
-		log.Println("failed collecting OSD tree down metrics:", err)
+		o.logger.WithError(err).Error("error collecting OSD tree down metrics")
 	}
 
+	o.logger.Debug("collecting PG dump metrics")
 	if err := o.performPGDumpBrief(); err != nil {
-		log.Println("failed performing PG dump brief:", err)
+		o.logger.WithError(err).Error("error collecting PG dump metrics")
 	}
 
+	o.logger.Debug("collecting OSD scrub metrics")
 	if err := o.collectOSDScrubState(ch); err != nil {
-		log.Println("failed collecting OSD scrub metrics:", err)
+		o.logger.WithError(err).Error("error collecting OSD scrub metrics")
 	}
 
 	for _, metric := range o.collectorList() {

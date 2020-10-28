@@ -19,13 +19,15 @@ RUN apt-get update && \
 
 RUN \
   mkdir -p /goroot && \
-  curl https://storage.googleapis.com/golang/go1.13.linux-amd64.tar.gz | tar xvzf - -C /goroot --strip-components=1
+  curl https://storage.googleapis.com/golang/go1.15.3.linux-amd64.tar.gz | tar xvzf - -C /goroot --strip-components=1
 
 ADD . $APPLOC
 WORKDIR $APPLOC
 RUN go get -d
-RUN if [ -n "${TEST}" ]; then go test -v ./...; fi
-RUN go build -o /bin/ceph_exporter
+# The `-tags nautilus` instructs go-ceph to enable additional support nautilus release.
+# See https://github.com/ceph/go-ceph#installation
+RUN if [ -n "${TEST}" ]; then go test -tags nautilus -v -race -count=1 ./...; fi
+RUN go build -tags nautilus -o /bin/ceph_exporter
 
 FROM ubuntu:18.04
 MAINTAINER Vaibhav Bhembre <vaibhav@digitalocean.com>

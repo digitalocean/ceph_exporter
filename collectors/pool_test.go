@@ -15,29 +15,28 @@
 package collectors
 
 import (
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
 	"testing"
 
+	"github.com/digitalocean/ceph_exporter/mocks"
+	"github.com/google/go-cmp/cmp"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPoolInfoCollector(t *testing.T) {
-	log.SetOutput(ioutil.Discard)
-
 	for _, tt := range []struct {
-		input              string
 		reMatch, reUnmatch []*regexp.Regexp
 	}{
 		{
-			input: `
-[
-	{"pool_name": "rbd", "crush_rule": 1, "size": 6, "min_size": 4, "pg_num": 8192, "pg_placement_num": 8192, "quota_max_bytes": 1024, "quota_max_objects": 2048, "erasure_code_profile": "ec-4-2", "stripe_width": 4096},
-	{"pool_name": "rbd", "crush_rule": 0, "size": 3, "min_size": 2, "pg_num": 16384, "pg_placement_num": 16384, "quota_max_bytes": 512, "quota_max_objects": 1024, "erasure_code_profile": "replicated-ruleset", "stripe_width": 4096}
-]`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`pool_size{cluster="ceph",pool="rbd",profile="ec-4-2",root="non-default-root"} 6`),
 				regexp.MustCompile(`pool_min_size{cluster="ceph",pool="rbd",profile="ec-4-2",root="non-default-root"} 4`),
@@ -61,36 +60,149 @@ func TestPoolInfoCollector(t *testing.T) {
 		},
 	} {
 		func() {
-			collector := NewPoolInfoCollector(NewNoopConn(tt.input), "ceph")
-			if err := prometheus.Register(collector); err != nil {
-				t.Fatalf("collector failed to register: %s", err)
-			}
+			conn := &mocks.Conn{}
+			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
+				v := map[string]interface{}{}
+
+				err := json.Unmarshal(in.([]byte), &v)
+				require.NoError(t, err)
+
+				return cmp.Equal(v, map[string]interface{}{
+					"prefix": "osd pool ls",
+					"detail": "detail",
+					"format": "json",
+				})
+			})).Return([]byte(`
+[
+	{"pool_name": "rbd", "crush_rule": 1, "size": 6, "min_size": 4, "pg_num": 8192, "pg_placement_num": 8192, "quota_max_bytes": 1024, "quota_max_objects": 2048, "erasure_code_profile": "ec-4-2", "stripe_width": 4096},
+	{"pool_name": "rbd", "crush_rule": 0, "size": 3, "min_size": 2, "pg_num": 16384, "pg_placement_num": 16384, "quota_max_bytes": 512, "quota_max_objects": 1024, "erasure_code_profile": "replicated-ruleset", "stripe_width": 4096}
+]`,
+			), "", nil)
+
+			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
+				v := map[string]interface{}{}
+
+				err := json.Unmarshal(in.([]byte), &v)
+				require.NoError(t, err)
+
+				return cmp.Equal(v, map[string]interface{}{
+					"prefix": "osd crush rule dump",
+					"format": "json",
+				})
+			})).Return([]byte(`
+[
+  {
+	"rule_id": 0,
+	"rule_name": "replicated_rule",
+	"ruleset": 0,
+	"type": 1,
+	"min_size": 1,
+	"max_size": 10,
+	"steps": [
+	  {
+		"num": 5,
+		"op": "set_chooseleaf_tries"
+	  },
+	  {
+		"op": "take",
+		"item": -1,
+		"item_name": "default"
+	  },
+	  {
+		"op": "chooseleaf_firstn",
+		"num": 0,
+		"type": "host"
+	  },
+	  {
+		"op": "emit"
+	  }
+	]
+  },
+  {
+	"rule_id": 1,
+	"rule_name": "another-rule",
+	"ruleset": 1,
+	"type": 1,
+	"min_size": 1,
+	"max_size": 10,
+	"steps": [
+	  {
+		"op": "take",
+		"item": -53,
+		"item_name": "non-default-root"
+	  },
+	  {
+		"op": "chooseleaf_firstn",
+		"num": 0,
+		"type": "rack"
+	  },
+	  {
+		"op": "emit"
+	  }
+	]
+  }
+]`,
+			), "", nil)
+
+			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
+				v := map[string]interface{}{}
+
+				err := json.Unmarshal(in.([]byte), &v)
+				require.NoError(t, err)
+
+				return cmp.Equal(v, map[string]interface{}{
+					"prefix": "osd erasure-code-profile get",
+					"name":   "ec-4-2",
+					"format": "json",
+				})
+			})).Return([]byte(`
+{
+	"crush-device-class": "",
+	"crush-failure-domain": "host",
+	"crush-root": "objectdata",
+	"jerasure-per-chunk-alignment": "false",
+	"k": "4",
+	"m": "2",
+	"plugin": "jerasure",
+	"technique": "reed_sol_van",
+	"w": "8"
+}`,
+			), "", nil)
+
+			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
+				v := map[string]interface{}{}
+
+				err := json.Unmarshal(in.([]byte), &v)
+				require.NoError(t, err)
+
+				return !cmp.Equal(v, map[string]interface{}{
+					"prefix": "osd erasure-code-profile get",
+					"name":   "ec-4-2",
+					"format": "json",
+				})
+			})).Return([]byte(""), "", fmt.Errorf("unknown erasure code profile"))
+
+			collector := NewPoolInfoCollector(conn, "ceph", logrus.New())
+
+			err := prometheus.Register(collector)
+			require.NoError(t, err)
 			defer prometheus.Unregister(collector)
 
-			server := httptest.NewServer(prometheus.Handler())
+			server := httptest.NewServer(promhttp.Handler())
 			defer server.Close()
 
 			resp, err := http.Get(server.URL)
-			if err != nil {
-				t.Fatalf("unexpected failed response from prometheus: %s", err)
-			}
+			require.NoError(t, err)
 			defer resp.Body.Close()
 
 			buf, err := ioutil.ReadAll(resp.Body)
-			if err != nil {
-				t.Fatalf("failed reading server response: %s", err)
-			}
+			require.NoError(t, err)
 
 			for _, re := range tt.reMatch {
-				if !re.Match(buf) {
-					t.Errorf("failed matching: %q", re)
-				}
+				require.True(t, re.Match(buf))
 			}
-
 			for _, re := range tt.reUnmatch {
-				if re.Match(buf) {
-					t.Errorf("should not have matched: %q", re)
-				}
+				require.False(t, re.Match(buf))
 			}
 		}()
 	}

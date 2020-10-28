@@ -19,12 +19,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"log"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -47,8 +47,8 @@ var (
 // It surfaces changes in the ceph parameters unlike data usage that ClusterUsageCollector
 // does.
 type ClusterHealthCollector struct {
-	// conn holds connection to the Ceph cluster
-	conn Conn
+	conn   Conn
+	logger *logrus.Logger
 
 	// healthChecksMap stores warnings and their criticality
 	healthChecksMap map[string]int
@@ -258,12 +258,13 @@ const (
 
 // NewClusterHealthCollector creates a new instance of ClusterHealthCollector to collect health
 // metrics on.
-func NewClusterHealthCollector(conn Conn, cluster string) *ClusterHealthCollector {
+func NewClusterHealthCollector(conn Conn, cluster string, logger *logrus.Logger) *ClusterHealthCollector {
 	labels := make(prometheus.Labels)
 	labels["cluster"] = cluster
 
 	return &ClusterHealthCollector{
-		conn: conn,
+		conn:   conn,
+		logger: logger,
 
 		healthChecksMap: map[string]int{
 			"AUTH_BAD_CAPS":                        2,
@@ -983,9 +984,13 @@ type cephHealthDetailStats struct {
 }
 
 func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
-	cmd := c.cephJSONUsage()
+	cmd := c.cephUsageCommand(jsonFormat)
 	buf, _, err := c.conn.MonCommand(cmd)
 	if err != nil {
+		c.logger.WithError(err).WithField(
+			"args", string(cmd),
+		).Error("error executing mon command")
+
 		return err
 	}
 
@@ -1335,23 +1340,13 @@ const (
 	plainFormat format = "plain"
 )
 
-func (c *ClusterHealthCollector) cephPlainUsage() []byte {
-	return c.cephUsageCommand(plainFormat)
-}
-
-func (c *ClusterHealthCollector) cephJSONUsage() []byte {
-	return c.cephUsageCommand(jsonFormat)
-}
-
 func (c *ClusterHealthCollector) cephUsageCommand(f format) []byte {
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix": "status",
 		"format": f,
 	})
 	if err != nil {
-		// panic! because ideally in no world this hard-coded input
-		// should fail.
-		panic(err)
+		c.logger.WithError(err).Panic("error marshalling ceph status")
 	}
 	return cmd
 }
@@ -1363,17 +1358,19 @@ func (c *ClusterHealthCollector) cephHealthDetailCommand() []byte {
 		"format": jsonFormat,
 	})
 	if err != nil {
-		// panic! because ideally in no world this hard-coded input
-		// should fail.
-		panic(err)
+		c.logger.WithError(err).Panic("error marshalling ceph health detail")
 	}
 	return cmd
 }
 
 func (c *ClusterHealthCollector) collectRecoveryClientIO() error {
-	cmd := c.cephPlainUsage()
+	cmd := c.cephUsageCommand(plainFormat)
 	buf, _, err := c.conn.MonCommand(cmd)
 	if err != nil {
+		c.logger.WithError(err).WithField(
+			"args", string(cmd),
+		).Error("error executing mon command")
+
 		return err
 	}
 
@@ -1620,12 +1617,14 @@ func (c *ClusterHealthCollector) Describe(ch chan<- *prometheus.Desc) {
 // Collect sends all the collected metrics to the provided prometheus channel.
 // It requires the caller to handle synchronization.
 func (c *ClusterHealthCollector) Collect(ch chan<- prometheus.Metric) {
+	c.logger.Debug("collecting cluster health metrics")
 	if err := c.collect(ch); err != nil {
-		log.Println("failed collecting cluster health metrics:", err)
+		c.logger.WithError(err).Error("error collecting cluster health metrics")
 	}
 
+	c.logger.Debug("collecting cluster recovery/client I/O metrics")
 	if err := c.collectRecoveryClientIO(); err != nil {
-		log.Println("failed collecting cluster recovery/client io:", err)
+		c.logger.WithError(err).Error("error collecting cluster recovery/client I/O metrics")
 	}
 
 	for _, metric := range c.metricsList() {

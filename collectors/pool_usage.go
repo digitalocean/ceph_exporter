@@ -16,15 +16,16 @@ package collectors
 
 import (
 	"encoding/json"
-	"log"
 	"math"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/sirupsen/logrus"
 )
 
 // PoolUsageCollector displays statistics about each pool in the Ceph cluster.
 type PoolUsageCollector struct {
-	conn Conn
+	conn   Conn
+	logger *logrus.Logger
 
 	// UsedBytes tracks the amount of bytes currently allocated for the pool. This
 	// does not factor in the overcommitment made for individual images.
@@ -67,7 +68,7 @@ type PoolUsageCollector struct {
 
 // NewPoolUsageCollector creates a new instance of PoolUsageCollector and returns
 // its reference.
-func NewPoolUsageCollector(conn Conn, cluster string) *PoolUsageCollector {
+func NewPoolUsageCollector(conn Conn, cluster string, logger *logrus.Logger) *PoolUsageCollector {
 	var (
 		subSystem = "pool"
 		poolLabel = []string{"pool"}
@@ -77,7 +78,8 @@ func NewPoolUsageCollector(conn Conn, cluster string) *PoolUsageCollector {
 	labels["cluster"] = cluster
 
 	return &PoolUsageCollector{
-		conn: conn,
+		conn:   conn,
+		logger: logger,
 
 		UsedBytes: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -232,6 +234,10 @@ func (p *PoolUsageCollector) collect() error {
 	cmd := p.cephUsageCommand()
 	buf, _, err := p.conn.MonCommand(cmd)
 	if err != nil {
+		p.logger.WithError(err).WithField(
+			"args", string(cmd),
+		).Error("error executing mon command")
+
 		return err
 	}
 
@@ -265,16 +271,12 @@ func (p *PoolUsageCollector) collect() error {
 		p.WriteIO.WithLabelValues(pool.Name).Set(pool.Stats.WriteIO)
 		p.WriteBytes.WithLabelValues(pool.Name).Set(pool.Stats.WriteBytes)
 
-		ioCtx, err := p.conn.OpenIOContext(pool.Name)
+		st, err := p.conn.GetPoolStats(pool.Name)
 		if err != nil {
-			log.Println("[ERROR] failed to open IOContext:", err)
-			continue
-		}
-		defer ioCtx.Destroy()
+			p.logger.WithError(err).WithField(
+				"pool", pool.Name,
+			).Error("error getting pool stats")
 
-		st, err := ioCtx.GetPoolStats()
-		if err != nil {
-			log.Println("[ERROR] failed to get pool stats:", err)
 			continue
 		}
 
@@ -291,9 +293,7 @@ func (p *PoolUsageCollector) cephUsageCommand() []byte {
 		"format": "json",
 	})
 	if err != nil {
-		// panic! because ideally in no world this hard-coded input
-		// should fail.
-		panic(err)
+		p.logger.WithError(err).Panic("error marshalling ceph df detail")
 	}
 	return cmd
 }
@@ -309,8 +309,9 @@ func (p *PoolUsageCollector) Describe(ch chan<- *prometheus.Desc) {
 // Collect extracts the current values of all the metrics and sends them to the
 // prometheus channel.
 func (p *PoolUsageCollector) Collect(ch chan<- prometheus.Metric) {
+	p.logger.Debug("collecting pool usage metrics")
 	if err := p.collect(); err != nil {
-		log.Println("[ERROR] failed to collect pool usage metrics:", err)
+		p.logger.WithError(err).Error("error collecting pool usage metrics")
 		return
 	}
 

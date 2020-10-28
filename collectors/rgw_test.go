@@ -9,6 +9,9 @@ import (
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRGWCollector(t *testing.T) {
@@ -114,7 +117,7 @@ func TestRGWCollector(t *testing.T) {
 		},
 	} {
 		func() {
-			collector := NewRGWCollector("ceph", "", false) // run in foreground for testing
+			collector := NewRGWCollector("ceph", "", false, logrus.New()) // run in foreground for testing
 			collector.getRGWGCTaskList = func(cluster string) ([]byte, error) {
 				if tt.input != nil {
 					return tt.input, nil
@@ -122,35 +125,26 @@ func TestRGWCollector(t *testing.T) {
 				return nil, errors.New("fake error")
 			}
 
-			if err := prometheus.Register(collector); err != nil {
-				t.Fatalf("collector failed to register: %s", err)
-			}
+			err := prometheus.Register(collector)
+			require.NoError(t, err)
 			defer prometheus.Unregister(collector)
 
-			server := httptest.NewServer(prometheus.Handler())
+			server := httptest.NewServer(promhttp.Handler())
 			defer server.Close()
 
 			resp, err := http.Get(server.URL)
-			if err != nil {
-				t.Fatalf("unexpected failed response from prometheus: %s", err)
-			}
+			require.NoError(t, err)
 			defer resp.Body.Close()
 
 			buf, err := ioutil.ReadAll(resp.Body)
-			if err != nil {
-				t.Fatalf("failed reading server response: %s", err)
-			}
+			require.NoError(t, err)
 
 			for _, re := range tt.reMatch {
-				if !re.Match(buf) {
-					t.Errorf("failed matching: %q", re)
-				}
+				require.True(t, re.Match(buf))
 			}
 
 			for _, re := range tt.reUnmatch {
-				if re.Match(buf) {
-					t.Errorf("should not have matched %q", re)
-				}
+				require.False(t, re.Match(buf))
 			}
 		}()
 	}
