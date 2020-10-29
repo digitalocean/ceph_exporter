@@ -644,10 +644,14 @@ func TestOSDCollector(t *testing.T) {
 }`,
 			}[tt.test]), "", nil)
 
-			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
+			conn.On("MgrCommand", mock.MatchedBy(func(in interface{}) bool {
 				v := map[string]interface{}{}
 
-				err := json.Unmarshal(in.([]byte), &v)
+				uv, ok := in.([][]byte)
+				require.True(t, ok)
+				require.Len(t, uv, 1)
+
+				err := json.Unmarshal(uv[0], &v)
 				require.NoError(t, err)
 
 				return cmp.Equal(v, map[string]interface{}{
@@ -757,10 +761,14 @@ func TestOSDCollector(t *testing.T) {
 	]
 }`), "", nil)
 
-			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
+			conn.On("MgrCommand", mock.MatchedBy(func(in interface{}) bool {
 				v := map[string]interface{}{}
 
-				err := json.Unmarshal(in.([]byte), &v)
+				uv, ok := in.([][]byte)
+				require.True(t, ok)
+				require.Len(t, uv, 1)
+
+				err := json.Unmarshal(uv[0], &v)
 				require.NoError(t, err)
 
 				return cmp.Equal(v, map[string]interface{}{
@@ -858,10 +866,14 @@ func TestOSDCollector(t *testing.T) {
 	}
 }`), "", nil)
 
-			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
+			conn.On("MgrCommand", mock.MatchedBy(func(in interface{}) bool {
 				v := map[string]interface{}{}
 
-				err := json.Unmarshal(in.([]byte), &v)
+				uv, ok := in.([][]byte)
+				require.True(t, ok)
+				require.Len(t, uv, 1)
+
+				err := json.Unmarshal(uv[0], &v)
 				require.NoError(t, err)
 
 				return cmp.Equal(v, map[string]interface{}{
