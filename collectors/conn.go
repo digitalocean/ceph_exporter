@@ -15,6 +15,7 @@
 package collectors
 
 import (
+	"bytes"
 	"fmt"
 	"strconv"
 	"time"
@@ -30,6 +31,7 @@ import (
 // unit-testing the collectors.
 type Conn interface {
 	MonCommand([]byte) ([]byte, string, error)
+	MgrCommand([][]byte) ([]byte, string, error)
 	GetPoolStats(string) (*rados.PoolStat, error)
 }
 
@@ -114,6 +116,29 @@ func (c *RadosConn) MonCommand(args []byte) (buffer []byte, info string, err err
 	buffer, info, err = conn.MonCommand(args)
 
 	ll.WithError(err).Trace("complete executing mon command")
+
+	return
+}
+
+// MgrCommand executes a manager command to rados.
+func (c *RadosConn) MgrCommand(args [][]byte) (buffer []byte, info string, err error) {
+	ll := c.logger.WithField("args", string(bytes.Join(args, []byte(","))))
+
+	ll.Trace("creating rados connection to execute mgr command")
+
+	conn, err := c.newRadosConn()
+	if err != nil {
+		return nil, "", err
+	}
+	defer conn.Shutdown()
+
+	ll = ll.WithField("conn", conn.GetInstanceID())
+
+	ll.Trace("start executing mgr command")
+
+	buffer, info, err = conn.MgrCommand(args)
+
+	ll.WithError(err).Trace("complete executing mgr command")
 
 	return
 }

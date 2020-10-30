@@ -543,12 +543,12 @@ func (c cephPGQuery) backfillTargets() map[int64]int64 {
 }
 
 func (o *OSDCollector) collectOSDDF() error {
-	cmd := o.cephOSDDFCommand()
-	buf, _, err := o.conn.MonCommand(cmd)
+	args := o.cephOSDDFCommand()
+	buf, _, err := o.conn.MgrCommand(args)
 	if err != nil {
 		o.logger.WithError(err).WithField(
-			"args", string(cmd),
-		).Error("error executing mon command")
+			"args", string(bytes.Join(args, []byte(","))),
+		).Error("error executing mgr command")
 
 		return err
 	}
@@ -662,11 +662,11 @@ func (o *OSDCollector) collectOSDDF() error {
 }
 
 func (o *OSDCollector) collectOSDPerf() error {
-	cmd := o.cephOSDPerfCommand()
-	buf, _, err := o.conn.MonCommand(cmd)
+	args := o.cephOSDPerfCommand()
+	buf, _, err := o.conn.MgrCommand(args)
 	if err != nil {
 		o.logger.WithError(err).WithField(
-			"args", string(cmd),
+			"args", string(bytes.Join(args, []byte(","))),
 		).Error("error executing mon command")
 
 		return err
@@ -896,12 +896,12 @@ func (o *OSDCollector) collectOSDDump() error {
 }
 
 func (o *OSDCollector) performPGDumpBrief() error {
-	cmd := o.cephPGDumpCommand()
-	buf, _, err := o.conn.MonCommand(cmd)
+	args := o.cephPGDumpCommand()
+	buf, _, err := o.conn.MgrCommand(args)
 	if err != nil {
 		o.logger.WithError(err).WithField(
-			"args", string(cmd),
-		).Error("error executing mon command")
+			"args", string(bytes.Join(args, []byte(","))),
+		).Error("error executing mgr command")
 
 		return err
 	}
@@ -964,7 +964,7 @@ func (o *OSDCollector) cephOSDDump() []byte {
 	return cmd
 }
 
-func (o *OSDCollector) cephOSDDFCommand() []byte {
+func (o *OSDCollector) cephOSDDFCommand() [][]byte {
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix": "osd df",
 		"format": jsonFormat,
@@ -972,10 +972,10 @@ func (o *OSDCollector) cephOSDDFCommand() []byte {
 	if err != nil {
 		o.logger.WithError(err).Panic("error marshalling ceph osd df")
 	}
-	return cmd
+	return [][]byte{cmd}
 }
 
-func (o *OSDCollector) cephOSDPerfCommand() []byte {
+func (o *OSDCollector) cephOSDPerfCommand() [][]byte {
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix": "osd perf",
 		"format": jsonFormat,
@@ -983,7 +983,7 @@ func (o *OSDCollector) cephOSDPerfCommand() []byte {
 	if err != nil {
 		o.logger.WithError(err).Panic("error marshalling ceph osd perf")
 	}
-	return cmd
+	return [][]byte{cmd}
 }
 
 func (o *OSDCollector) cephOSDTreeCommand(states ...string) []byte {
@@ -1002,7 +1002,7 @@ func (o *OSDCollector) cephOSDTreeCommand(states ...string) []byte {
 	return cmd
 }
 
-func (o *OSDCollector) cephPGDumpCommand() []byte {
+func (o *OSDCollector) cephPGDumpCommand() [][]byte {
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix":       "pg dump",
 		"dumpcontents": []string{"pgs_brief"},
@@ -1011,7 +1011,7 @@ func (o *OSDCollector) cephPGDumpCommand() []byte {
 	if err != nil {
 		o.logger.WithError(err).Panic("error marshalling ceph pg dump")
 	}
-	return cmd
+	return [][]byte{cmd}
 }
 
 func (o *OSDCollector) cephPGQueryCommand(pgid string) []byte {
