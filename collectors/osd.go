@@ -82,6 +82,15 @@ type OSDCollector struct {
 	// OSDUp displays the Up state of the OSD
 	OSDUp *prometheus.GaugeVec
 
+	// OSDFullRatio displays current full_ratio of OSD
+	OSDFullRatio prometheus.Gauge
+
+	// OSDFullRatio displays current backfillfull_ratio of OSD
+	OSDBackfillFullRatio prometheus.Gauge
+
+	// OSDNearFullRatio displays current nearfull_ratio of OSD
+	OSDNearFullRatio prometheus.Gauge
+
 	// OSDFull flags if an OSD is full
 	OSDFull *prometheus.GaugeVec
 
@@ -299,6 +308,33 @@ func NewOSDCollector(conn Conn, cluster string, logger *logrus.Logger) *OSDColle
 			osdLabels,
 		),
 
+		OSDFullRatio: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "osd_full_ratio",
+				Help:        "OSD Full Ratio Value",
+				ConstLabels: labels,
+			},
+		),
+
+		OSDNearFullRatio: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "osd_near_full_ratio",
+				Help:        "OSD Near Full Ratio Value",
+				ConstLabels: labels,
+			},
+		),
+
+		OSDBackfillFullRatio: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "osd_backfill_full_ratio",
+				Help:        "OSD Backfill Full Ratio Value",
+				ConstLabels: labels,
+			},
+		),
+
 		OSDFull: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace:   cephNamespace,
@@ -381,6 +417,9 @@ func (o *OSDCollector) collectorList() []prometheus.Collector {
 		o.ApplyLatency,
 		o.OSDIn,
 		o.OSDUp,
+		o.OSDFullRatio,
+		o.OSDNearFullRatio,
+		o.OSDBackfillFullRatio,
 		o.OSDFull,
 		o.OSDNearFull,
 		o.OSDBackfillFull,
@@ -431,6 +470,10 @@ type cephOSDDump struct {
 		In    json.Number `json:"in"`
 		State []string    `json:"state"`
 	} `json:"osds"`
+
+	FullRatio json.Number `json:"full_ratio"`
+	NearFullRatio json.Number `json:"nearfull_ratio"`
+	BackfillFullRatio json.Number `json:"backfillfull_ratio"`
 }
 
 type cephOSDTree struct {
@@ -853,6 +896,22 @@ func (o *OSDCollector) collectOSDDump() error {
 	if err := json.Unmarshal(buff, &osdDump); err != nil {
 		return err
 	}
+
+	osdFullRatio, err := osdDump.FullRatio.Float64()
+	if err != nil {
+		return err
+	}
+	osdNearFullRatio, err := osdDump.NearFullRatio.Float64()
+	if err != nil {
+		return err
+	}
+	osdBackfillFullRatio, err := osdDump.BackfillFullRatio.Float64()
+	if err != nil {
+		return err
+	}
+	o.OSDFullRatio.Set(osdFullRatio)
+	o.OSDNearFullRatio.Set(osdNearFullRatio)
+	o.OSDBackfillFullRatio.Set(osdBackfillFullRatio)
 
 	for _, dumpInfo := range osdDump.OSDs {
 		osdID, err := dumpInfo.OSD.Int64()

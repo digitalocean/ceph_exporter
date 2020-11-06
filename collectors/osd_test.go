@@ -392,7 +392,9 @@ func TestOSDCollector(t *testing.T) {
 		regexp.MustCompile(`ceph_osd_total_used_bytes{cluster="ceph"} 1.5478e`),
 		regexp.MustCompile(`ceph_osd_total_avail_bytes{cluster="ceph"} 4.4446484e`),
 		regexp.MustCompile(`ceph_osd_average_utilization{cluster="ceph"} 0.347031`),
-
+		regexp.MustCompile(`ceph_osd_near_full_ratio{cluster="ceph"} 0.7`),
+		regexp.MustCompile(`ceph_osd_backfill_full_ratio{cluster="ceph"} 0.8`),
+		regexp.MustCompile(`ceph_osd_full_ratio{cluster="ceph"} 0.9`),
 		regexp.MustCompile(`ceph_osd_in{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 1`),
 		regexp.MustCompile(`ceph_osd_in{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 1`),
 		regexp.MustCompile(`ceph_osd_in{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 1`),
@@ -711,6 +713,9 @@ func TestOSDCollector(t *testing.T) {
 				})
 			})).Return([]byte(`
 {
+	"full_ratio": 0.9,
+	"backfillfull_ratio": 0.8,
+	"nearfull_ratio": 0.7,
 	"osds": [
 		{
 			"osd": 0,
