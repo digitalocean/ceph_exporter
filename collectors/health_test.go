@@ -357,6 +357,24 @@ $ sudo ceph -s
 		{
 			input: `
 {
+  "health": {
+    "checks": {
+      "MON_DOWN": {
+        "severity": "HEALTH_WARN",
+        "summary": {
+          "message": "1/3 mons down, quorum a,b"
+        }
+      }
+    }
+  }
+}`,
+			reMatch: []*regexp.Regexp{
+				regexp.MustCompile(`mons_down{cluster="ceph"} 1`),
+			},
+		},
+		{
+			input: `
+{
 	"health": {
 		"summary": [
 			{

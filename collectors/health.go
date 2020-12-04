@@ -61,6 +61,9 @@ type ClusterHealthCollector struct {
 	// based on criticality.
 	HealthStatusInterpreter prometheus.Gauge
 
+	// MONsDown show the no. of Monitor that are int DOWN state
+	MONsDown prometheus.Gauge
+
 	// TotalPGs shows the total no. of PGs the cluster constitutes of.
 	TotalPGs prometheus.Gauge
 
@@ -354,6 +357,14 @@ func NewClusterHealthCollector(conn Conn, cluster string, logger *logrus.Logger)
 				Namespace:   cephNamespace,
 				Name:        "health_status_interp",
 				Help:        "Health status of Cluster, can vary only between 4 states (err:3, critical_warn:2, soft_warn:1, ok:0)",
+				ConstLabels: labels,
+			},
+		),
+		MONsDown: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "mons_down",
+				Help:        "Count of Mons that are in DOWN state",
 				ConstLabels: labels,
 			},
 		),
@@ -846,6 +857,7 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 	return []prometheus.Metric{
 		c.HealthStatus,
 		c.HealthStatusInterpreter,
+		c.MONsDown,
 		c.TotalPGs,
 		c.DegradedPGs,
 		c.ActivePGs,
@@ -1035,6 +1047,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 	}
 
 	var (
+		monsDownRegex         = regexp.MustCompile(`([\d]+)/([\d]+) mons down, quorum \b+`)
 		stuckDegradedRegex    = regexp.MustCompile(`([\d]+) pgs stuck degraded`)
 		stuckUncleanRegex     = regexp.MustCompile(`([\d]+) pgs stuck unclean`)
 		stuckUndersizedRegex  = regexp.MustCompile(`([\d]+) pgs stuck undersized`)
@@ -1114,6 +1127,17 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 	}
 
 	for k, check := range stats.Health.Checks {
+		if k == "MON_DOWN" {
+			matched := monsDownRegex.FindStringSubmatch(check.Summary.Message)
+			if len(matched) == 3 {
+				v, err := strconv.Atoi(matched[1])
+				if err != nil {
+					return err
+				}
+				c.MONsDown.Set(float64(v))
+			}
+		}
+
 		if k == "SLOW_OPS" {
 			matched := slowOpsRegexNautilus.FindStringSubmatch(check.Summary.Message)
 			if len(matched) == 3 {
