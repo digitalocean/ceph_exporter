@@ -113,7 +113,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			"num_remapped_pgs": 0
 		}
 	},
-	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "recovery 10/20 objects degraded"}]}
+	"pgmap": { "degraded_objects": 10 }
 }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`degraded_objects{cluster="ceph"} 10`),
@@ -130,7 +130,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			"num_remapped_pgs": 0
 		}
 	},
-	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "recovery 20/40 objects misplaced"}]}
+	"pgmap": { "misplaced_objects": 20 }
 }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`misplaced_objects{cluster="ceph"} 20`),
@@ -436,29 +436,11 @@ $ sudo ceph -s
         }
       }
     }
-  }
+  },
+  "pgmap": { "degraded_objects": 154443937 }
 }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`degraded_objects{cluster="ceph"} 1.54443937e\+08`),
-				regexp.MustCompile(`health_status_interp{cluster="ceph"} 1`),
-			},
-		},
-		{
-			input: `
-{
-  "health": {
-    "checks": {
-      "OBJECT_MISPLACED": {
-        "severity": "HEALTH_WARN",
-        "summary": {
-          "message": "431295341/17497658377 objects misplaced (2.465%)"
-        }
-      }
-    }
-  }
-}`,
-			reMatch: []*regexp.Regexp{
-				regexp.MustCompile(`misplaced_objects{cluster="ceph"} 4.31295341e\+08`),
 				regexp.MustCompile(`health_status_interp{cluster="ceph"} 1`),
 			},
 		},
