@@ -388,6 +388,7 @@ func TestOSDCollector(t *testing.T) {
 		regexp.MustCompile(`ceph_osd_pgs{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 162`),
 		regexp.MustCompile(`ceph_osd_pgs{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 164`),
 		regexp.MustCompile(`ceph_osd_pgs{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0`),
+		regexp.MustCompile(`ceph_osd_pg_upmap_items_total{cluster="ceph"} 2`),
 		regexp.MustCompile(`ceph_osd_total_bytes{cluster="ceph"} 4.4601264e`),
 		regexp.MustCompile(`ceph_osd_total_used_bytes{cluster="ceph"} 1.5478e`),
 		regexp.MustCompile(`ceph_osd_total_avail_bytes{cluster="ceph"} 4.4446484e`),
@@ -761,6 +762,30 @@ func TestOSDCollector(t *testing.T) {
 				"backfillfull",
 				"exists",
 				"up"
+			]
+		}
+	],
+	"pg_upmap_items": [
+		{
+			"pgid": "1.8f",
+			"mappings": [
+				{
+					"from": 37,
+					"to": 36
+				}
+			]
+		},
+		{
+			"pgid": "1.90",
+			"mappings": [
+				{
+					"from": 37,
+					"to": 36
+				},
+				{
+					"from": 31,
+					"to": 30
+				}
 			]
 		}
 	]
