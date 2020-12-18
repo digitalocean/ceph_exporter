@@ -70,6 +70,9 @@ type OSDCollector struct {
 	// Available in Ceph Jewel version.
 	Pgs *prometheus.GaugeVec
 
+	// PgUpmapItemsTotal displays the total number of items in the pg-upmap exception table.
+	PgUpmapItemsTotal prometheus.Gauge
+
 	// CommitLatency displays in seconds how long it takes for an operation to be applied to disk
 	CommitLatency *prometheus.GaugeVec
 
@@ -231,6 +234,15 @@ func NewOSDCollector(conn Conn, cluster string, logger *logrus.Logger) *OSDColle
 				ConstLabels: labels,
 			},
 			osdLabels,
+		),
+
+		PgUpmapItemsTotal: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "osd_pg_upmap_items_total",
+				Help:        "OSD PG-Upmap Exception Table Entry Count",
+				ConstLabels: labels,
+			},
 		),
 
 		TotalBytes: prometheus.NewGauge(
@@ -409,6 +421,7 @@ func (o *OSDCollector) collectorList() []prometheus.Collector {
 		o.Utilization,
 		o.Variance,
 		o.Pgs,
+		o.PgUpmapItemsTotal,
 		o.TotalBytes,
 		o.TotalUsedBytes,
 		o.TotalAvailBytes,
@@ -471,8 +484,16 @@ type cephOSDDump struct {
 		State []string    `json:"state"`
 	} `json:"osds"`
 
-	FullRatio json.Number `json:"full_ratio"`
-	NearFullRatio json.Number `json:"nearfull_ratio"`
+	PgUpmapItems []struct {
+		PgID     string `json:"pgid"`
+		Mappings []struct {
+			From int `json:"from"`
+			To   int `json:"to"`
+		} `json:"mappings"`
+	} `json:"pg_upmap_items"`
+
+	FullRatio         json.Number `json:"full_ratio"`
+	NearFullRatio     json.Number `json:"nearfull_ratio"`
 	BackfillFullRatio json.Number `json:"backfillfull_ratio"`
 }
 
@@ -912,6 +933,7 @@ func (o *OSDCollector) collectOSDDump() error {
 	o.OSDFullRatio.Set(osdFullRatio)
 	o.OSDNearFullRatio.Set(osdNearFullRatio)
 	o.OSDBackfillFullRatio.Set(osdBackfillFullRatio)
+	o.PgUpmapItemsTotal.Set(float64(len(osdDump.PgUpmapItems)))
 
 	for _, dumpInfo := range osdDump.OSDs {
 		osdID, err := dumpInfo.OSD.Int64()
