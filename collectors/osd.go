@@ -601,21 +601,21 @@ func (o *OSDCollector) collectOSDDF() error {
 			return nil
 		}
 
-		o.Bytes.WithLabelValues(node.Name, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(osdKB * 1e3)
+		o.Bytes.WithLabelValues(node.Name, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(osdKB * 1024)
 
 		usedKB, err := node.UsedKB.Float64()
 		if err != nil {
 			return err
 		}
 
-		o.UsedBytes.WithLabelValues(node.Name, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(usedKB * 1e3)
+		o.UsedBytes.WithLabelValues(node.Name, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(usedKB * 1024)
 
 		availKB, err := node.AvailKB.Float64()
 		if err != nil {
 			return err
 		}
 
-		o.AvailBytes.WithLabelValues(node.Name, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(availKB * 1e3)
+		o.AvailBytes.WithLabelValues(node.Name, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(availKB * 1024)
 
 		util, err := node.Utilization.Float64()
 		if err != nil {
@@ -645,21 +645,21 @@ func (o *OSDCollector) collectOSDDF() error {
 		return err
 	}
 
-	o.TotalBytes.Set(totalKB * 1e3)
+	o.TotalBytes.Set(totalKB * 1024)
 
 	totalUsedKB, err := osdDF.Summary.TotalUsedKB.Float64()
 	if err != nil {
 		return err
 	}
 
-	o.TotalUsedBytes.Set(totalUsedKB * 1e3)
+	o.TotalUsedBytes.Set(totalUsedKB * 1024)
 
 	totalAvailKB, err := osdDF.Summary.TotalAvailKB.Float64()
 	if err != nil {
 		return err
 	}
 
-	o.TotalAvailBytes.Set(totalAvailKB * 1e3)
+	o.TotalAvailBytes.Set(totalAvailKB * 1024)
 
 	averageUtil, err := osdDF.Summary.AverageUtil.Float64()
 	if err != nil {
@@ -698,13 +698,13 @@ func (o *OSDCollector) collectOSDPerf() error {
 		if err != nil {
 			return err
 		}
-		o.CommitLatency.WithLabelValues(osdName, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(commitLatency / 1e3)
+		o.CommitLatency.WithLabelValues(osdName, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(commitLatency / 1024)
 
 		applyLatency, err := perfStat.Stats.ApplyLatency.Float64()
 		if err != nil {
 			return err
 		}
-		o.ApplyLatency.WithLabelValues(osdName, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(applyLatency / 1e3)
+		o.ApplyLatency.WithLabelValues(osdName, lb.DeviceClass, lb.Host, lb.Rack, lb.Root).Set(applyLatency / 1024)
 	}
 
 	return nil
