@@ -285,19 +285,19 @@ func (m *MonitorCollector) collect() error {
 			if err != nil {
 				return err
 			}
-			m.TotalKBs.WithLabelValues(monstat.Name).Set(kbTotal * 1e3)
+			m.TotalKBs.WithLabelValues(monstat.Name).Set(kbTotal * 1024)
 
 			kbUsed, err := monstat.KBUsed.Float64()
 			if err != nil {
 				return err
 			}
-			m.UsedKBs.WithLabelValues(monstat.Name).Set(kbUsed * 1e3)
+			m.UsedKBs.WithLabelValues(monstat.Name).Set(kbUsed * 1024)
 
 			kbAvail, err := monstat.KBAvail.Float64()
 			if err != nil {
 				return err
 			}
-			m.AvailKBs.WithLabelValues(monstat.Name).Set(kbAvail * 1e3)
+			m.AvailKBs.WithLabelValues(monstat.Name).Set(kbAvail * 1024)
 
 			percentAvail, err := monstat.AvailPercent.Float64()
 			if err != nil {
