@@ -7,8 +7,8 @@ import (
 	"math"
 	"regexp"
 	"strconv"
-
 	"strings"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
@@ -36,6 +36,10 @@ type OSDCollector struct {
 
 	// osdLabelsCache holds a cache of osd labels
 	osdLabelsCache map[int64]*cephOSDLabel
+
+	// oldestInactivePGMap keeps track of how long we've known
+	// a PG to not have an active state in it.
+	oldestInactivePGMap map[string]time.Time
 
 	// pgDumpBrief holds the content of PG dump brief
 	pgDumpBrief cephPGDumpBrief
@@ -127,6 +131,12 @@ type OSDCollector struct {
 
 	// OSDObjectsBackfilled displays average number of objects backfilled in an OSD
 	OSDObjectsBackfilled *prometheus.CounterVec
+
+	// OldestInactivePG gives us the amount of time that the oldest inactive PG
+	// has been inactive for.  This is useful to discern between rolling peering
+	// (such as when issuing a bunch of upmaps or weight changes) and a single PG
+	// stuck peering, for example.
+	OldestInactivePG prometheus.Gauge
 }
 
 // This ensures OSDCollector implements interface prometheus.Collector.
@@ -143,8 +153,9 @@ func NewOSDCollector(conn Conn, cluster string, logger *logrus.Logger) *OSDColle
 		conn:   conn,
 		logger: logger,
 
-		osdScrubCache:  make(map[int]int),
-		osdLabelsCache: make(map[int64]*cephOSDLabel),
+		osdScrubCache:       make(map[int]int),
+		osdLabelsCache:      make(map[int64]*cephOSDLabel),
+		oldestInactivePGMap: make(map[string]time.Time),
 
 		CrushWeight: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -407,6 +418,15 @@ func NewOSDCollector(conn Conn, cluster string, logger *logrus.Logger) *OSDColle
 			},
 			append([]string{"pgid"}, osdLabels...),
 		),
+
+		OldestInactivePG: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "ceph_pg_oldest_inactive",
+				Help:        "The amount of time in seconds that the oldest PG has been inactive for",
+				ConstLabels: labels,
+			},
+		),
 	}
 }
 
@@ -437,6 +457,7 @@ func (o *OSDCollector) collectorList() []prometheus.Collector {
 		o.OSDNearFull,
 		o.OSDBackfillFull,
 		o.OSDObjectsBackfilled,
+		o.OldestInactivePG,
 	}
 }
 
@@ -566,7 +587,7 @@ type cephOSDLabel struct {
 	Status      string  `json:"status"`
 	DeviceClass string  `json:"device_class"`
 	CrushWeight float64 `json:"crush_weight"`
-	Root        string  `json:"host"`
+	Root        string  `json:"root"`
 	Rack        string  `json:"rack"`
 	Host        string  `json:"host"`
 	parent      int64   // parent id when building tables
@@ -1107,6 +1128,38 @@ func (o *OSDCollector) cephPGQueryCommand(pgid string) []byte {
 	return cmd
 }
 
+func (o *OSDCollector) collectPGStates(ch chan<- prometheus.Metric) error {
+	// - See if there are PGs that we're tracking that are now active
+	// - See if there are new ones to add
+	// - Find the oldest one
+	now := time.Now()
+	oldestTime := now
+
+	for _, pg := range o.pgDumpBrief.PGStats {
+		// If we were tracking it, and it's now active, remove it
+		active := strings.Contains(pg.State, "active")
+		if active {
+			delete(o.oldestInactivePGMap, pg.PGID)
+			continue
+		}
+
+		// Now see if it's not here, we'll need to track it now
+		pgTime, ok := o.oldestInactivePGMap[pg.PGID]
+		if !ok {
+			pgTime = now
+			o.oldestInactivePGMap[pg.PGID] = now
+		}
+
+		// And finally, track our oldest time
+		if pgTime.Before(oldestTime) {
+			oldestTime = pgTime
+		}
+	}
+
+	o.OldestInactivePG.Set(float64(now.Unix() - oldestTime.Unix()))
+	return nil
+}
+
 // Describe sends the descriptors of each OSDCollector related metrics we have
 // defined to the provided Prometheus channel.
 func (o *OSDCollector) Describe(ch chan<- *prometheus.Desc) {
@@ -1165,6 +1218,11 @@ func (o *OSDCollector) Collect(ch chan<- prometheus.Metric) {
 	o.logger.Debug("collecting OSD scrub metrics")
 	if err := o.collectOSDScrubState(ch); err != nil {
 		o.logger.WithError(err).Error("error collecting OSD scrub metrics")
+	}
+
+	o.logger.Debug("collecting PG states")
+	if err := o.collectPGStates(ch); err != nil {
+		o.logger.WithError(err).Error("error collecting PG state metrics")
 	}
 
 	for _, metric := range o.collectorList() {
