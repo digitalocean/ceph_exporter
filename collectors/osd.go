@@ -422,7 +422,7 @@ func NewOSDCollector(conn Conn, cluster string, logger *logrus.Logger) *OSDColle
 		OldestInactivePG: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace:   cephNamespace,
-				Name:        "ceph_pg_oldest_inactive",
+				Name:        "pg_oldest_inactive",
 				Help:        "The amount of time in seconds that the oldest PG has been inactive for",
 				ConstLabels: labels,
 			},
