@@ -412,3 +412,144 @@ func TestMonitorTimeSyncStats(t *testing.T) {
 		}()
 	}
 }
+
+func TestMonitorCephVersions(t *testing.T) {
+	for _, tt := range []struct {
+		input   string
+		reMatch []*regexp.Regexp
+	}{
+		{`
+{
+    "mon": {
+        "ceph version 12.2.13 (584a20eb0237c657dc0567da126be145106aa47e) luminous (stable)": 5
+    },
+    "mgr": {
+        "ceph version 12.2.13 (584a20eb0237c657dc0567da126be145106aa47e) luminous (stable)": 5
+    },
+    "osd": {
+        "ceph version 12.2.11-3-gc5b1fd5 (c5b1fd521188cccdedcf6f98c40e6a02286042f2) luminous (stable)": 450
+    },
+    "mds": {},
+    "rgw": {
+        "ceph version 12.2.5-8-g58a2283 (58a2283da6a62d2cc1600d4a9928a0799d63c7c9) luminous (stable)": 4
+    },
+    "overall": {
+        "ceph version 12.2.11-3-gc5b1fd5 (c5b1fd521188cccdedcf6f98c40e6a02286042f2) luminous (stable)": 450,
+        "ceph version 12.2.13 (584a20eb0237c657dc0567da126be145106aa47e) luminous (stable)": 10,
+        "ceph version 12.2.5-8-g58a2283 (58a2283da6a62d2cc1600d4a9928a0799d63c7c9) luminous (stable)": 4
+    }
+}
+`,
+			[]*regexp.Regexp{
+				regexp.MustCompile(`ceph_versions{cluster="ceph",daemon="mon",release_name="luminous",sha1="584a20eb0237c657dc0567da126be145106aa47e",version_tag="12.2.13"} 5`),
+				regexp.MustCompile(`ceph_versions{cluster="ceph",daemon="rgw",release_name="luminous",sha1="58a2283da6a62d2cc1600d4a9928a0799d63c7c9",version_tag="12.2.5-8-g58a2283"} 4`),
+			},
+		},
+	} {
+		func() {
+			conn := &mocks.Conn{}
+			conn.On("MonCommand", mock.Anything).Return(
+				[]byte(tt.input), "", nil,
+			)
+
+			collector := NewMonitorCollector(conn, "ceph", logrus.New())
+			err := prometheus.Register(collector)
+			require.NoError(t, err)
+			defer prometheus.Unregister(collector)
+
+			server := httptest.NewServer(promhttp.Handler())
+			defer server.Close()
+
+			resp, err := http.Get(server.URL)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+
+			buf, err := ioutil.ReadAll(resp.Body)
+			require.NoError(t, err)
+
+			for _, re := range tt.reMatch {
+				require.True(t, re.Match(buf))
+			}
+		}()
+	}
+}
+
+func TestMonitorCephFeatures(t *testing.T) {
+	for _, tt := range []struct {
+		input   string
+		reMatch []*regexp.Regexp
+	}{
+		{`
+{
+    "mon": [
+        {
+            "features": "0x3ffddff8ffecffff",
+            "release": "luminous",
+            "num": 5
+        }
+    ],
+    "osd": [
+        {
+            "features": "0x3ffddff8ffecffff",
+            "release": "luminous",
+            "num": 320
+        }
+    ],
+    "client": [
+        {
+            "features": "0x3ffddff8eeacfffb",
+            "release": "luminous",
+            "num": 2
+        },
+        {
+            "features": "0x3ffddff8ffacffff",
+            "release": "luminous",
+            "num": 53
+        },
+        {
+            "features": "0x3ffddff8ffecffff",
+            "release": "luminous",
+            "num": 4
+        }
+    ],
+    "mgr": [
+        {
+            "features": "0x3ffddff8ffecffff",
+            "release": "luminous",
+            "num": 5
+        }
+    ]
+}
+		`,
+			[]*regexp.Regexp{
+				regexp.MustCompile(`ceph_features{cluster="ceph",daemon="client",features="0x3ffddff8ffacffff",release="luminous"} 53`),
+			},
+		},
+	} {
+		func() {
+			conn := &mocks.Conn{}
+			conn.On("MonCommand", mock.Anything).Return(
+				[]byte(tt.input), "", nil,
+			)
+
+			collector := NewMonitorCollector(conn, "ceph", logrus.New())
+			err := prometheus.Register(collector)
+			require.NoError(t, err)
+			defer prometheus.Unregister(collector)
+
+			server := httptest.NewServer(promhttp.Handler())
+			defer server.Close()
+
+			resp, err := http.Get(server.URL)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+
+			buf, err := ioutil.ReadAll(resp.Body)
+			require.NoError(t, err)
+
+			for _, re := range tt.reMatch {
+				require.True(t, re.Match(buf))
+			}
+		}()
+	}
+}

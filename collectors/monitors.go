@@ -16,10 +16,16 @@ package collectors
 
 import (
 	"encoding/json"
+	"regexp"
 
+	"github.com/Jeffail/gabs"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 )
+
+// versionRegexp will parse a Nautilus (at least) `ceph versions` key output
+// version_tag matches not only 1.2.34, but 1.2.34-123-hash (or anything arbitrarily)
+var versionRegexp = regexp.MustCompile(`ceph version (?P<version_tag>\d+\.\d+\.\d+.*) \((?P<sha1>[A-Za-z0-9]{40})\) (?P<release_tag>\w+)`)
 
 // MonitorCollector is used to extract stats related to monitors
 // running within Ceph cluster. As we extract information pertaining
@@ -57,6 +63,12 @@ type MonitorCollector struct {
 	// NodesinQuorum show the size of the working monitor quorum. Any change in this
 	// metric can imply a significant issue in the cluster if it is not manually changed.
 	NodesinQuorum prometheus.Gauge
+
+	// CephVersions exposes a view of the `ceph versions` command.
+	CephVersions *prometheus.GaugeVec
+
+	// CephFeatures exposes a view of the `ceph features` command.
+	CephFeatures *prometheus.GaugeVec
 }
 
 // Store displays information about Monitor's FileStore. It is responsible for
@@ -186,6 +198,24 @@ func NewMonitorCollector(conn Conn, cluster string, logger *logrus.Logger) *Moni
 				ConstLabels: labels,
 			},
 		),
+		CephVersions: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "versions",
+				Help:        "Counts of current versioned daemons, parsed from `ceph versions`",
+				ConstLabels: labels,
+			},
+			[]string{"daemon", "version_tag", "sha1", "release_name"},
+		),
+		CephFeatures: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "features",
+				Help:        "Counts of current client features, parsed from `ceph features`",
+				ConstLabels: labels,
+			},
+			[]string{"daemon", "release", "features"},
+		),
 	}
 }
 
@@ -203,6 +233,8 @@ func (m *MonitorCollector) collectorList() []prometheus.Collector {
 
 		m.ClockSkew,
 		m.Latency,
+		m.CephVersions,
+		m.CephFeatures,
 	}
 }
 
@@ -250,7 +282,15 @@ type cephMonitorStats struct {
 	Quorum []int `json:"quorum"`
 }
 
+// Note that this is a dict with repeating keys in Luminous
+type cephFeatureGroup struct {
+	Features string `json:"features"`
+	Release  string `json:"release"`
+	Num      int    `json:"num"`
+}
+
 func (m *MonitorCollector) collect() error {
+	// Ceph usage
 	cmd := m.cephUsageCommand()
 	buf, _, err := m.conn.MonCommand(cmd)
 	if err != nil {
@@ -266,6 +306,7 @@ func (m *MonitorCollector) collect() error {
 		return err
 	}
 
+	// Ceph time sync status
 	cmd = m.cephTimeSyncStatusCommand()
 	buf, _, err = m.conn.MonCommand(cmd)
 	if err != nil {
@@ -281,6 +322,95 @@ func (m *MonitorCollector) collect() error {
 		return err
 	}
 
+	// Ceph versions
+	cmd = m.cephVersionsCommand()
+	buf, _, err = m.conn.MonCommand(cmd)
+	if err != nil {
+		m.logger.WithError(err).WithField(
+			"args", string(cmd),
+		).Error("error executing mon command")
+
+		return err
+	}
+
+	// Rather than a dedicated type, have dynamic daemons and versions
+	// {"daemon": {"version1": 123, "version2": 234}}
+	parsed, err := gabs.ParseJSON(buf)
+	if err != nil {
+		return err
+	}
+
+	parsedMap, err := parsed.ChildrenMap()
+	if err != nil {
+		return err
+	}
+
+	versions := make(map[string]map[string]float64)
+	for daemonKey, innerObj := range parsedMap {
+		// Read each daemon, and overall counts
+		versionMap, err := innerObj.ChildrenMap()
+		if err == gabs.ErrNotObj {
+			continue
+		} else if err != nil {
+			return err
+		}
+
+		versions[daemonKey] = make(map[string]float64)
+		for version, countContainer := range versionMap {
+			count, ok := countContainer.Data().(float64)
+			if ok {
+				versions[daemonKey][version] = count
+			}
+		}
+	}
+
+	// Ceph features
+	cmd = m.cephFeaturesCommand()
+	buf, _, err = m.conn.MonCommand(cmd)
+	if err != nil {
+		m.logger.WithError(err).WithField(
+			"args", string(cmd),
+		).Error("error executing mon command")
+
+		return err
+	}
+
+	// Like versions, the same with features
+	// {"daemon": [ ... ]}
+	parsed, err = gabs.ParseJSON(buf)
+	if err != nil {
+		return err
+	}
+
+	parsedMap, err = parsed.ChildrenMap()
+	if err != nil {
+		return err
+	}
+
+	features := make(map[string][]cephFeatureGroup)
+	for daemonKey, innerObj := range parsedMap {
+		// Read each daemon into an array of feature groups
+		featureGroups, err := innerObj.Children()
+		if err == gabs.ErrNotObjOrArray {
+			continue
+		} else if err != nil {
+			return err
+		}
+
+		for _, grp := range featureGroups {
+			var featureGroup cephFeatureGroup
+			if _, err := grp.ChildrenMap(); err == gabs.ErrNotObj {
+				continue
+			}
+
+			if err := json.Unmarshal(grp.Bytes(), &featureGroup); err != nil {
+				return err
+			}
+
+			features[daemonKey] = append(features[daemonKey], featureGroup)
+		}
+	}
+
 	// Reset daemon specifc metrics; daemons can leave the cluster
 	m.TotalKBs.Reset()
 	m.UsedKBs.Reset()
@@ -288,6 +418,8 @@ func (m *MonitorCollector) collect() error {
 	m.PercentAvail.Reset()
 	m.Latency.Reset()
 	m.ClockSkew.Reset()
+	m.CephVersions.Reset()
+	m.CephFeatures.Reset()
 
 	for _, healthService := range stats.Health.Health.HealthServices {
 		for _, monstat := range healthService.Mons {
@@ -371,6 +503,30 @@ func (m *MonitorCollector) collect() error {
 
 	m.NodesinQuorum.Set(float64(len(stats.Quorum)))
 
+	// Ceph versions, one loop for each daemon.
+	// In a consistent cluster, there will only be one iteration (and label set) per daemon.
+	for daemon, vers := range versions {
+		for version, num := range vers {
+			// We have a version, which is something like the following, how we want to map it
+			// ceph version 12.2.13-30-aabbccdd (c5b1fd521188ddcdedcf6f98ae0e6a02286042f2) luminous (stable)
+			//              version_tag          sha1                                      release_tag
+			res := versionRegexp.FindStringSubmatch(version)
+			if len(res) != 4 {
+				m.CephVersions.WithLabelValues(daemon, "unknown", "unknown", "unknown").Set(num)
+				continue
+			}
+
+			m.CephVersions.WithLabelValues(daemon, res[1], res[2], res[3]).Set(float64(num))
+		}
+	}
+
+	// Ceph features, generic handling of arbitrary daemons
+	for daemon, groups := range features {
+		for _, group := range groups {
+			m.CephFeatures.WithLabelValues(daemon, group.Release, group.Features).Set(float64(group.Num))
+		}
+	}
+
 	return nil
 }
 
@@ -392,6 +548,28 @@ func (m *MonitorCollector) cephTimeSyncStatusCommand() []byte {
 	})
 	if err != nil {
 		m.logger.WithError(err).Panic("error marshalling ceph time-sync-status")
+	}
+	return cmd
+}
+
+func (m *MonitorCollector) cephVersionsCommand() []byte {
+	cmd, err := json.Marshal(map[string]interface{}{
+		"prefix": "versions",
+		"format": "json",
+	})
+	if err != nil {
+		m.logger.WithError(err).Panic("error marshalling ceph versions")
+	}
+	return cmd
+}
+
+func (m *MonitorCollector) cephFeaturesCommand() []byte {
+	cmd, err := json.Marshal(map[string]interface{}{
+		"prefix": "features",
+		"format": "json",
+	})
+	if err != nil {
+		m.logger.WithError(err).Panic("error marshalling ceph features")
 	}
 	return cmd
 }
