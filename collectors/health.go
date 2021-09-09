@@ -1296,6 +1296,10 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 		if state == "scrubbing" {
 			val -= *pgStateCounterMap["scrubbing+deep"]
 		}
+		if state == "snaptrim" {
+			val -= *pgStateCounterMap["snaptrim_wait"]
+		}
+
 		gauge.Set(val)
 		if state == "scrubbing+deep" {
 			state = "deep_scrubbing"
