@@ -478,6 +478,25 @@ $ sudo ceph -s
 {
   "health": {
     "checks": {
+      "OSD_TOO_MANY_REPAIRS": {
+        "severity": "HEALTH_WARN",
+        "summary": {
+          "message": "Too many repaired reads on 25 OSDs"
+        }
+      }
+    }
+  }
+}`,
+			reMatch: []*regexp.Regexp{
+				regexp.MustCompile(`osds_too_many_repair{cluster="ceph"} 25`),
+				regexp.MustCompile(`health_status_interp{cluster="ceph"} 1`),
+			},
+		},
+		{
+			input: `
+{
+  "health": {
+    "checks": {
       "POOL_APP_NOT_ENABLED": {
         "severity": "HEALTH_WARN",
         "summary": {

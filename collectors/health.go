@@ -175,6 +175,9 @@ type ClusterHealthCollector struct {
 	// NewCrashReportCount reports if new Ceph daemon crash reports are available
 	NewCrashReportCount prometheus.Gauge
 
+	// TooManyRepairs reports the number of OSDs exceeding mon_osd_warn_num_repaired
+	TooManyRepairs prometheus.Gauge
+
 	// Objects show the total no. of RADOS objects that are currently allocated
 	Objects prometheus.Gauge
 
@@ -327,6 +330,7 @@ func NewClusterHealthCollector(conn Conn, cluster string, logger *logrus.Logger)
 			"OSD_ROOT_DOWN":                        1,
 			"OSD_ROW_DOWN":                         1,
 			"OSD_SCRUB_ERRORS":                     2,
+			"OSD_TOO_MANY_REPAIRS":                 1,
 			"PG_AVAILABILITY":                      1,
 			"PG_BACKFILL_FULL":                     2,
 			"PG_DAMAGED":                           2,
@@ -607,6 +611,14 @@ func NewClusterHealthCollector(conn Conn, cluster string, logger *logrus.Logger)
 				Namespace:   cephNamespace,
 				Name:        "new_crash_reports",
 				Help:        "Number of new crash reports available",
+				ConstLabels: labels,
+			},
+		),
+		TooManyRepairs: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "osds_too_many_repair",
+				Help:        "Number of OSDs with too many repaired reads",
 				ConstLabels: labels,
 			},
 		),
@@ -908,6 +920,7 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.DegradedObjectsCount,
 		c.MisplacedObjectsCount,
 		c.NewCrashReportCount,
+		c.TooManyRepairs,
 		c.Objects,
 		c.OSDMapFlagFull,
 		c.OSDMapFlagPauseRd,
@@ -1078,6 +1091,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 		stuckStaleRegex      = regexp.MustCompile(`([\d]+) pgs stuck stale`)
 		slowOpsRegexNautilus = regexp.MustCompile(`([\d]+) slow ops, oldest one blocked for ([\d]+) sec`)
 		newCrashreportRegex  = regexp.MustCompile(`([\d]+) daemons have recently crashed`)
+		tooManyRepairs       = regexp.MustCompile(`Too many repaired reads on ([\d]+) OSDs`)
 		osdmapFlagsRegex     = regexp.MustCompile(`([^ ]+) flag\(s\) set`)
 	)
 
@@ -1161,6 +1175,17 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 					return err
 				}
 				c.NewCrashReportCount.Set(float64(v))
+			}
+		}
+
+		if k == "OSD_TOO_MANY_REPAIRS" {
+			matched := tooManyRepairs.FindStringSubmatch(check.Summary.Message)
+			if len(matched) == 2 {
+				v, err := strconv.Atoi(matched[1])
+				if err != nil {
+					return err
+				}
+				c.TooManyRepairs.Set(float64(v))
 			}
 		}
 
