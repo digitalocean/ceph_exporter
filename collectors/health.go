@@ -158,6 +158,9 @@ type ClusterHealthCollector struct {
 	// SnaptrimWaitPGs depicts no. of PGs that are currently waiting to snaptrim
 	SnaptrimWaitPGs prometheus.Gauge
 
+	// RepairingPGs depicts no. of PGs that are currently repairing
+	RepairingPGs prometheus.Gauge
+
 	// SlowOps depicts no. of total slow ops in the cluster
 	SlowOps prometheus.Gauge
 
@@ -504,6 +507,14 @@ func NewClusterHealthCollector(conn Conn, cluster string, logger *logrus.Logger)
 				Namespace:   cephNamespace,
 				Name:        "snaptrim_wait_pgs",
 				Help:        "No. of PGs in the cluster with snaptrim_wait state",
+				ConstLabels: labels,
+			},
+		),
+		RepairingPGs: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "repairing_pgs",
+				Help:        "No. of PGs in the cluster with repair state",
 				ConstLabels: labels,
 			},
 		),
@@ -916,6 +927,7 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.InconsistentPGs,
 		c.SnaptrimPGs,
 		c.SnaptrimWaitPGs,
+		c.RepairingPGs,
 		c.SlowOps,
 		c.DegradedObjectsCount,
 		c.MisplacedObjectsCount,
@@ -1252,6 +1264,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 		inconsistentPGs   float64
 		snaptrimPGs       float64
 		snaptrimWaitPGs   float64
+		repairingPGs      float64
 
 		pgStateCounterMap = map[string]*float64{
 			"degraded":        &degradedPGs,
@@ -1273,6 +1286,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 			"inconsistent":    &inconsistentPGs,
 			"snaptrim":        &snaptrimPGs,
 			"snaptrim_wait":   &snaptrimWaitPGs,
+			"repair":          &repairingPGs,
 		}
 		pgStateGaugeMap = map[string]prometheus.Gauge{
 			"degraded":        c.DegradedPGs,
@@ -1294,6 +1308,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 			"inconsistent":    c.InconsistentPGs,
 			"snaptrim":        c.SnaptrimPGs,
 			"snaptrim_wait":   c.SnaptrimWaitPGs,
+			"repair":          c.RepairingPGs,
 		}
 	)
 
