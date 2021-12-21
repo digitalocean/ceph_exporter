@@ -341,6 +341,10 @@ $ sudo ceph -s
 				"count": 1
 			},
 			{
+				"state_name": "active+clean+repair",
+				"count": 1
+			},
+			{
 				"state_name": "active+clean+snaptrim",
 				"count": 15
 			},
@@ -362,6 +366,7 @@ $ sudo ceph -s
 				regexp.MustCompile(`cluster_objects{cluster="ceph"} 13156`),
 				regexp.MustCompile(`snaptrim_pgs{cluster="ceph"} 15`),
 				regexp.MustCompile(`snaptrim_wait_pgs{cluster="ceph"} 25`),
+				regexp.MustCompile(`repair{cluster="ceph"} 1`),
 			},
 		},
 		{
