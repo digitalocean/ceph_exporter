@@ -21,20 +21,23 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/digitalocean/ceph_exporter/mocks"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	"github.com/digitalocean/ceph_exporter/mocks"
 )
 
 func TestClusterHealthCollector(t *testing.T) {
 	for _, tt := range []struct {
+		name    string
 		input   string
 		reMatch []*regexp.Regexp
 	}{
 		{
+			name: "15 pgs stuck degraded",
 			input: `
 {
 	"osdmap": {
@@ -52,6 +55,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
+			name: "16 pgs stuck unclean",
 			input: `
 {
 	"osdmap": {
@@ -69,6 +73,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
+			name: "17 pgs stuck undersized",
 			input: `
 {
 	"osdmap": {
@@ -86,6 +91,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
+			name: "18 pgs stuck stale",
 			input: `
 {
 	"osdmap": {
@@ -103,6 +109,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
+			name: "10 degraded objects",
 			input: `
 {
 	"osdmap": {
@@ -120,6 +127,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
+			name: "20 misplaced objects",
 			input: `
 {
 	"osdmap": {
@@ -137,6 +145,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
+			name: "10 down osds",
 			input: `
 {
 	"osdmap": {
@@ -153,6 +162,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
+			name: "normal values 1",
 			input: `
 {
 	"osdmap": {
@@ -173,6 +183,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
+			name: "health ok",
 			input: `
 {
 	"osdmap": {
@@ -189,6 +200,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
+			name: "health warn",
 			input: `
 {
 	"osdmap": {
@@ -206,6 +218,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
+			name: "health ok 2",
 			input: `
 {
 	"osdmap": {
@@ -223,6 +236,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
+			name: "health warn 2",
 			input: `
 {
 	"osdmap": {
@@ -240,6 +254,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
+			name: "health err",
 			input: `
 {
 	"osdmap": {
@@ -257,6 +272,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
+			name: "cluster statistics",
 			input: `
 $ sudo ceph -s
     cluster eff51be8-938a-4afa-b0d1-7a580b4ceb37
@@ -275,6 +291,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "cluster statistics 2",
 			input: `
 $ sudo ceph -s
     cluster eff51be8-938a-4afa-b0d1-7a580b4ceb37
@@ -297,6 +314,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "pg statistics",
 			input: `
 {
 	"osdmap": {
@@ -316,6 +334,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "pg states",
 			input: `
 {
 	"osdmap": {
@@ -370,6 +389,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "mon down",
 			input: `
 {
   "health": {
@@ -388,6 +408,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "slow ops",
 			input: `
 {
 	"health": {
@@ -404,6 +425,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "slow and blocked ops",
 			input: `
 {
   "health": {
@@ -422,6 +444,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "more slow and blocked ops",
 			input: `
 {
   "health": {
@@ -440,6 +463,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "degraded cluster",
 			input: `
 {
   "health": {
@@ -460,6 +484,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "crashed daemons",
 			input: `
 {
   "health": {
@@ -479,6 +504,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "too many repaired reads",
 			input: `
 {
   "health": {
@@ -498,6 +524,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "not enabled on 1 pool",
 			input: `
 {
   "health": {
@@ -516,6 +543,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "many flags set",
 			input: `
 {
   "health": {
@@ -547,6 +575,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "lots of PG data",
 			input: `
 {
 	"pgmap": {
@@ -692,6 +721,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "manager map",
 			input: `
 {
     "mgrmap": {
@@ -741,6 +771,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "service map (rbd-mirror)",
 			input: `
 {
     "servicemap": {
@@ -780,7 +811,7 @@ $ sudo ceph -s
 			},
 		},
 	} {
-		func() {
+		t.Run(tt.name, func(t *testing.T) {
 			conn := &mocks.Conn{}
 			conn.On("MonCommand", mock.Anything).Return(
 				[]byte(tt.input), "", nil,
@@ -804,6 +835,6 @@ $ sudo ceph -s
 			for _, re := range tt.reMatch {
 				require.True(t, re.Match(buf))
 			}
-		}()
+		})
 	}
 }
