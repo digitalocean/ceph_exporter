@@ -378,14 +378,14 @@ $ sudo ceph -s
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "7 pgs undersized"}]}
 }`,
 			reMatch: []*regexp.Regexp{
-				regexp.MustCompile(`active_pgs{cluster="ceph"} 48`),
+				regexp.MustCompile(`active_pgs{cluster="ceph"} 49`),
 				regexp.MustCompile(`scrubbing_pgs{cluster="ceph"} 2`),
 				regexp.MustCompile(`deep_scrubbing_pgs{cluster="ceph"} 5`),
 				regexp.MustCompile(`inconsistent_pgs{cluster="ceph"} 1`),
 				regexp.MustCompile(`cluster_objects{cluster="ceph"} 13156`),
 				regexp.MustCompile(`snaptrim_pgs{cluster="ceph"} 15`),
 				regexp.MustCompile(`snaptrim_wait_pgs{cluster="ceph"} 25`),
-				regexp.MustCompile(`repair{cluster="ceph"} 1`),
+				regexp.MustCompile(`repairing_pgs{cluster="ceph"} 1`),
 			},
 		},
 		{
@@ -833,7 +833,9 @@ $ sudo ceph -s
 			require.NoError(t, err)
 
 			for _, re := range tt.reMatch {
-				require.True(t, re.Match(buf))
+				if !re.Match(buf) {
+					t.Errorf("expected %s to match\n", re.String())
+				}
 			}
 		})
 	}
