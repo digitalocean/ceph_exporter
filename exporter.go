@@ -16,18 +16,22 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
 	"net"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 
-	"github.com/digitalocean/ceph_exporter/collectors"
 	"github.com/ianschenck/envflag"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
+
+	"github.com/digitalocean/ceph_exporter/collectors"
 )
 
 const (
@@ -35,6 +39,10 @@ const (
 	defaultCephConfigPath   = "/etc/ceph/ceph.conf"
 	defaultCephUser         = "admin"
 	defaultRadosOpTimeout   = 30 * time.Second
+)
+
+var (
+	errCephVersionUnsupported = errors.New("ceph version unsupported")
 )
 
 // This horrible thing is a copy of tcpKeepAliveListener, tweaked to
@@ -70,7 +78,8 @@ func (ln emfileAwareTcpListener) Accept() (c net.Conn, err error) {
 // to register it correctly.
 type CephExporter struct {
 	mu         sync.Mutex
-	collectors []prometheus.Collector
+	conn       collectors.Conn
+	collectors map[string][]prometheus.Collector
 	logger     *logrus.Logger
 }
 
@@ -81,43 +90,94 @@ var _ prometheus.Collector = &CephExporter{}
 // to it. We can choose to enable a collector to extract stats out of by adding
 // it to the list of collectors.
 func NewCephExporter(conn collectors.Conn, cluster string, config string, rgwMode int, logger *logrus.Logger) *CephExporter {
+	standardCollectors := []prometheus.Collector{
+		collectors.NewClusterUsageCollector(conn, cluster, logger),
+		collectors.NewPoolUsageCollector(conn, cluster, logger),
+		collectors.NewPoolInfoCollector(conn, cluster, logger),
+		collectors.NewClusterHealthCollector(conn, cluster, logger),
+		collectors.NewMonitorCollector(conn, cluster, logger),
+		collectors.NewOSDCollector(conn, cluster, logger),
+	}
+
 	c := &CephExporter{
-		collectors: []prometheus.Collector{
-			collectors.NewClusterUsageCollector(conn, cluster, logger),
-			collectors.NewPoolUsageCollector(conn, cluster, logger),
-			collectors.NewPoolInfoCollector(conn, cluster, logger),
-			collectors.NewClusterHealthCollector(conn, cluster, logger),
-			collectors.NewMonitorCollector(conn, cluster, logger),
-			collectors.NewOSDCollector(conn, cluster, logger),
+		conn: conn,
+		collectors: map[string][]prometheus.Collector{
+			"nautilus": standardCollectors,
+			"octopus":  standardCollectors,
+			"pacific":  standardCollectors,
 		},
 		logger: logger,
 	}
 
 	switch rgwMode {
 	case collectors.RGWModeForeground:
-		c.collectors = append(c.collectors,
-			collectors.NewRGWCollector(cluster, config, false, logger),
-		)
+		for version := range c.collectors {
+			c.collectors[version] = append(c.collectors[version], collectors.NewRGWCollector(cluster, config, false, logger))
+		}
 
 	case collectors.RGWModeBackground:
-		c.collectors = append(c.collectors,
-			collectors.NewRGWCollector(cluster, config, true, logger),
-		)
+		for version := range c.collectors {
+			c.collectors[version] = append(c.collectors[version], collectors.NewRGWCollector(cluster, config, true, logger))
+		}
 
 	case collectors.RGWModeDisabled:
 		// nothing to do
 
 	default:
-		logger.WithField("rgwMode", rgwMode).Warn("RGW Collector Disabled do to invalid mode")
+		logger.WithField("rgwMode", rgwMode).Warn("RGW collector disabled due to invalid mode")
 	}
 
 	return c
 }
 
+func (c *CephExporter) cephVersionCmd() []byte {
+	cmd, err := json.Marshal(map[string]interface{}{
+		"prefix": "version",
+		"format": "json",
+	})
+	if err != nil {
+		c.logger.WithError(err).Panic("failed to marshal ceph version command")
+	}
+
+	return cmd
+}
+
+func (c *CephExporter) getCephVersion() (string, error) {
+	buf, _, err := c.conn.MonCommand(c.cephVersionCmd())
+	if err != nil {
+		return "", err
+	}
+
+	cephVersion := &struct {
+		Version string `json:"version"`
+	}{}
+
+	err = json.Unmarshal(buf, cephVersion)
+	if err != nil {
+		return "", err
+	}
+
+	if strings.Contains(cephVersion.Version, "nautilus") {
+		return "nautilus", nil
+	} else if strings.Contains(cephVersion.Version, "octopus") {
+		return "octopus", nil
+	} else if strings.Contains(cephVersion.Version, "pacific") {
+		return "pacific", nil
+	}
+
+	return "", errCephVersionUnsupported
+}
+
 // Describe sends all the descriptors of the collectors included to
 // the provided channel.
 func (c *CephExporter) Describe(ch chan<- *prometheus.Desc) {
-	for _, cc := range c.collectors {
+	version, err := c.getCephVersion()
+	if err != nil {
+		c.logger.WithError(err).Error("failed to determine ceph version")
+		return
+	}
+
+	for _, cc := range c.collectors[version] {
 		cc.Describe(ch)
 	}
 }
@@ -126,10 +186,16 @@ func (c *CephExporter) Describe(ch chan<- *prometheus.Desc) {
 // prometheus. Collect could be called several times concurrently
 // and thus its run is protected by a single mutex.
 func (c *CephExporter) Collect(ch chan<- prometheus.Metric) {
+	version, err := c.getCephVersion()
+	if err != nil {
+		c.logger.WithError(err).Error("failed to determine ceph version")
+		return
+	}
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	for _, cc := range c.collectors {
+	for _, cc := range c.collectors[version] {
 		cc.Collect(ch)
 	}
 }
