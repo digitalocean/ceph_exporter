@@ -12,7 +12,7 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-package collectors
+package ceph
 
 import (
 	"bufio"
@@ -47,8 +47,9 @@ var (
 // It surfaces changes in the ceph parameters unlike data usage that ClusterUsageCollector
 // does.
 type ClusterHealthCollector struct {
-	conn   Conn
-	logger *logrus.Logger
+	conn    Conn
+	logger  *logrus.Logger
+	version *Version
 
 	// healthChecksMap stores warnings and their criticality
 	healthChecksMap map[string]int
@@ -273,13 +274,14 @@ const (
 
 // NewClusterHealthCollector creates a new instance of ClusterHealthCollector to collect health
 // metrics on.
-func NewClusterHealthCollector(conn Conn, cluster string, logger *logrus.Logger) *ClusterHealthCollector {
+func NewClusterHealthCollector(exporter *Exporter) *ClusterHealthCollector {
 	labels := make(prometheus.Labels)
-	labels["cluster"] = cluster
+	labels["cluster"] = exporter.Cluster
 
 	return &ClusterHealthCollector{
-		conn:   conn,
-		logger: logger,
+		conn:    exporter.Conn,
+		logger:  exporter.Logger,
+		version: exporter.Version,
 
 		healthChecksMap: map[string]int{
 			"AUTH_BAD_CAPS":                        2,

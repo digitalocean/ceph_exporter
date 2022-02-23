@@ -12,7 +12,7 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-package collectors
+package ceph
 
 import (
 	"encoding/json"
@@ -32,8 +32,9 @@ var versionRegexp = regexp.MustCompile(`ceph version (?P<version_tag>\d+\.\d+\.\
 // to each monitor instance, there are various vector metrics we
 // need to use.
 type MonitorCollector struct {
-	conn   Conn
-	logger *logrus.Logger
+	conn    Conn
+	logger  *logrus.Logger
+	version *Version
 
 	// TotalKBs display the total storage a given monitor node has.
 	TotalKBs *prometheus.GaugeVec
@@ -90,13 +91,14 @@ type Store struct {
 
 // NewMonitorCollector creates an instance of the MonitorCollector and instantiates
 // the individual metrics that show information about the monitor processes.
-func NewMonitorCollector(conn Conn, cluster string, logger *logrus.Logger) *MonitorCollector {
+func NewMonitorCollector(exporter *Exporter) *MonitorCollector {
 	labels := make(prometheus.Labels)
-	labels["cluster"] = cluster
+	labels["cluster"] = exporter.Cluster
 
 	return &MonitorCollector{
-		conn:   conn,
-		logger: logger,
+		conn:    exporter.Conn,
+		logger:  exporter.Logger,
+		version: exporter.Version,
 
 		TotalKBs: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{

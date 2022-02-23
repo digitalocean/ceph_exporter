@@ -12,7 +12,7 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-package collectors
+package ceph
 
 import (
 	"io/ioutil"
@@ -21,12 +21,13 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/digitalocean/ceph_exporter/mocks"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	"github.com/digitalocean/ceph_exporter/mocks"
 )
 
 func TestClusterUsage(t *testing.T) {
@@ -134,7 +135,7 @@ func TestClusterUsage(t *testing.T) {
 				[]byte(tt.input), "", nil,
 			)
 
-			collector := NewClusterUsageCollector(conn, "ceph", logrus.New())
+			collector := NewClusterUsageCollector(&Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()})
 			err := prometheus.Register(collector)
 			require.NoError(t, err)
 			defer prometheus.Unregister(collector)

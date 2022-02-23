@@ -12,7 +12,7 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-package collectors
+package ceph
 
 import (
 	"io/ioutil"
@@ -21,12 +21,13 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/digitalocean/ceph_exporter/mocks"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	"github.com/digitalocean/ceph_exporter/mocks"
 )
 
 func TestMonitorCollector(t *testing.T) {
@@ -272,7 +273,7 @@ func TestMonitorCollector(t *testing.T) {
 				[]byte(tt.input), "", nil,
 			)
 
-			collector := NewMonitorCollector(conn, "ceph", logrus.New())
+			collector := NewMonitorCollector(&Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()})
 			err := prometheus.Register(collector)
 			require.NoError(t, err)
 			defer prometheus.Unregister(collector)
@@ -391,7 +392,7 @@ func TestMonitorTimeSyncStats(t *testing.T) {
 				[]byte(tt.input), "", nil,
 			)
 
-			collector := NewMonitorCollector(conn, "ceph", logrus.New())
+			collector := NewMonitorCollector(&Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()})
 			err := prometheus.Register(collector)
 			require.NoError(t, err)
 			defer prometheus.Unregister(collector)
@@ -452,7 +453,7 @@ func TestMonitorCephVersions(t *testing.T) {
 				[]byte(tt.input), "", nil,
 			)
 
-			collector := NewMonitorCollector(conn, "ceph", logrus.New())
+			collector := NewMonitorCollector(&Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()})
 			err := prometheus.Register(collector)
 			require.NoError(t, err)
 			defer prometheus.Unregister(collector)
@@ -532,7 +533,7 @@ func TestMonitorCephFeatures(t *testing.T) {
 				[]byte(tt.input), "", nil,
 			)
 
-			collector := NewMonitorCollector(conn, "ceph", logrus.New())
+			collector := NewMonitorCollector(&Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()})
 			err := prometheus.Register(collector)
 			require.NoError(t, err)
 			defer prometheus.Unregister(collector)

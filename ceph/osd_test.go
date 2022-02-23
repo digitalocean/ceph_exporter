@@ -1,4 +1,4 @@
-package collectors
+package ceph
 
 import (
 	"encoding/json"
@@ -8,13 +8,14 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/digitalocean/ceph_exporter/mocks"
 	"github.com/google/go-cmp/cmp"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	"github.com/digitalocean/ceph_exporter/mocks"
 )
 
 const (
@@ -953,7 +954,7 @@ func TestOSDCollector(t *testing.T) {
     }
 }`), "", nil)
 
-			collector := NewOSDCollector(conn, "ceph", logrus.New())
+			collector := NewOSDCollector(&Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()})
 			err := prometheus.Register(collector)
 			require.NoError(t, err)
 			defer prometheus.Unregister(collector)

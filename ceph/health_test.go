@@ -12,7 +12,7 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-package collectors
+package ceph
 
 import (
 	"io/ioutil"
@@ -817,7 +817,7 @@ $ sudo ceph -s
 				[]byte(tt.input), "", nil,
 			)
 
-			collector := NewClusterHealthCollector(conn, "ceph", logrus.New())
+			collector := NewClusterHealthCollector(&Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()})
 			err := prometheus.Register(collector)
 			require.NoError(t, err)
 			defer prometheus.Unregister(collector)

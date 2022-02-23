@@ -1,4 +1,4 @@
-package collectors
+package ceph
 
 import (
 	"errors"
@@ -117,7 +117,7 @@ func TestRGWCollector(t *testing.T) {
 		},
 	} {
 		func() {
-			collector := NewRGWCollector("ceph", "", false, logrus.New()) // run in foreground for testing
+			collector := NewRGWCollector(&Exporter{Cluster: "ceph", Logger: logrus.New()}, false) // run in foreground for testing
 			collector.getRGWGCTaskList = func(cluster string) ([]byte, error) {
 				if tt.input != nil {
 					return tt.input, nil

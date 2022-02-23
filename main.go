@@ -16,12 +16,10 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"net"
 	"net/http"
 	"os"
-	"sync"
 	"syscall"
 	"time"
 
@@ -30,8 +28,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 
-	"github.com/digitalocean/ceph_exporter/collectors"
-	"github.com/digitalocean/ceph_exporter/version"
+	"github.com/digitalocean/ceph_exporter/ceph"
 )
 
 const (
@@ -42,10 +39,6 @@ const (
 )
 
 var (
-	// CephVersion is the parsed *version.Version from the Ceph version
-	CephVersion *version.Version
-	versionLock sync.Mutex
-
 	errCephVersionUnsupported = errors.New("ceph version unsupported")
 )
 
@@ -75,130 +68,8 @@ func (ln emfileAwareTcpListener) Accept() (c net.Conn, err error) {
 	return tc, nil
 }
 
-// CephExporter wraps all the ceph collectors and provides a single global
-// exporter to extracts metrics out of. It also ensures that the collection
-// is done in a thread-safe manner, the necessary requirement stated by
-// prometheus. It also implements a prometheus.Collector interface in order
-// to register it correctly.
-type CephExporter struct {
-	mu      sync.Mutex
-	conn    collectors.Conn
-	cluster string
-	config  string
-	rgwMode int
-	logger  *logrus.Logger
-}
-
 // Verify that the exporter implements the interface correctly.
-var _ prometheus.Collector = &CephExporter{}
-
-// NewCephExporter creates an instance to CephExporter and returns a reference
-// to it. We can choose to enable a collector to extract stats out of by adding
-// it to the list of collectors.
-func NewCephExporter(conn collectors.Conn, cluster string, config string, rgwMode int, logger *logrus.Logger) *CephExporter {
-	return &CephExporter{
-		conn:    conn,
-		cluster: cluster,
-		config:  config,
-		rgwMode: rgwMode,
-		logger:  logger,
-	}
-}
-
-func (c *CephExporter) getCollectors() []prometheus.Collector {
-	standardCollectors := []prometheus.Collector{
-		collectors.NewClusterUsageCollector(c.conn, c.cluster, c.logger),
-		collectors.NewPoolUsageCollector(c.conn, c.cluster, c.logger),
-		collectors.NewPoolInfoCollector(c.conn, c.cluster, c.logger),
-		collectors.NewClusterHealthCollector(c.conn, c.cluster, c.logger),
-		collectors.NewMonitorCollector(c.conn, c.cluster, c.logger),
-		collectors.NewOSDCollector(c.conn, c.cluster, c.logger),
-	}
-
-	switch c.rgwMode {
-	case collectors.RGWModeForeground:
-		standardCollectors = append(standardCollectors, collectors.NewRGWCollector(c.cluster, c.config, false, c.logger))
-	case collectors.RGWModeBackground:
-		standardCollectors = append(standardCollectors, collectors.NewRGWCollector(c.cluster, c.config, true, c.logger))
-	case collectors.RGWModeDisabled:
-		// nothing to do
-	default:
-		c.logger.WithField("rgwMode", c.rgwMode).Warn("RGW collector disabled due to invalid mode")
-	}
-
-	return standardCollectors
-}
-
-func (c *CephExporter) cephVersionCmd() []byte {
-	cmd, err := json.Marshal(map[string]interface{}{
-		"prefix": "version",
-		"format": "json",
-	})
-	if err != nil {
-		c.logger.WithError(err).Panic("failed to marshal ceph version command")
-	}
-
-	return cmd
-}
-
-func (c *CephExporter) setCephVersion() error {
-	buf, _, err := c.conn.MonCommand(c.cephVersionCmd())
-	if err != nil {
-		return err
-	}
-
-	cephVersion := &struct {
-		Version string `json:"version"`
-	}{}
-
-	err = json.Unmarshal(buf, cephVersion)
-	if err != nil {
-		return err
-	}
-
-	parsedVersion, err := version.ParseCephVersion(cephVersion.Version)
-	if err != nil {
-		return err
-	}
-
-	versionLock.Lock()
-	CephVersion = parsedVersion
-	versionLock.Unlock()
-
-	return nil
-}
-
-// Describe sends all the descriptors of the collectors included to
-// the provided channel.
-func (c *CephExporter) Describe(ch chan<- *prometheus.Desc) {
-	err := c.setCephVersion()
-	if err != nil {
-		c.logger.WithError(err).Error("failed to set ceph version")
-		return
-	}
-
-	for _, cc := range c.getCollectors() {
-		cc.Describe(ch)
-	}
-}
-
-// Collect sends the collected metrics from each of the collectors to
-// prometheus. Collect could be called several times concurrently
-// and thus its run is protected by a single mutex.
-func (c *CephExporter) Collect(ch chan<- prometheus.Metric) {
-	err := c.setCephVersion()
-	if err != nil {
-		c.logger.WithError(err).Error("failed to set ceph version")
-		return
-	}
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	for _, cc := range c.getCollectors() {
-		cc.Collect(ch)
-	}
-}
+var _ prometheus.Collector = &ceph.Exporter{}
 
 func main() {
 	var (
@@ -249,13 +120,13 @@ func main() {
 	}
 
 	for _, cluster := range clusterConfigs {
-		conn := collectors.NewRadosConn(
+		conn := ceph.NewRadosConn(
 			cluster.User,
 			cluster.ConfigFile,
 			*cephRadosOpTimeout,
 			logger)
 
-		prometheus.MustRegister(NewCephExporter(
+		prometheus.MustRegister(ceph.NewExporter(
 			conn,
 			cluster.ClusterLabel,
 			cluster.ConfigFile,

@@ -12,7 +12,7 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-package collectors
+package ceph
 
 import (
 	"encoding/json"
@@ -31,8 +31,9 @@ const (
 // PoolInfoCollector gives information about each pool that exists in a given
 // ceph cluster.
 type PoolInfoCollector struct {
-	conn   Conn
-	logger *logrus.Logger
+	conn    Conn
+	logger  *logrus.Logger
+	version *Version
 
 	// PGNum contains the count of PGs allotted to a particular pool.
 	PGNum *prometheus.GaugeVec
@@ -63,18 +64,19 @@ type PoolInfoCollector struct {
 }
 
 // NewPoolInfoCollector displays information about each pool in the cluster.
-func NewPoolInfoCollector(conn Conn, cluster string, logger *logrus.Logger) *PoolInfoCollector {
+func NewPoolInfoCollector(exporter *Exporter) *PoolInfoCollector {
 	var (
 		subSystem  = "pool"
 		poolLabels = []string{"pool", "profile", "root"}
 	)
 
 	labels := make(prometheus.Labels)
-	labels["cluster"] = cluster
+	labels["cluster"] = exporter.Cluster
 
 	return &PoolInfoCollector{
-		conn:   conn,
-		logger: logger,
+		conn:    exporter.Conn,
+		logger:  exporter.Logger,
+		version: exporter.Version,
 
 		PGNum: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
