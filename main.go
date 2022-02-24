@@ -29,6 +29,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/digitalocean/ceph_exporter/ceph"
+	"github.com/digitalocean/ceph_exporter/rados"
 )
 
 const (
@@ -120,7 +121,7 @@ func main() {
 	}
 
 	for _, cluster := range clusterConfigs {
-		conn := ceph.NewRadosConn(
+		conn := rados.NewRadosConn(
 			cluster.User,
 			cluster.ConfigFile,
 			*cephRadosOpTimeout,

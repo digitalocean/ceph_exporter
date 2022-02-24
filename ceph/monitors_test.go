@@ -26,8 +26,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-
-	"github.com/digitalocean/ceph_exporter/mocks"
 )
 
 func TestMonitorCollector(t *testing.T) {
@@ -268,7 +266,7 @@ func TestMonitorCollector(t *testing.T) {
 		},
 	} {
 		func() {
-			conn := &mocks.Conn{}
+			conn := &MockConn{}
 			conn.On("MonCommand", mock.Anything).Return(
 				[]byte(tt.input), "", nil,
 			)
@@ -387,7 +385,7 @@ func TestMonitorTimeSyncStats(t *testing.T) {
 		},
 	} {
 		func() {
-			conn := &mocks.Conn{}
+			conn := &MockConn{}
 			conn.On("MonCommand", mock.Anything).Return(
 				[]byte(tt.input), "", nil,
 			)
@@ -448,7 +446,7 @@ func TestMonitorCephVersions(t *testing.T) {
 		},
 	} {
 		func() {
-			conn := &mocks.Conn{}
+			conn := &MockConn{}
 			conn.On("MonCommand", mock.Anything).Return(
 				[]byte(tt.input), "", nil,
 			)
@@ -528,7 +526,7 @@ func TestMonitorCephFeatures(t *testing.T) {
 		},
 	} {
 		func() {
-			conn := &mocks.Conn{}
+			conn := &MockConn{}
 			conn.On("MonCommand", mock.Anything).Return(
 				[]byte(tt.input), "", nil,
 			)
