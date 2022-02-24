@@ -18,7 +18,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: ['**']
 
 jobs:
 
@@ -32,15 +32,6 @@ jobs:
       with:
         go-version: 1.17
 
-    - name: Set up Ceph repository key
-      run: wget -q -O- 'https://download.ceph.com/keys/release.asc' | sudo apt-key add -
-    - name: Declare Ceph Nautilus repository
-      run: echo deb https://download.ceph.com/debian-nautilus/ $(lsb_release -sc) main | sudo tee /etc/apt/sources.list.d/ceph.list
-    - name: Install go-ceph dependencies
-      run: sudo apt update && sudo apt install -y librados-dev librbd-dev
-
-    - name: Go build
-      run: go build -v ./...
-
+    # We only test the Ceph package since main depends on go-ceph
     - name: Go test
-      run: go test -v ./...
+      run: go test -v ./ceph
