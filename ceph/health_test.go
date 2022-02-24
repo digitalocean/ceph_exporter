@@ -26,8 +26,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-
-	"github.com/digitalocean/ceph_exporter/mocks"
 )
 
 func TestClusterHealthCollector(t *testing.T) {
@@ -812,7 +810,7 @@ $ sudo ceph -s
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			conn := &mocks.Conn{}
+			conn := &MockConn{}
 			conn.On("MonCommand", mock.Anything).Return(
 				[]byte(tt.input), "", nil,
 			)

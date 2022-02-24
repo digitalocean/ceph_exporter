@@ -14,8 +14,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-
-	"github.com/digitalocean/ceph_exporter/mocks"
 )
 
 const (
@@ -468,7 +466,7 @@ func TestOSDCollector(t *testing.T) {
 		},
 	} {
 		func() {
-			conn := &mocks.Conn{}
+			conn := &MockConn{}
 
 			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
 				v := map[string]interface{}{}

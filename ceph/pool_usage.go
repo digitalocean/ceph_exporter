@@ -282,7 +282,7 @@ func (p *PoolUsageCollector) collect() error {
 			continue
 		}
 
-		p.UnfoundObjects.WithLabelValues(pool.Name).Set(float64(st.Num_objects_unfound))
+		p.UnfoundObjects.WithLabelValues(pool.Name).Set(float64(st.ObjectsUnfound))
 	}
 
 	return nil
