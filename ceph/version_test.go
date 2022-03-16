@@ -45,6 +45,12 @@ func TestParseCephVersion(t *testing.T) {
 			want:    &Version{Major: 16, Minor: 2, Patch: 3, Revision: 33, Commit: "gcc1e126"},
 			wantErr: false,
 		},
+		{
+			name:    "real pacific",
+			args:    args{cephVersion: "ceph version 16.2.7 (dd0603118f56ab514f133c8d2e3adfc983942503) pacific (stable)"},
+			want:    &Version{Major: 16, Minor: 2, Patch: 7, Revision: 0, Commit: ""},
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -816,6 +816,7 @@ $ sudo ceph -s
 			)
 
 			collector := NewClusterHealthCollector(&Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()})
+			collector.version = &Version{Major: 14, Minor: 2, Patch: 0}
 			err := prometheus.Register(collector)
 			require.NoError(t, err)
 			defer prometheus.Unregister(collector)

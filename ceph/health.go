@@ -976,6 +976,13 @@ func (c *ClusterHealthCollector) collectorList() []prometheus.Collector {
 	}
 }
 
+type osdMap struct {
+	NumOSDs        float64 `json:"num_osds"`
+	NumUpOSDs      float64 `json:"num_up_osds"`
+	NumInOSDs      float64 `json:"num_in_osds"`
+	NumRemappedPGs float64 `json:"num_remapped_pgs"`
+}
+
 type cephHealthStats struct {
 	Health struct {
 		Summary []struct {
@@ -991,15 +998,8 @@ type cephHealthStats struct {
 			} `json:"summary"`
 		} `json:"checks"`
 	} `json:"health"`
-	OSDMap struct {
-		OSDMap struct {
-			NumOSDs        float64 `json:"num_osds"`
-			NumUpOSDs      float64 `json:"num_up_osds"`
-			NumInOSDs      float64 `json:"num_in_osds"`
-			NumRemappedPGs float64 `json:"num_remapped_pgs"`
-		} `json:"osdmap"`
-	} `json:"osdmap"`
-	PGMap struct {
+	OSDMap map[string]interface{} `json:"osdmap"`
+	PGMap  struct {
 		NumPGs                  float64 `json:"num_pgs"`
 		TotalObjects            float64 `json:"num_objects"`
 		WriteOpPerSec           float64 `json:"write_op_per_sec"`
@@ -1350,15 +1350,38 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 	c.CacheFlushIORate.Set(stats.PGMap.CacheFlushBytePerSec)
 	c.CachePromoteIOOps.Set(stats.PGMap.CachePromoteOpPerSec)
 
-	c.OSDsUp.Set(stats.OSDMap.OSDMap.NumUpOSDs)
-	c.OSDsIn.Set(stats.OSDMap.OSDMap.NumInOSDs)
-	c.OSDsNum.Set(stats.OSDMap.OSDMap.NumOSDs)
+	var actualOsdMap osdMap
+	if c.version.IsAtLeast(Octopus) {
+		if stats.OSDMap != nil {
+			actualOsdMap = osdMap{
+				NumOSDs:        stats.OSDMap["num_osds"].(float64),
+				NumUpOSDs:      stats.OSDMap["num_up_osds"].(float64),
+				NumInOSDs:      stats.OSDMap["num_in_osds"].(float64),
+				NumRemappedPGs: stats.OSDMap["num_remapped_pgs"].(float64),
+			}
+		}
+	} else {
+		if stats.OSDMap != nil {
+			innerMap := stats.OSDMap["osdmap"].(map[string]interface{})
+
+			actualOsdMap = osdMap{
+				NumOSDs:        innerMap["num_osds"].(float64),
+				NumUpOSDs:      innerMap["num_up_osds"].(float64),
+				NumInOSDs:      innerMap["num_in_osds"].(float64),
+				NumRemappedPGs: innerMap["num_remapped_pgs"].(float64),
+			}
+		}
+	}
+
+	c.OSDsUp.Set(actualOsdMap.NumUpOSDs)
+	c.OSDsIn.Set(actualOsdMap.NumInOSDs)
+	c.OSDsNum.Set(actualOsdMap.NumOSDs)
 
 	// Ceph (until v10.2.3) doesn't expose the value of down OSDs
 	// from its status, which is why we have to compute it ourselves.
-	c.OSDsDown.Set(stats.OSDMap.OSDMap.NumOSDs - stats.OSDMap.OSDMap.NumUpOSDs)
+	c.OSDsDown.Set(actualOsdMap.NumOSDs - actualOsdMap.NumUpOSDs)
 
-	c.RemappedPGs.Set(stats.OSDMap.OSDMap.NumRemappedPGs)
+	c.RemappedPGs.Set(actualOsdMap.NumRemappedPGs)
 	c.TotalPGs.Set(stats.PGMap.NumPGs)
 	c.Objects.Set(stats.PGMap.TotalObjects)
 

@@ -73,7 +73,9 @@ func ParseCephVersion(cephVersion string) (*Version, error) {
 	}
 
 	otherVersions := strings.Split(someVersions[2], "-")
-	if len(otherVersions) != 3 {
+	if len(otherVersions) == 1 {
+		otherVersions = []string{otherVersions[0], "0", ""}
+	} else if len(otherVersions) != 3 {
 		return nil, ErrInvalidVersion
 	}
 

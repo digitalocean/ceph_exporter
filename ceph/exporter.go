@@ -60,11 +60,11 @@ func (exporter *Exporter) getCollectors() []prometheus.Collector {
 
 func (exporter *Exporter) cephVersionCmd() []byte {
 	cmd, err := json.Marshal(map[string]interface{}{
-		"prefix": "Version",
+		"prefix": "version",
 		"format": "json",
 	})
 	if err != nil {
-		exporter.Logger.WithError(err).Panic("failed to marshal ceph Version command")
+		exporter.Logger.WithError(err).Panic("failed to marshal ceph version command")
 	}
 
 	return cmd
@@ -87,6 +87,7 @@ func (exporter *Exporter) setCephVersion() error {
 
 	parsedVersion, err := ParseCephVersion(cephVersion.Version)
 	if err != nil {
+		exporter.Logger.Info("version " + cephVersion.Version)
 		return err
 	}
 
@@ -113,14 +114,14 @@ func (exporter *Exporter) Describe(ch chan<- *prometheus.Desc) {
 // prometheus. Collect could be called several times concurrently
 // and thus its run is protected by a single mutex.
 func (exporter *Exporter) Collect(ch chan<- prometheus.Metric) {
+	exporter.mu.Lock()
+	defer exporter.mu.Unlock()
+
 	err := exporter.setCephVersion()
 	if err != nil {
 		exporter.Logger.WithError(err).Error("failed to set ceph Version")
 		return
 	}
-
-	exporter.mu.Lock()
-	defer exporter.mu.Unlock()
 
 	for _, cc := range exporter.getCollectors() {
 		cc.Collect(ch)
