@@ -12,7 +12,7 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-package collectors
+package ceph
 
 import (
 	"encoding/json"
@@ -24,8 +24,9 @@ import (
 
 // PoolUsageCollector displays statistics about each pool in the Ceph cluster.
 type PoolUsageCollector struct {
-	conn   Conn
-	logger *logrus.Logger
+	conn    Conn
+	logger  *logrus.Logger
+	version *Version
 
 	// UsedBytes tracks the amount of bytes currently allocated for the pool. This
 	// does not factor in the overcommitment made for individual images.
@@ -68,18 +69,19 @@ type PoolUsageCollector struct {
 
 // NewPoolUsageCollector creates a new instance of PoolUsageCollector and returns
 // its reference.
-func NewPoolUsageCollector(conn Conn, cluster string, logger *logrus.Logger) *PoolUsageCollector {
+func NewPoolUsageCollector(exporter *Exporter) *PoolUsageCollector {
 	var (
 		subSystem = "pool"
 		poolLabel = []string{"pool"}
 	)
 
 	labels := make(prometheus.Labels)
-	labels["cluster"] = cluster
+	labels["cluster"] = exporter.Cluster
 
 	return &PoolUsageCollector{
-		conn:   conn,
-		logger: logger,
+		conn:    exporter.Conn,
+		logger:  exporter.Logger,
+		version: exporter.Version,
 
 		UsedBytes: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -280,7 +282,7 @@ func (p *PoolUsageCollector) collect() error {
 			continue
 		}
 
-		p.UnfoundObjects.WithLabelValues(pool.Name).Set(float64(st.Num_objects_unfound))
+		p.UnfoundObjects.WithLabelValues(pool.Name).Set(float64(st.ObjectsUnfound))
 	}
 
 	return nil

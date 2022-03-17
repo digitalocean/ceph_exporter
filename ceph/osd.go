@@ -1,4 +1,4 @@
-package collectors
+package ceph
 
 import (
 	"bytes"
@@ -28,8 +28,9 @@ const (
 // An important aspect of monitoring OSDs is to ensure that when the cluster is
 // up and running that all OSDs that are in the cluster are up and running, too
 type OSDCollector struct {
-	conn   Conn
-	logger *logrus.Logger
+	conn    Conn
+	logger  *logrus.Logger
+	version *Version
 
 	// osdScrubCache holds the cache of previous PG scrubs
 	osdScrubCache map[int]int
@@ -144,14 +145,15 @@ var _ prometheus.Collector = &OSDCollector{}
 
 // NewOSDCollector creates an instance of the OSDCollector and instantiates the
 // individual metrics that show information about the OSD.
-func NewOSDCollector(conn Conn, cluster string, logger *logrus.Logger) *OSDCollector {
+func NewOSDCollector(exporter *Exporter) *OSDCollector {
 	labels := make(prometheus.Labels)
-	labels["cluster"] = cluster
+	labels["cluster"] = exporter.Cluster
 	osdLabels := []string{"osd", "device_class", "host", "rack", "root"}
 
 	return &OSDCollector{
-		conn:   conn,
-		logger: logger,
+		conn:    exporter.Conn,
+		logger:  exporter.Logger,
+		version: exporter.Version,
 
 		osdScrubCache:       make(map[int]int),
 		osdLabelsCache:      make(map[int64]*cephOSDLabel),

@@ -12,7 +12,7 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-package collectors
+package ceph
 
 import (
 	"io/ioutil"
@@ -26,8 +26,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-
-	"github.com/digitalocean/ceph_exporter/mocks"
 )
 
 func TestClusterHealthCollector(t *testing.T) {
@@ -812,12 +810,13 @@ $ sudo ceph -s
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			conn := &mocks.Conn{}
+			conn := &MockConn{}
 			conn.On("MonCommand", mock.Anything).Return(
 				[]byte(tt.input), "", nil,
 			)
 
-			collector := NewClusterHealthCollector(conn, "ceph", logrus.New())
+			collector := NewClusterHealthCollector(&Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()})
+			collector.version = &Version{Major: 14, Minor: 2, Patch: 0}
 			err := prometheus.Register(collector)
 			require.NoError(t, err)
 			defer prometheus.Unregister(collector)
