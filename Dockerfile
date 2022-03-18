@@ -1,4 +1,4 @@
-FROM ubuntu:18.04 as builder
+FROM ubuntu:20.04 as builder
 MAINTAINER Vaibhav Bhembre <vaibhav@digitalocean.com>
 
 ARG TEST
@@ -12,14 +12,14 @@ RUN apt-get update && \
     apt-get install -y apt-transport-https build-essential git curl wget
 
 RUN wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add -
-RUN echo "deb https://download.ceph.com/debian-nautilus bionic main" >> /etc/apt/sources.list
+RUN echo "deb https://download.ceph.com/debian-nautilus focal main" >> /etc/apt/sources.list
 
 RUN apt-get update && \
     apt-get install -y --force-yes librados-dev librbd-dev
 
 RUN \
   mkdir -p /goroot && \
-  curl https://storage.googleapis.com/golang/go1.16.3.linux-amd64.tar.gz | tar xvzf - -C /goroot --strip-components=1
+  curl https://storage.googleapis.com/golang/go1.18.linux-amd64.tar.gz | tar xvzf - -C /goroot --strip-components=1
 
 ADD . $APPLOC
 WORKDIR $APPLOC
@@ -29,13 +29,13 @@ RUN go get -d
 RUN if [ -n "${TEST}" ]; then go test -tags nautilus -v -race -count=1 ./...; fi
 RUN go build -tags nautilus -o /bin/ceph_exporter
 
-FROM ubuntu:18.04
+FROM ubuntu:20.04
 MAINTAINER Vaibhav Bhembre <vaibhav@digitalocean.com>
 
 RUN apt-get update && \
     apt-get install -y apt-transport-https curl wget gnupg
 RUN wget -q -O- 'https://download.ceph.com/keys/release.asc' | apt-key add -
-RUN echo "deb https://download.ceph.com/debian-nautilus bionic main" >> /etc/apt/sources.list && \
+RUN echo "deb https://download.ceph.com/debian-nautilus focal main" >> /etc/apt/sources.list && \
     apt-get update && \
     apt-get install -y --force-yes librados2 librbd1 ceph-common && \
     rm -rf /var/lib/apt/lists/*
