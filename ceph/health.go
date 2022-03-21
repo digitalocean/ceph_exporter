@@ -998,9 +998,8 @@ type cephHealthStats struct {
 			Severity string `json:"severity"`
 			Summary  string `json:"summary"`
 		} `json:"summary"`
-		OverallStatus string `json:"overall_status"`
-		Status        string `json:"status"`
-		Checks        map[string]struct {
+		Status string `json:"status"`
+		Checks map[string]struct {
 			Severity string `json:"severity"`
 			Summary  struct {
 				Message string `json:"message"`
@@ -1043,18 +1042,6 @@ type cephHealthStats struct {
 	} `json:"servicemap"`
 }
 
-type cephHealthDetailStats struct {
-	Checks map[string]struct {
-		Details []struct {
-			Message string `json:"message"`
-		} `json:"detail"`
-		Summary struct {
-			Message string `json:"message"`
-		} `json:"summary"`
-		Severity string `json:"severity"`
-	} `json:"checks"`
-}
-
 func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 	cmd := c.cephUsageCommand(jsonFormat)
 	buf, _, err := c.conn.MonCommand(cmd)
@@ -1077,23 +1064,6 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 		}
 	}
 
-	switch stats.Health.OverallStatus {
-	case CephHealthOK:
-		c.HealthStatus.Set(0)
-		c.HealthStatusInterpreter.Set(0)
-	case CephHealthWarn:
-		c.HealthStatus.Set(1)
-		c.HealthStatusInterpreter.Set(2)
-	case CephHealthErr:
-		c.HealthStatus.Set(2)
-		c.HealthStatusInterpreter.Set(3)
-	default:
-		c.HealthStatus.Set(2)
-		c.HealthStatusInterpreter.Set(3)
-	}
-
-	// This will be set only if Luminous is running. Will be
-	// ignored otherwise.
 	switch stats.Health.Status {
 	case CephHealthOK:
 		c.HealthStatus.Set(0)
