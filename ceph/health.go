@@ -278,7 +278,7 @@ func NewClusterHealthCollector(exporter *Exporter) *ClusterHealthCollector {
 	labels := make(prometheus.Labels)
 	labels["cluster"] = exporter.Cluster
 
-	return &ClusterHealthCollector{
+	collector := &ClusterHealthCollector{
 		conn:    exporter.Conn,
 		logger:  exporter.Logger,
 		version: exporter.Version,
@@ -898,6 +898,15 @@ func NewClusterHealthCollector(exporter *Exporter) *ClusterHealthCollector {
 			labels,
 		),
 	}
+
+	if exporter.Version.IsAtLeast(Pacific) {
+		// pacific adds the DAEMON_OLD_VERSION health check
+		// that indicates that multiple versions of Ceph have been running for longer than mon_warn_older_version_delay
+		// we'll interpret this is a critical warning (2)
+		collector.healthChecksMap["DAEMON_OLD_VERSION"] = 2
+	}
+
+	return collector
 }
 
 func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {

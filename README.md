@@ -49,13 +49,17 @@ Name | Description | Default
 
 ## Installation
 
-Typical way of installing in Go should work.
+The typical Go way of installing or building should work provided you have the [cgo dependencies](https://github.com/ceph/go-ceph#installation).
 
 ```
-$ go install
+$ go install -tags nautilus
 ```
 
-A Makefile is provided in case you find a need for it.
+```
+$ go build -o ceph_exporter -tags nautilus
+```
+
+We build the client with support for nautilus specifically but the binary will work for Octopus and Pacific as well.
 
 ## Docker Image
 
