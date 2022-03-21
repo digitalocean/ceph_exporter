@@ -192,7 +192,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			"num_remapped_pgs": 10
 		}
 	},
-	"health": { "overall_status": "HEALTH_OK" } }`,
+	"health": { "status": "HEALTH_OK" } }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 0`),
 			},
@@ -209,7 +209,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			"num_remapped_pgs": 10
 		}
 	},
-	"health": { "overall_status": "HEALTH_WARN", "status": "HEALTH_OK } }`,
+	"health": { "status": "HEALTH_OK } }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 0`),
 				regexp.MustCompile(`health_status_interp{cluster="ceph"} 0`),
@@ -245,7 +245,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			"num_remapped_pgs": 10
 		}
 	},
-	"health": { "overall_status": "HEALTH_WARN" } }`,
+	"health": { "status": "HEALTH_WARN" } }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 1`),
 				regexp.MustCompile(`health_status_interp{cluster="ceph"} 2`),
@@ -263,7 +263,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			"num_remapped_pgs": 10
 		}
 	},
-	"health": { "overall_status": "HEALTH_ERR" } }`,
+	"health": { "status": "HEALTH_ERR" } }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 2`),
 				regexp.MustCompile(`health_status_interp{cluster="ceph"} 3`),
@@ -815,8 +815,7 @@ $ sudo ceph -s
 				[]byte(tt.input), "", nil,
 			)
 
-			collector := NewClusterHealthCollector(&Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()})
-			collector.version = &Version{Major: 14, Minor: 2, Patch: 0}
+			collector := NewClusterHealthCollector(&Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New(), Version: &Version{Major: 14, Minor: 2, Patch: 0}})
 			err := prometheus.Register(collector)
 			require.NoError(t, err)
 			defer prometheus.Unregister(collector)
