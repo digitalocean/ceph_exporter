@@ -901,25 +901,6 @@ func (o *OSDCollector) collectOSDTreeDown(ch chan<- prometheus.Metric) error {
 	}
 
 	downItems := append(osdDown.Nodes, osdDown.Stray...)
-
-	// filter the duplicates out of downItems to prevent metric already collected errors
-	filteredDownItems := make([]osdNode, 0)
-	filteredContainsNode := func(node osdNode) bool {
-		for _, downOsdNode := range filteredDownItems {
-			if downOsdNode.Name == node.Name {
-				return true
-			}
-		}
-
-		return false
-	}
-
-	for _, downOsdNode := range downItems {
-		if !filteredContainsNode(downOsdNode) {
-			filteredDownItems = append(filteredDownItems, downOsdNode)
-		}
-	}
-
 	for _, downItem := range downItems {
 		if downItem.Type != "osd" {
 			continue
