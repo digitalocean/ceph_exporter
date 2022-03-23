@@ -16,6 +16,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"errors"
 	"net"
 	"net/http"
@@ -161,7 +162,20 @@ func main() {
 	}
 
 	if len(*tlsCertPath) != 0 && len(*tlsKeyPath) != 0 {
-		err = http.ServeTLS(emfileAwareTcpListener{ln.(*net.TCPListener), logger}, nil, *tlsCertPath, *tlsKeyPath)
+		server := &http.Server{
+			TLSConfig: &tls.Config{
+				GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+					caFiles, err := tls.LoadX509KeyPair(*tlsCertPath, *tlsKeyPath)
+					if err != nil {
+						return nil, err
+					}
+
+					return &caFiles, nil
+				},
+			},
+		}
+
+		err = server.ServeTLS(emfileAwareTcpListener{ln.(*net.TCPListener), logger}, "", "")
 		if err != nil {
 			logrus.WithError(err).Fatal("error serving TLS requests")
 		}
