@@ -17,7 +17,6 @@ package main
 
 import (
 	"crypto/tls"
-	"errors"
 	"net"
 	"net/http"
 	"os"
@@ -38,10 +37,6 @@ const (
 	defaultCephConfigPath   = "/etc/ceph/ceph.conf"
 	defaultCephUser         = "admin"
 	defaultRadosOpTimeout   = 30 * time.Second
-)
-
-var (
-	errCephVersionUnsupported = errors.New("ceph version unsupported")
 )
 
 // This horrible thing is a copy of tcpKeepAliveListener, tweaked to

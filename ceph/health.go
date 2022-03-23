@@ -1414,18 +1414,6 @@ func (c *ClusterHealthCollector) cephUsageCommand(f format) []byte {
 	return cmd
 }
 
-func (c *ClusterHealthCollector) cephHealthDetailCommand() []byte {
-	cmd, err := json.Marshal(map[string]interface{}{
-		"prefix": "health",
-		"detail": "detail",
-		"format": jsonFormat,
-	})
-	if err != nil {
-		c.logger.WithError(err).Panic("error marshalling ceph health detail")
-	}
-	return cmd
-}
-
 func (c *ClusterHealthCollector) collectRecoveryClientIO() error {
 	cmd := c.cephUsageCommand(plainFormat)
 	buf, _, err := c.conn.MonCommand(cmd)

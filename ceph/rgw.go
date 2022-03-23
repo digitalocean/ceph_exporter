@@ -162,7 +162,7 @@ func (r *RGWCollector) collect() error {
 		return err
 	}
 
-	tasks := make([]rgwTaskGC, 0, 0)
+	tasks := make([]rgwTaskGC, 0)
 	err = json.Unmarshal(data, &tasks)
 	if err != nil {
 		return err
