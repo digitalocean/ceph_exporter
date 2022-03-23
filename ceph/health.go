@@ -278,7 +278,7 @@ func NewClusterHealthCollector(exporter *Exporter) *ClusterHealthCollector {
 	labels := make(prometheus.Labels)
 	labels["cluster"] = exporter.Cluster
 
-	return &ClusterHealthCollector{
+	collector := &ClusterHealthCollector{
 		conn:    exporter.Conn,
 		logger:  exporter.Logger,
 		version: exporter.Version,
@@ -898,6 +898,15 @@ func NewClusterHealthCollector(exporter *Exporter) *ClusterHealthCollector {
 			labels,
 		),
 	}
+
+	if exporter.Version.IsAtLeast(Pacific) {
+		// pacific adds the DAEMON_OLD_VERSION health check
+		// that indicates that multiple versions of Ceph have been running for longer than mon_warn_older_version_delay
+		// we'll interpret this is a critical warning (2)
+		collector.healthChecksMap["DAEMON_OLD_VERSION"] = 2
+	}
+
+	return collector
 }
 
 func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
@@ -989,9 +998,8 @@ type cephHealthStats struct {
 			Severity string `json:"severity"`
 			Summary  string `json:"summary"`
 		} `json:"summary"`
-		OverallStatus string `json:"overall_status"`
-		Status        string `json:"status"`
-		Checks        map[string]struct {
+		Status string `json:"status"`
+		Checks map[string]struct {
 			Severity string `json:"severity"`
 			Summary  struct {
 				Message string `json:"message"`
@@ -1034,18 +1042,6 @@ type cephHealthStats struct {
 	} `json:"servicemap"`
 }
 
-type cephHealthDetailStats struct {
-	Checks map[string]struct {
-		Details []struct {
-			Message string `json:"message"`
-		} `json:"detail"`
-		Summary struct {
-			Message string `json:"message"`
-		} `json:"summary"`
-		Severity string `json:"severity"`
-	} `json:"checks"`
-}
-
 func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 	cmd := c.cephUsageCommand(jsonFormat)
 	buf, _, err := c.conn.MonCommand(cmd)
@@ -1068,23 +1064,6 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 		}
 	}
 
-	switch stats.Health.OverallStatus {
-	case CephHealthOK:
-		c.HealthStatus.Set(0)
-		c.HealthStatusInterpreter.Set(0)
-	case CephHealthWarn:
-		c.HealthStatus.Set(1)
-		c.HealthStatusInterpreter.Set(2)
-	case CephHealthErr:
-		c.HealthStatus.Set(2)
-		c.HealthStatusInterpreter.Set(3)
-	default:
-		c.HealthStatus.Set(2)
-		c.HealthStatusInterpreter.Set(3)
-	}
-
-	// This will be set only if Luminous is running. Will be
-	// ignored otherwise.
 	switch stats.Health.Status {
 	case CephHealthOK:
 		c.HealthStatus.Set(0)
@@ -1431,18 +1410,6 @@ func (c *ClusterHealthCollector) cephUsageCommand(f format) []byte {
 	})
 	if err != nil {
 		c.logger.WithError(err).Panic("error marshalling ceph status")
-	}
-	return cmd
-}
-
-func (c *ClusterHealthCollector) cephHealthDetailCommand() []byte {
-	cmd, err := json.Marshal(map[string]interface{}{
-		"prefix": "health",
-		"detail": "detail",
-		"format": jsonFormat,
-	})
-	if err != nil {
-		c.logger.WithError(err).Panic("error marshalling ceph health detail")
 	}
 	return cmd
 }

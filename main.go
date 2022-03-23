@@ -16,7 +16,7 @@
 package main
 
 import (
-	"errors"
+	"crypto/tls"
 	"net"
 	"net/http"
 	"os"
@@ -37,10 +37,6 @@ const (
 	defaultCephConfigPath   = "/etc/ceph/ceph.conf"
 	defaultCephUser         = "admin"
 	defaultRadosOpTimeout   = 30 * time.Second
-)
-
-var (
-	errCephVersionUnsupported = errors.New("ceph version unsupported")
 )
 
 // This horrible thing is a copy of tcpKeepAliveListener, tweaked to
@@ -85,6 +81,9 @@ func main() {
 		cephConfig         = envflag.String("CEPH_CONFIG", defaultCephConfigPath, "Path to Ceph config file")
 		cephUser           = envflag.String("CEPH_USER", defaultCephUser, "Ceph user to connect to cluster")
 		cephRadosOpTimeout = envflag.Duration("CEPH_RADOS_OP_TIMEOUT", defaultRadosOpTimeout, "Ceph rados_osd_op_timeout and rados_mon_op_timeout used to contact cluster (0s means no limit)")
+
+		tlsCertPath = envflag.String("TLS_CERT_FILE_PATH", "", "Path to certificate file for TLS")
+		tlsKeyPath  = envflag.String("TLS_KEY_FILE_PATH", "", "Path to key file for TLS")
 	)
 
 	envflag.Parse()
@@ -157,8 +156,28 @@ func main() {
 		logrus.WithError(err).Fatal("error creating listener")
 	}
 
-	err = http.Serve(emfileAwareTcpListener{ln.(*net.TCPListener), logger}, nil)
-	if err != nil {
-		logrus.WithError(err).Fatal("error serving requests")
+	if len(*tlsCertPath) != 0 && len(*tlsKeyPath) != 0 {
+		server := &http.Server{
+			TLSConfig: &tls.Config{
+				GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+					caFiles, err := tls.LoadX509KeyPair(*tlsCertPath, *tlsKeyPath)
+					if err != nil {
+						return nil, err
+					}
+
+					return &caFiles, nil
+				},
+			},
+		}
+
+		err = server.ServeTLS(emfileAwareTcpListener{ln.(*net.TCPListener), logger}, "", "")
+		if err != nil {
+			logrus.WithError(err).Fatal("error serving TLS requests")
+		}
+	} else {
+		err = http.Serve(emfileAwareTcpListener{ln.(*net.TCPListener), logger}, nil)
+		if err != nil {
+			logrus.WithError(err).Fatal("error serving requests")
+		}
 	}
 }

@@ -16,6 +16,7 @@ package ceph
 
 import (
 	"encoding/json"
+	"errors"
 	"math"
 	"strconv"
 
@@ -273,23 +274,29 @@ func (p *PoolInfoCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (p *PoolInfoCollector) getExpansionFactor(pool poolInfo) float64 {
-	if ef, ok := p.getECExpansionFactor(pool); ok {
+	ef, err := p.getECExpansionFactor(pool)
+	if err == nil {
 		return ef
+	} else {
+		// Non-EC pool (or unable to get profile info); assume that it's replicated.
+		logrus.WithError(err).Warn("failed to get ec expansion factor")
+		return pool.ActualSize
 	}
-	// Non-EC pool (or unable to get profile info); assume that it's replicated.
-	return pool.ActualSize
 }
 
-func (p *PoolInfoCollector) getECExpansionFactor(pool poolInfo) (float64, bool) {
+func (p *PoolInfoCollector) getECExpansionFactor(pool poolInfo) (float64, error) {
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix": "osd erasure-code-profile get",
 		"name":   pool.Profile,
 		"format": "json",
 	})
+	if err != nil {
+		return -1, err
+	}
 
 	buf, _, err := p.conn.MonCommand(cmd)
 	if err != nil {
-		return -1, false
+		return -1, err
 	}
 
 	type ecInfo struct {
@@ -299,8 +306,12 @@ func (p *PoolInfoCollector) getECExpansionFactor(pool poolInfo) (float64, bool) 
 
 	ecStats := ecInfo{}
 	err = json.Unmarshal(buf, &ecStats)
-	if err != nil || ecStats.K == "" || ecStats.M == "" {
-		return -1, false
+	if err != nil {
+		return -1, err
+	}
+
+	if ecStats.K == "" || ecStats.M == "" {
+		return -1, errors.New("missing stats")
 	}
 
 	k, _ := strconv.ParseFloat(ecStats.K, 64)
@@ -308,7 +319,7 @@ func (p *PoolInfoCollector) getECExpansionFactor(pool poolInfo) (float64, bool) 
 
 	expansionFactor := (k + m) / k
 	roundedExpansion := math.Round(expansionFactor*100) / 100
-	return roundedExpansion, true
+	return roundedExpansion, nil
 }
 
 func (p *PoolInfoCollector) getCrushRuleToRootMappings() map[int64]string {

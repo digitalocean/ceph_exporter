@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -540,19 +538,16 @@ type cephOSDTree struct {
 	} `json:"stray"`
 }
 
+type osdNode struct {
+	ID     int64  `json:"id"`
+	Name   string `json:"name"`
+	Type   string `json:"type"`
+	Status string `json:"status"`
+}
+
 type cephOSDTreeDown struct {
-	Nodes []struct {
-		ID     int64  `json:"id"`
-		Name   string `json:"name"`
-		Type   string `json:"type"`
-		Status string `json:"status"`
-	} `json:"nodes"`
-	Stray []struct {
-		ID     int64  `json:"id"`
-		Name   string `json:"name"`
-		Type   string `json:"type"`
-		Status string `json:"status"`
-	} `json:"stray"`
+	Nodes []osdNode `json:"nodes"`
+	Stray []osdNode `json:"stray"`
 }
 
 type cephPGDumpBrief struct {
@@ -562,24 +557,6 @@ type cephPGDumpBrief struct {
 		Acting        []int  `json:"acting"`
 		State         string `json:"state"`
 	} `json:"pg_stats"`
-}
-
-type cephPGQuery struct {
-	State string `json:"state"`
-	Info  struct {
-		Stats struct {
-			StatSum struct {
-				NumObjectsRecovered int64 `json:"num_objects_recovered"`
-			} `json:"stat_sum"`
-		} `json:"stats"`
-	} `json:"info"`
-	RecoveryState []struct {
-		Name            string `json:"name"`
-		EnterTime       string `json:"enter_time"`
-		RecoverProgress *struct {
-			BackfillTargets []string `json:"backfill_targets"`
-		} `json:"recovery_progress"`
-	} `json:"recovery_state"`
 }
 
 type cephOSDLabel struct {
@@ -593,40 +570,6 @@ type cephOSDLabel struct {
 	Rack        string  `json:"rack"`
 	Host        string  `json:"host"`
 	parent      int64   // parent id when building tables
-}
-
-// backfillTargets returns a map from PG query result containing OSDs and
-// corresponding shards that are being backfilled.
-func (c cephPGQuery) backfillTargets() map[int64]int64 {
-	osdRegExp := regexp.MustCompile(`^(\d+)\((\d+)\)$`)
-	targets := make(map[int64]int64)
-
-	for _, state := range c.RecoveryState {
-		if state.RecoverProgress == nil {
-			continue
-		}
-
-		for _, osd := range state.RecoverProgress.BackfillTargets {
-			m := osdRegExp.FindStringSubmatch(osd)
-			if m == nil {
-				continue
-			}
-
-			osdID, err := strconv.ParseInt(m[1], 10, 64)
-			if err != nil {
-				continue
-			}
-
-			shard, err := strconv.ParseInt(m[2], 10, 64)
-			if err != nil {
-				continue
-			}
-
-			targets[osdID] = shard
-		}
-	}
-
-	return targets
 }
 
 func (o *OSDCollector) collectOSDDF() error {
@@ -904,7 +847,6 @@ func (o *OSDCollector) collectOSDTreeDown(ch chan<- prometheus.Metric) error {
 	}
 
 	downItems := append(osdDown.Nodes, osdDown.Stray...)
-
 	for _, downItem := range downItems {
 		if downItem.Type != "osd" {
 			continue
@@ -1116,18 +1058,6 @@ func (o *OSDCollector) cephPGDumpCommand() [][]byte {
 		o.logger.WithError(err).Panic("error marshalling ceph pg dump")
 	}
 	return [][]byte{cmd}
-}
-
-func (o *OSDCollector) cephPGQueryCommand(pgid string) []byte {
-	cmd, err := json.Marshal(map[string]interface{}{
-		"prefix": "query",
-		"pgid":   pgid,
-		"format": jsonFormat,
-	})
-	if err != nil {
-		o.logger.WithError(err).Panic("error marshalling ceph pg query")
-	}
-	return cmd
 }
 
 func (o *OSDCollector) collectPGStates(ch chan<- prometheus.Metric) error {
