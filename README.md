@@ -1,4 +1,4 @@
-# Ceph Exporter  [![GoDoc](https://godoc.org/github.com/digitalocean/ceph_exporter?status.svg)](https://godoc.org/github.com/digitalocean/ceph_exporter) [![Build Status](https://travis-ci.org/digitalocean/ceph_exporter.svg)](https://travis-ci.org/digitalocean/ceph_exporter) [![Coverage Status](https://coveralls.io/repos/github/digitalocean/ceph_exporter/badge.svg?branch=master&service=github)](https://coveralls.io/github/digitalocean/ceph_exporter?branch=master) [![Go Report Card](https://goreportcard.com/badge/digitalocean/ceph_exporter)](https://goreportcard.com/report/digitalocean/ceph_exporter)
+# Ceph Exporter  [![GoDoc](https://godoc.org/github.com/digitalocean/ceph_exporter?status.svg)](https://godoc.org/github.com/digitalocean/ceph_exporter) ![build](https://github.com/digitalocean/ceph_exporter/actions/workflows/run_build.yml/badge.svg) ![tests](https://github.com/digitalocean/ceph_exporter/actions/workflows/run_tests.yml/badge.svg)  [![Go Report Card](https://goreportcard.com/badge/digitalocean/ceph_exporter)](https://goreportcard.com/report/digitalocean/ceph_exporter)
 
 A Prometheus exporter that scrapes meta information about a running Ceph
 cluster. All the information gathered from the cluster is done by interacting
@@ -30,22 +30,24 @@ variables:
 We use Ceph's [official Golang client](https://github.com/ceph/go-ceph) to run
 commands on the cluster.
 
-This `ceph_exporter` branch is tested only on Ceph Nautilus releases. It might
+This `ceph_exporter` branch currently supports the Nautilus, Octopus (untested), and Pacific releases. It might
 not work as expected with older or non-LTS versions of Ceph.
 
 ## Environment Variables
 
-Name | Description | Default
----- | ---- | ----
-`TELEMETRY_ADDR` | Host:Port for ceph_exporter's metrics endpoint | `*:9128`
-`TELEMETRY_PATH` | URL Path for surfacing metrics to Prometheus | `/metrics`
-`EXPORTER_CONFIG` | Path to ceph_exporter configuration file | `/etc/ceph/exporter.yml`
-`RGW_MODE` | Enable collection of stats from RGW (0:disabled 1:enabled 2:background) | `0`
-`CEPH_CLUSTER` | Ceph cluster name | `ceph`
-`CEPH_CONFIG` | Path to Ceph configuration file | `/etc/ceph/ceph.conf`
-`CEPH_USER` | Ceph user to connect to cluster | `admin`
-`CEPH_RADOS_OP_TIMEOUT` | Ceph rados_osd_op_timeout and rados_mon_op_timeout used to contact cluster (0s means no limit) | `30s`
-`LOG_LEVEL` | logging level. One of: [trace, debug, info, warn, error, fatal, panic] | `info`
+| Name                    | Description                                                                                    | Default                  |
+|-------------------------|------------------------------------------------------------------------------------------------|--------------------------|
+| `TELEMETRY_ADDR`        | Host:Port for ceph_exporter's metrics endpoint                                                 | `*:9128`                 |
+| `TELEMETRY_PATH`        | URL Path for surfacing metrics to Prometheus                                                   | `/metrics`               |
+| `EXPORTER_CONFIG`       | Path to ceph_exporter configuration file                                                       | `/etc/ceph/exporter.yml` |
+| `RGW_MODE`              | Enable collection of stats from RGW (0:disabled 1:enabled 2:background)                        | `0`                      |
+| `CEPH_CLUSTER`          | Ceph cluster name                                                                              | `ceph`                   |
+| `CEPH_CONFIG`           | Path to Ceph configuration file                                                                | `/etc/ceph/ceph.conf`    |
+| `CEPH_USER`             | Ceph user to connect to cluster                                                                | `admin`                  |
+| `CEPH_RADOS_OP_TIMEOUT` | Ceph rados_osd_op_timeout and rados_mon_op_timeout used to contact cluster (0s means no limit) | `30s`                    |
+| `LOG_LEVEL`             | Logging level. One of: [trace, debug, info, warn, error, fatal, panic]                         | `info`                   |
+| `TLS_CERT_FILE_PATH`    | Path to the x509 certificate file for enabling TLS (the key file path must also be specified)  |                          |
+| `TLS_KEY_FILE_PATH`     | Path to the x509 key file for enabling TLS (the cert file path must also be specified)         |                          |
 
 ## Installation
 
