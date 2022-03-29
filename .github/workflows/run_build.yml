@@ -32,12 +32,14 @@ jobs:
       with:
         go-version: 1.18
 
-    - name: Set up Ceph repository key
-      run: wget -q -O- 'https://download.ceph.com/keys/release.asc' | sudo apt-key add -
+    - name: Download Ceph repository key
+      run: wget -q 'https://download.ceph.com/keys/release.asc'
+    - name: Install Ceph repository key
+      run: sudo apt-key add release.asc
     - name: Declare Ceph Nautilus repository
       run: echo deb https://download.ceph.com/debian-nautilus/ $(lsb_release -sc) main | sudo tee /etc/apt/sources.list.d/ceph.list
     - name: Install go-ceph dependencies
       run: sudo apt update && sudo apt install -y librados-dev librbd-dev
 
     - name: Go build
-      run: go build -v ./...
+      run: go build -tags nautilus -v ./...
