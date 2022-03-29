@@ -176,6 +176,9 @@ type ClusterHealthCollector struct {
 	// This includes object replicas in its count.
 	MisplacedObjectsCount prometheus.Gauge
 
+	// MisplacedRatio shows the ratio of misplaced objects to total objects
+	MisplacedRatio prometheus.Gauge
+
 	// NewCrashReportCount reports if new Ceph daemon crash reports are available
 	NewCrashReportCount prometheus.Gauge
 
@@ -619,6 +622,14 @@ func NewClusterHealthCollector(exporter *Exporter) *ClusterHealthCollector {
 				ConstLabels: labels,
 			},
 		),
+		MisplacedRatio: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "misplaced_ratio",
+				Help:        "ratio of misplaced objects to total objects",
+				ConstLabels: labels,
+			},
+		),
 		NewCrashReportCount: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace:   cephNamespace,
@@ -942,6 +953,7 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.SlowOps,
 		c.DegradedObjectsCount,
 		c.MisplacedObjectsCount,
+		c.MisplacedRatio,
 		c.NewCrashReportCount,
 		c.TooManyRepairs,
 		c.Objects,
@@ -1022,6 +1034,7 @@ type cephHealthStats struct {
 		CachePromoteOpPerSec    float64 `json:"promote_op_per_sec"`
 		DegradedObjects         float64 `json:"degraded_objects"`
 		MisplacedObjects        float64 `json:"misplaced_objects"`
+		MisplacedRatio          float64 `json:"misplaced_ratio"`
 		PGsByState              []struct {
 			Count  float64 `json:"count"`
 			States string  `json:"state_name"`
@@ -1366,6 +1379,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 
 	c.DegradedObjectsCount.Set(stats.PGMap.DegradedObjects)
 	c.MisplacedObjectsCount.Set(stats.PGMap.MisplacedObjects)
+	c.MisplacedRatio.Set(stats.PGMap.MisplacedRatio)
 
 	activeMgr := 0
 	if len(stats.MgrMap.ActiveName) > 0 {
