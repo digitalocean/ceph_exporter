@@ -1,12 +1,24 @@
-package collectors
+//   Copyright 2022 DigitalOcean
+//
+//   Licensed under the Apache License, Version 2.0 (the "License");
+//   you may not use this file except in compliance with the License.
+//   You may obtain a copy of the License at
+//
+//       http://www.apache.org/licenses/LICENSE-2.0
+//
+//   Unless required by applicable law or agreed to in writing, software
+//   distributed under the License is distributed on an "AS IS" BASIS,
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//   See the License for the specific language governing permissions and
+//   limitations under the License.
+
+package ceph
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"math"
-	"regexp"
-	"strconv"
 	"strings"
 	"time"
 
@@ -28,8 +40,9 @@ const (
 // An important aspect of monitoring OSDs is to ensure that when the cluster is
 // up and running that all OSDs that are in the cluster are up and running, too
 type OSDCollector struct {
-	conn   Conn
-	logger *logrus.Logger
+	conn    Conn
+	logger  *logrus.Logger
+	version *Version
 
 	// osdScrubCache holds the cache of previous PG scrubs
 	osdScrubCache map[int]int
@@ -144,14 +157,15 @@ var _ prometheus.Collector = &OSDCollector{}
 
 // NewOSDCollector creates an instance of the OSDCollector and instantiates the
 // individual metrics that show information about the OSD.
-func NewOSDCollector(conn Conn, cluster string, logger *logrus.Logger) *OSDCollector {
+func NewOSDCollector(exporter *Exporter) *OSDCollector {
 	labels := make(prometheus.Labels)
-	labels["cluster"] = cluster
+	labels["cluster"] = exporter.Cluster
 	osdLabels := []string{"osd", "device_class", "host", "rack", "root"}
 
 	return &OSDCollector{
-		conn:   conn,
-		logger: logger,
+		conn:    exporter.Conn,
+		logger:  exporter.Logger,
+		version: exporter.Version,
 
 		osdScrubCache:       make(map[int]int),
 		osdLabelsCache:      make(map[int64]*cephOSDLabel),
@@ -538,19 +552,16 @@ type cephOSDTree struct {
 	} `json:"stray"`
 }
 
+type osdNode struct {
+	ID     int64  `json:"id"`
+	Name   string `json:"name"`
+	Type   string `json:"type"`
+	Status string `json:"status"`
+}
+
 type cephOSDTreeDown struct {
-	Nodes []struct {
-		ID     int64  `json:"id"`
-		Name   string `json:"name"`
-		Type   string `json:"type"`
-		Status string `json:"status"`
-	} `json:"nodes"`
-	Stray []struct {
-		ID     int64  `json:"id"`
-		Name   string `json:"name"`
-		Type   string `json:"type"`
-		Status string `json:"status"`
-	} `json:"stray"`
+	Nodes []osdNode `json:"nodes"`
+	Stray []osdNode `json:"stray"`
 }
 
 type cephPGDumpBrief struct {
@@ -560,24 +571,6 @@ type cephPGDumpBrief struct {
 		Acting        []int  `json:"acting"`
 		State         string `json:"state"`
 	} `json:"pg_stats"`
-}
-
-type cephPGQuery struct {
-	State string `json:"state"`
-	Info  struct {
-		Stats struct {
-			StatSum struct {
-				NumObjectsRecovered int64 `json:"num_objects_recovered"`
-			} `json:"stat_sum"`
-		} `json:"stats"`
-	} `json:"info"`
-	RecoveryState []struct {
-		Name            string `json:"name"`
-		EnterTime       string `json:"enter_time"`
-		RecoverProgress *struct {
-			BackfillTargets []string `json:"backfill_targets"`
-		} `json:"recovery_progress"`
-	} `json:"recovery_state"`
 }
 
 type cephOSDLabel struct {
@@ -591,40 +584,6 @@ type cephOSDLabel struct {
 	Rack        string  `json:"rack"`
 	Host        string  `json:"host"`
 	parent      int64   // parent id when building tables
-}
-
-// backfillTargets returns a map from PG query result containing OSDs and
-// corresponding shards that are being backfilled.
-func (c cephPGQuery) backfillTargets() map[int64]int64 {
-	osdRegExp := regexp.MustCompile(`^(\d+)\((\d+)\)$`)
-	targets := make(map[int64]int64)
-
-	for _, state := range c.RecoveryState {
-		if state.RecoverProgress == nil {
-			continue
-		}
-
-		for _, osd := range state.RecoverProgress.BackfillTargets {
-			m := osdRegExp.FindStringSubmatch(osd)
-			if m == nil {
-				continue
-			}
-
-			osdID, err := strconv.ParseInt(m[1], 10, 64)
-			if err != nil {
-				continue
-			}
-
-			shard, err := strconv.ParseInt(m[2], 10, 64)
-			if err != nil {
-				continue
-			}
-
-			targets[osdID] = shard
-		}
-	}
-
-	return targets
 }
 
 func (o *OSDCollector) collectOSDDF() error {
@@ -902,7 +861,6 @@ func (o *OSDCollector) collectOSDTreeDown(ch chan<- prometheus.Metric) error {
 	}
 
 	downItems := append(osdDown.Nodes, osdDown.Stray...)
-
 	for _, downItem := range downItems {
 		if downItem.Type != "osd" {
 			continue
@@ -1114,18 +1072,6 @@ func (o *OSDCollector) cephPGDumpCommand() [][]byte {
 		o.logger.WithError(err).Panic("error marshalling ceph pg dump")
 	}
 	return [][]byte{cmd}
-}
-
-func (o *OSDCollector) cephPGQueryCommand(pgid string) []byte {
-	cmd, err := json.Marshal(map[string]interface{}{
-		"prefix": "query",
-		"pgid":   pgid,
-		"format": jsonFormat,
-	})
-	if err != nil {
-		o.logger.WithError(err).Panic("error marshalling ceph pg query")
-	}
-	return cmd
 }
 
 func (o *OSDCollector) collectPGStates(ch chan<- prometheus.Metric) error {

@@ -1,4 +1,4 @@
-//   Copyright 2019 DigitalOcean
+//   Copyright 2022 DigitalOcean
 //
 //   Licensed under the Apache License, Version 2.0 (the "License");
 //   you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-package collectors
+package ceph
 
 import (
 	"encoding/json"
@@ -23,7 +23,6 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/digitalocean/ceph_exporter/mocks"
 	"github.com/google/go-cmp/cmp"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -60,7 +59,7 @@ func TestPoolInfoCollector(t *testing.T) {
 		},
 	} {
 		func() {
-			conn := &mocks.Conn{}
+			conn := &MockConn{}
 			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
 				v := map[string]interface{}{}
 
@@ -182,7 +181,7 @@ func TestPoolInfoCollector(t *testing.T) {
 				})
 			})).Return([]byte(""), "", fmt.Errorf("unknown erasure code profile"))
 
-			collector := NewPoolInfoCollector(conn, "ceph", logrus.New())
+			collector := NewPoolInfoCollector(&Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()})
 
 			err := prometheus.Register(collector)
 			require.NoError(t, err)

@@ -1,4 +1,4 @@
-//   Copyright 2016 DigitalOcean
+//   Copyright 2022 DigitalOcean
 //
 //   Licensed under the Apache License, Version 2.0 (the "License");
 //   you may not use this file except in compliance with the License.
@@ -16,18 +16,20 @@
 package main
 
 import (
+	"crypto/tls"
 	"net"
 	"net/http"
 	"os"
-	"sync"
 	"syscall"
 	"time"
 
-	"github.com/digitalocean/ceph_exporter/collectors"
 	"github.com/ianschenck/envflag"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
+
+	"github.com/digitalocean/ceph_exporter/ceph"
+	"github.com/digitalocean/ceph_exporter/rados"
 )
 
 const (
@@ -63,76 +65,8 @@ func (ln emfileAwareTcpListener) Accept() (c net.Conn, err error) {
 	return tc, nil
 }
 
-// CephExporter wraps all the ceph collectors and provides a single global
-// exporter to extracts metrics out of. It also ensures that the collection
-// is done in a thread-safe manner, the necessary requirement stated by
-// prometheus. It also implements a prometheus.Collector interface in order
-// to register it correctly.
-type CephExporter struct {
-	mu         sync.Mutex
-	collectors []prometheus.Collector
-	logger     *logrus.Logger
-}
-
 // Verify that the exporter implements the interface correctly.
-var _ prometheus.Collector = &CephExporter{}
-
-// NewCephExporter creates an instance to CephExporter and returns a reference
-// to it. We can choose to enable a collector to extract stats out of by adding
-// it to the list of collectors.
-func NewCephExporter(conn collectors.Conn, cluster string, config string, rgwMode int, logger *logrus.Logger) *CephExporter {
-	c := &CephExporter{
-		collectors: []prometheus.Collector{
-			collectors.NewClusterUsageCollector(conn, cluster, logger),
-			collectors.NewPoolUsageCollector(conn, cluster, logger),
-			collectors.NewPoolInfoCollector(conn, cluster, logger),
-			collectors.NewClusterHealthCollector(conn, cluster, logger),
-			collectors.NewMonitorCollector(conn, cluster, logger),
-			collectors.NewOSDCollector(conn, cluster, logger),
-		},
-		logger: logger,
-	}
-
-	switch rgwMode {
-	case collectors.RGWModeForeground:
-		c.collectors = append(c.collectors,
-			collectors.NewRGWCollector(cluster, config, false, logger),
-		)
-
-	case collectors.RGWModeBackground:
-		c.collectors = append(c.collectors,
-			collectors.NewRGWCollector(cluster, config, true, logger),
-		)
-
-	case collectors.RGWModeDisabled:
-		// nothing to do
-
-	default:
-		logger.WithField("rgwMode", rgwMode).Warn("RGW Collector Disabled do to invalid mode")
-	}
-
-	return c
-}
-
-// Describe sends all the descriptors of the collectors included to
-// the provided channel.
-func (c *CephExporter) Describe(ch chan<- *prometheus.Desc) {
-	for _, cc := range c.collectors {
-		cc.Describe(ch)
-	}
-}
-
-// Collect sends the collected metrics from each of the collectors to
-// prometheus. Collect could be called several times concurrently
-// and thus its run is protected by a single mutex.
-func (c *CephExporter) Collect(ch chan<- prometheus.Metric) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	for _, cc := range c.collectors {
-		cc.Collect(ch)
-	}
-}
+var _ prometheus.Collector = &ceph.Exporter{}
 
 func main() {
 	var (
@@ -147,6 +81,9 @@ func main() {
 		cephConfig         = envflag.String("CEPH_CONFIG", defaultCephConfigPath, "Path to Ceph config file")
 		cephUser           = envflag.String("CEPH_USER", defaultCephUser, "Ceph user to connect to cluster")
 		cephRadosOpTimeout = envflag.Duration("CEPH_RADOS_OP_TIMEOUT", defaultRadosOpTimeout, "Ceph rados_osd_op_timeout and rados_mon_op_timeout used to contact cluster (0s means no limit)")
+
+		tlsCertPath = envflag.String("TLS_CERT_FILE_PATH", "", "Path to certificate file for TLS")
+		tlsKeyPath  = envflag.String("TLS_KEY_FILE_PATH", "", "Path to key file for TLS")
 	)
 
 	envflag.Parse()
@@ -183,13 +120,13 @@ func main() {
 	}
 
 	for _, cluster := range clusterConfigs {
-		conn := collectors.NewRadosConn(
+		conn := rados.NewRadosConn(
 			cluster.User,
 			cluster.ConfigFile,
 			*cephRadosOpTimeout,
 			logger)
 
-		prometheus.MustRegister(NewCephExporter(
+		prometheus.MustRegister(ceph.NewExporter(
 			conn,
 			cluster.ClusterLabel,
 			cluster.ConfigFile,
@@ -219,8 +156,28 @@ func main() {
 		logrus.WithError(err).Fatal("error creating listener")
 	}
 
-	err = http.Serve(emfileAwareTcpListener{ln.(*net.TCPListener), logger}, nil)
-	if err != nil {
-		logrus.WithError(err).Fatal("error serving requests")
+	if len(*tlsCertPath) != 0 && len(*tlsKeyPath) != 0 {
+		server := &http.Server{
+			TLSConfig: &tls.Config{
+				GetCertificate: func(info *tls.ClientHelloInfo) (*tls.Certificate, error) {
+					caFiles, err := tls.LoadX509KeyPair(*tlsCertPath, *tlsKeyPath)
+					if err != nil {
+						return nil, err
+					}
+
+					return &caFiles, nil
+				},
+			},
+		}
+
+		err = server.ServeTLS(emfileAwareTcpListener{ln.(*net.TCPListener), logger}, "", "")
+		if err != nil {
+			logrus.WithError(err).Fatal("error serving TLS requests")
+		}
+	} else {
+		err = http.Serve(emfileAwareTcpListener{ln.(*net.TCPListener), logger}, nil)
+		if err != nil {
+			logrus.WithError(err).Fatal("error serving requests")
+		}
 	}
 }

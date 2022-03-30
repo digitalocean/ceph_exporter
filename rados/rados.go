@@ -1,4 +1,4 @@
-//   Copyright 2016 DigitalOcean
+//   Copyright 2022 DigitalOcean
 //
 //   Licensed under the Apache License, Version 2.0 (the "License");
 //   you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-package collectors
+package rados
 
 import (
 	"bytes"
@@ -22,18 +22,9 @@ import (
 
 	"github.com/ceph/go-ceph/rados"
 	"github.com/sirupsen/logrus"
-)
 
-// Conn interface implements only necessary methods that are used in this
-// repository on top of *rados.Conn. This keeps rest of the implementation
-// clean and *rados.Conn doesn't need to show up everywhere (it being more of
-// an implementation detail in reality). Also it makes mocking easier for
-// unit-testing the collectors.
-type Conn interface {
-	MonCommand([]byte) ([]byte, string, error)
-	MgrCommand([][]byte) ([]byte, string, error)
-	GetPoolStats(string) (*rados.PoolStat, error)
-}
+	"github.com/digitalocean/ceph_exporter/ceph"
+)
 
 // RadosConn implements the Conn interface with the underlying *rados.Conn
 // that talks to a real Ceph cluster.
@@ -45,7 +36,7 @@ type RadosConn struct {
 }
 
 // *RadosConn must implement the Conn.
-var _ Conn = &RadosConn{}
+var _ ceph.Conn = &RadosConn{}
 
 // NewRadosConn returns a new RadosConn. Unlike the native rados.Conn, there
 // is no need to manage the connection before/after talking to the rados; it
@@ -143,8 +134,8 @@ func (c *RadosConn) MgrCommand(args [][]byte) (buffer []byte, info string, err e
 	return
 }
 
-// GetPoolStats returns a *rados.PoolStat for the given rados pool.
-func (c *RadosConn) GetPoolStats(pool string) (stat *rados.PoolStat, err error) {
+// GetPoolStats returns the count of unfound objects for the given rados pool.
+func (c *RadosConn) GetPoolStats(pool string) (*ceph.PoolStat, error) {
 	ll := c.logger.WithField("pool", pool)
 
 	ll.Trace("creating rados connection to get pool stats")
@@ -169,12 +160,13 @@ func (c *RadosConn) GetPoolStats(pool string) (stat *rados.PoolStat, err error) 
 
 	st, err := ioCtx.GetPoolStats()
 	if err != nil {
-		stat = nil
-	} else {
-		stat = &st
+		return nil, err
+	}
+	poolSt := &ceph.PoolStat{
+		ObjectsUnfound: st.Num_objects_unfound,
 	}
 
 	ll.WithError(err).Trace("complete getting pool stats")
 
-	return
+	return poolSt, nil
 }

@@ -1,4 +1,4 @@
-//   Copyright 2016 DigitalOcean
+//   Copyright 2022 DigitalOcean
 //
 //   Licensed under the Apache License, Version 2.0 (the "License");
 //   you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-package collectors
+package ceph
 
 import (
 	"encoding/json"
@@ -30,8 +30,9 @@ const (
 // is growing or shrinking as a whole in order to zero in on the cause. The
 // pool specific stats are provided separately.
 type ClusterUsageCollector struct {
-	conn   Conn
-	logger *logrus.Logger
+	conn    Conn
+	logger  *logrus.Logger
+	version *Version
 
 	// GlobalCapacity displays the total storage capacity of the cluster. This
 	// information is based on the actual no. of objects that are
@@ -49,13 +50,14 @@ type ClusterUsageCollector struct {
 // NewClusterUsageCollector creates and returns the reference to
 // ClusterUsageCollector and internally defines each metric that display
 // cluster stats.
-func NewClusterUsageCollector(conn Conn, cluster string, logger *logrus.Logger) *ClusterUsageCollector {
+func NewClusterUsageCollector(exporter *Exporter) *ClusterUsageCollector {
 	labels := make(prometheus.Labels)
-	labels["cluster"] = cluster
+	labels["cluster"] = exporter.Cluster
 
 	return &ClusterUsageCollector{
-		conn:   conn,
-		logger: logger,
+		conn:    exporter.Conn,
+		logger:  exporter.Logger,
+		version: exporter.Version,
 
 		GlobalCapacity: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace:   cephNamespace,

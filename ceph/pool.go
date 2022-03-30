@@ -1,4 +1,4 @@
-//   Copyright 2019 DigitalOcean
+//   Copyright 2022 DigitalOcean
 //
 //   Licensed under the Apache License, Version 2.0 (the "License");
 //   you may not use this file except in compliance with the License.
@@ -12,10 +12,11 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-package collectors
+package ceph
 
 import (
 	"encoding/json"
+	"errors"
 	"math"
 	"strconv"
 
@@ -31,8 +32,9 @@ const (
 // PoolInfoCollector gives information about each pool that exists in a given
 // ceph cluster.
 type PoolInfoCollector struct {
-	conn   Conn
-	logger *logrus.Logger
+	conn    Conn
+	logger  *logrus.Logger
+	version *Version
 
 	// PGNum contains the count of PGs allotted to a particular pool.
 	PGNum *prometheus.GaugeVec
@@ -63,18 +65,19 @@ type PoolInfoCollector struct {
 }
 
 // NewPoolInfoCollector displays information about each pool in the cluster.
-func NewPoolInfoCollector(conn Conn, cluster string, logger *logrus.Logger) *PoolInfoCollector {
+func NewPoolInfoCollector(exporter *Exporter) *PoolInfoCollector {
 	var (
 		subSystem  = "pool"
 		poolLabels = []string{"pool", "profile", "root"}
 	)
 
 	labels := make(prometheus.Labels)
-	labels["cluster"] = cluster
+	labels["cluster"] = exporter.Cluster
 
 	return &PoolInfoCollector{
-		conn:   conn,
-		logger: logger,
+		conn:    exporter.Conn,
+		logger:  exporter.Logger,
+		version: exporter.Version,
 
 		PGNum: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -271,23 +274,29 @@ func (p *PoolInfoCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func (p *PoolInfoCollector) getExpansionFactor(pool poolInfo) float64 {
-	if ef, ok := p.getECExpansionFactor(pool); ok {
+	ef, err := p.getECExpansionFactor(pool)
+	if err == nil {
 		return ef
+	} else {
+		// Non-EC pool (or unable to get profile info); assume that it's replicated.
+		logrus.WithError(err).Debug("failed to get ec expansion factor")
+		return pool.ActualSize
 	}
-	// Non-EC pool (or unable to get profile info); assume that it's replicated.
-	return pool.ActualSize
 }
 
-func (p *PoolInfoCollector) getECExpansionFactor(pool poolInfo) (float64, bool) {
+func (p *PoolInfoCollector) getECExpansionFactor(pool poolInfo) (float64, error) {
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix": "osd erasure-code-profile get",
 		"name":   pool.Profile,
 		"format": "json",
 	})
+	if err != nil {
+		return -1, err
+	}
 
 	buf, _, err := p.conn.MonCommand(cmd)
 	if err != nil {
-		return -1, false
+		return -1, err
 	}
 
 	type ecInfo struct {
@@ -297,8 +306,12 @@ func (p *PoolInfoCollector) getECExpansionFactor(pool poolInfo) (float64, bool) 
 
 	ecStats := ecInfo{}
 	err = json.Unmarshal(buf, &ecStats)
-	if err != nil || ecStats.K == "" || ecStats.M == "" {
-		return -1, false
+	if err != nil {
+		return -1, err
+	}
+
+	if ecStats.K == "" || ecStats.M == "" {
+		return -1, errors.New("missing stats")
 	}
 
 	k, _ := strconv.ParseFloat(ecStats.K, 64)
@@ -306,7 +319,7 @@ func (p *PoolInfoCollector) getECExpansionFactor(pool poolInfo) (float64, bool) 
 
 	expansionFactor := (k + m) / k
 	roundedExpansion := math.Round(expansionFactor*100) / 100
-	return roundedExpansion, true
+	return roundedExpansion, nil
 }
 
 func (p *PoolInfoCollector) getCrushRuleToRootMappings() map[int64]string {

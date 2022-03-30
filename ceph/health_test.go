@@ -1,4 +1,4 @@
-//   Copyright 2016 DigitalOcean
+//   Copyright 2022 DigitalOcean
 //
 //   Licensed under the Apache License, Version 2.0 (the "License");
 //   you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 //   See the License for the specific language governing permissions and
 //   limitations under the License.
 
-package collectors
+package ceph
 
 import (
 	"io/ioutil"
@@ -21,7 +21,6 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/digitalocean/ceph_exporter/mocks"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
@@ -31,10 +30,12 @@ import (
 
 func TestClusterHealthCollector(t *testing.T) {
 	for _, tt := range []struct {
+		name    string
 		input   string
 		reMatch []*regexp.Regexp
 	}{
 		{
+			name: "15 pgs stuck degraded",
 			input: `
 {
 	"osdmap": {
@@ -52,6 +53,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
+			name: "16 pgs stuck unclean",
 			input: `
 {
 	"osdmap": {
@@ -69,6 +71,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
+			name: "17 pgs stuck undersized",
 			input: `
 {
 	"osdmap": {
@@ -86,6 +89,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
+			name: "18 pgs stuck stale",
 			input: `
 {
 	"osdmap": {
@@ -103,6 +107,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
+			name: "10 degraded objects",
 			input: `
 {
 	"osdmap": {
@@ -120,6 +125,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
+			name: "20 misplaced objects",
 			input: `
 {
 	"osdmap": {
@@ -137,6 +143,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
+			name: "10 down osds",
 			input: `
 {
 	"osdmap": {
@@ -153,6 +160,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
+			name: "normal values 1",
 			input: `
 {
 	"osdmap": {
@@ -173,6 +181,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
+			name: "health ok",
 			input: `
 {
 	"osdmap": {
@@ -183,29 +192,13 @@ func TestClusterHealthCollector(t *testing.T) {
 			"num_remapped_pgs": 10
 		}
 	},
-	"health": { "overall_status": "HEALTH_OK" } }`,
+	"health": { "status": "HEALTH_OK" } }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 0`),
 			},
 		},
 		{
-			input: `
-{
-	"osdmap": {
-		"osdmap": {
-			"num_osds": 1200,
-			"num_up_osds": 1200,
-			"num_in_osds": 1190,
-			"num_remapped_pgs": 10
-		}
-	},
-	"health": { "overall_status": "HEALTH_WARN", "status": "HEALTH_OK } }`,
-			reMatch: []*regexp.Regexp{
-				regexp.MustCompile(`health_status{cluster="ceph"} 0`),
-				regexp.MustCompile(`health_status_interp{cluster="ceph"} 0`),
-			},
-		},
-		{
+			name: "health warn",
 			input: `
 {
 	"osdmap": {
@@ -223,6 +216,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
+			name: "health ok 2",
 			input: `
 {
 	"osdmap": {
@@ -233,13 +227,32 @@ func TestClusterHealthCollector(t *testing.T) {
 			"num_remapped_pgs": 10
 		}
 	},
-	"health": { "overall_status": "HEALTH_WARN" } }`,
+	"health": { "status": "HEALTH_OK } }`,
+			reMatch: []*regexp.Regexp{
+				regexp.MustCompile(`health_status{cluster="ceph"} 0`),
+				regexp.MustCompile(`health_status_interp{cluster="ceph"} 0`),
+			},
+		},
+		{
+			name: "health warn 2",
+			input: `
+{
+	"osdmap": {
+		"osdmap": {
+			"num_osds": 1200,
+			"num_up_osds": 1200,
+			"num_in_osds": 1190,
+			"num_remapped_pgs": 10
+		}
+	},
+	"health": { "status": "HEALTH_WARN" } }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 1`),
 				regexp.MustCompile(`health_status_interp{cluster="ceph"} 2`),
 			},
 		},
 		{
+			name: "health err",
 			input: `
 {
 	"osdmap": {
@@ -250,13 +263,14 @@ func TestClusterHealthCollector(t *testing.T) {
 			"num_remapped_pgs": 10
 		}
 	},
-	"health": { "overall_status": "HEALTH_ERR" } }`,
+	"health": { "status": "HEALTH_ERR" } }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 2`),
 				regexp.MustCompile(`health_status_interp{cluster="ceph"} 3`),
 			},
 		},
 		{
+			name: "cluster statistics",
 			input: `
 $ sudo ceph -s
     cluster eff51be8-938a-4afa-b0d1-7a580b4ceb37
@@ -275,6 +289,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "cluster statistics 2",
 			input: `
 $ sudo ceph -s
     cluster eff51be8-938a-4afa-b0d1-7a580b4ceb37
@@ -297,6 +312,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "pg statistics",
 			input: `
 {
 	"osdmap": {
@@ -316,6 +332,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "pg states",
 			input: `
 {
 	"osdmap": {
@@ -359,17 +376,18 @@ $ sudo ceph -s
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "7 pgs undersized"}]}
 }`,
 			reMatch: []*regexp.Regexp{
-				regexp.MustCompile(`active_pgs{cluster="ceph"} 48`),
+				regexp.MustCompile(`active_pgs{cluster="ceph"} 49`),
 				regexp.MustCompile(`scrubbing_pgs{cluster="ceph"} 2`),
 				regexp.MustCompile(`deep_scrubbing_pgs{cluster="ceph"} 5`),
 				regexp.MustCompile(`inconsistent_pgs{cluster="ceph"} 1`),
 				regexp.MustCompile(`cluster_objects{cluster="ceph"} 13156`),
 				regexp.MustCompile(`snaptrim_pgs{cluster="ceph"} 15`),
 				regexp.MustCompile(`snaptrim_wait_pgs{cluster="ceph"} 25`),
-				regexp.MustCompile(`repair{cluster="ceph"} 1`),
+				regexp.MustCompile(`repairing_pgs{cluster="ceph"} 1`),
 			},
 		},
 		{
+			name: "mon down",
 			input: `
 {
   "health": {
@@ -388,6 +406,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "slow ops",
 			input: `
 {
 	"health": {
@@ -404,6 +423,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "slow and blocked ops",
 			input: `
 {
   "health": {
@@ -422,6 +442,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "more slow and blocked ops",
 			input: `
 {
   "health": {
@@ -440,6 +461,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "degraded cluster",
 			input: `
 {
   "health": {
@@ -460,6 +482,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "crashed daemons",
 			input: `
 {
   "health": {
@@ -479,6 +502,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "too many repaired reads",
 			input: `
 {
   "health": {
@@ -498,6 +522,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "not enabled on 1 pool",
 			input: `
 {
   "health": {
@@ -516,6 +541,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "many flags set",
 			input: `
 {
   "health": {
@@ -547,6 +573,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "lots of PG data",
 			input: `
 {
 	"pgmap": {
@@ -692,6 +719,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "manager map",
 			input: `
 {
     "mgrmap": {
@@ -741,6 +769,7 @@ $ sudo ceph -s
 			},
 		},
 		{
+			name: "service map (rbd-mirror)",
 			input: `
 {
     "servicemap": {
@@ -780,13 +809,13 @@ $ sudo ceph -s
 			},
 		},
 	} {
-		func() {
-			conn := &mocks.Conn{}
+		t.Run(tt.name, func(t *testing.T) {
+			conn := &MockConn{}
 			conn.On("MonCommand", mock.Anything).Return(
 				[]byte(tt.input), "", nil,
 			)
 
-			collector := NewClusterHealthCollector(conn, "ceph", logrus.New())
+			collector := NewClusterHealthCollector(&Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New(), Version: &Version{Major: 14, Minor: 2, Patch: 0}})
 			err := prometheus.Register(collector)
 			require.NoError(t, err)
 			defer prometheus.Unregister(collector)
@@ -802,8 +831,10 @@ $ sudo ceph -s
 			require.NoError(t, err)
 
 			for _, re := range tt.reMatch {
-				require.True(t, re.Match(buf))
+				if !re.Match(buf) {
+					t.Errorf("expected %s to match\n", re.String())
+				}
 			}
-		}()
+		})
 	}
 }

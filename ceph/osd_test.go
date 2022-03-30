@@ -1,4 +1,18 @@
-package collectors
+//   Copyright 2022 DigitalOcean
+//
+//   Licensed under the Apache License, Version 2.0 (the "License");
+//   you may not use this file except in compliance with the License.
+//   You may obtain a copy of the License at
+//
+//       http://www.apache.org/licenses/LICENSE-2.0
+//
+//   Unless required by applicable law or agreed to in writing, software
+//   distributed under the License is distributed on an "AS IS" BASIS,
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//   See the License for the specific language governing permissions and
+//   limitations under the License.
+
+package ceph
 
 import (
 	"encoding/json"
@@ -8,7 +22,6 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/digitalocean/ceph_exporter/mocks"
 	"github.com/google/go-cmp/cmp"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -467,7 +480,7 @@ func TestOSDCollector(t *testing.T) {
 		},
 	} {
 		func() {
-			conn := &mocks.Conn{}
+			conn := &MockConn{}
 
 			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
 				v := map[string]interface{}{}
@@ -953,7 +966,7 @@ func TestOSDCollector(t *testing.T) {
     }
 }`), "", nil)
 
-			collector := NewOSDCollector(conn, "ceph", logrus.New())
+			collector := NewOSDCollector(&Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()})
 			err := prometheus.Register(collector)
 			require.NoError(t, err)
 			defer prometheus.Unregister(collector)
