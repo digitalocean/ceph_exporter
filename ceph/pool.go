@@ -279,7 +279,7 @@ func (p *PoolInfoCollector) getExpansionFactor(pool poolInfo) float64 {
 		return ef
 	} else {
 		// Non-EC pool (or unable to get profile info); assume that it's replicated.
-		logrus.WithError(err).Warn("failed to get ec expansion factor")
+		logrus.WithError(err).Debug("failed to get ec expansion factor")
 		return pool.ActualSize
 	}
 }
