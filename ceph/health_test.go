@@ -657,7 +657,8 @@ $ sudo ceph -s
 			},
 		},
 		{
-			name: "manager map",
+			name:     "manager map",
+			versions: nautilusOnly,
 			input: `
 {
     "mgrmap": {
@@ -698,6 +699,31 @@ $ sudo ceph -s
         ],
         "services": {
             "dashboard": "http://mon01:7000/"
+        }
+    }
+}`,
+			reMatch: []*regexp.Regexp{
+				regexp.MustCompile(`mgrs_active{cluster="ceph"} 1`),
+				regexp.MustCompile(`mgrs{cluster="ceph"} 3`),
+			},
+		},
+		{
+			name:     "manager map",
+			versions: octopusPlus,
+			input: `
+{
+    "mgrmap": {
+        "available": true,
+        "num_standbys": 2,
+        "modules": [
+            "iostat",
+            "pg_autoscaler",
+            "prometheus",
+            "restful"
+        ],
+        "services": {
+            "prometheus": "http://10.117.16.32:9283/",
+            "restful": "https://10.117.16.32:8003/"
         }
     }
 }`,

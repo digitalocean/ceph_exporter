@@ -1041,6 +1041,11 @@ type cephHealthStats struct {
 		} `json:"pgs_by_state"`
 	} `json:"pgmap"`
 	MgrMap struct {
+		// Octopus+ fields
+		Available   bool `json:"available"`
+		NumStandBys int  `json:"num_standbys"`
+
+		// Nautilus fields
 		ActiveName string `json:"active_name"`
 		StandBys   []struct {
 			Name string `json:"name"`
@@ -1382,12 +1387,21 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 	c.MisplacedRatio.Set(stats.PGMap.MisplacedRatio)
 
 	activeMgr := 0
-	if len(stats.MgrMap.ActiveName) > 0 {
-		activeMgr = 1
+	standByMgrs := 0
+	if c.version.IsAtLeast(Octopus) {
+		if stats.MgrMap.Available {
+			activeMgr = 1
+		}
+		standByMgrs = stats.MgrMap.NumStandBys
+	} else {
+		if len(stats.MgrMap.ActiveName) > 0 {
+			activeMgr = 1
+		}
+		standByMgrs = len(stats.MgrMap.StandBys)
 	}
 
 	c.MgrsActive.Set(float64(activeMgr))
-	c.MgrsNum.Set(float64(activeMgr + len(stats.MgrMap.StandBys)))
+	c.MgrsNum.Set(float64(activeMgr + standByMgrs))
 
 	for name, data := range stats.ServiceMap.Services.RbdMirror.Daemons {
 		if name == "summary" {
