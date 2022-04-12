@@ -16,6 +16,7 @@ package ceph
 
 import (
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -72,6 +73,18 @@ func (version *Version) IsAtLeast(constraint *Version) bool {
 
 	// the versions must be the same
 	return true
+}
+
+func (version *Version) String() string {
+	str := fmt.Sprintf("%d.%d.%d", version.Major, version.Minor, version.Patch)
+	if version.Revision != 0 || version.Commit != "" {
+		str = fmt.Sprintf("%s-%d", str, version.Patch)
+		if version.Commit != "" {
+			str = fmt.Sprintf("%s-%s", str, version.Commit)
+		}
+	}
+
+	return str
 }
 
 // ParseCephVersion parses the given ceph version string to a *Version or error

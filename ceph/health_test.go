@@ -29,23 +29,19 @@ import (
 )
 
 func TestClusterHealthCollector(t *testing.T) {
+	allVersions := []*Version{Nautilus, Octopus, Pacific}
+	nautilusOnly := []*Version{Nautilus}
+	octopusPlus := []*Version{Octopus, Pacific}
 	for _, tt := range []struct {
-		name    string
-		input   string
-		reMatch []*regexp.Regexp
+		name     string
+		versions []*Version // Defaults to allVersions if not provided.
+		input    string
+		reMatch  []*regexp.Regexp
 	}{
 		{
 			name: "15 pgs stuck degraded",
 			input: `
 {
-	"osdmap": {
-		"osdmap": {
-			"num_osds": 0,
-			"num_up_osds": 0,
-			"num_in_osds": 0,
-			"num_remapped_pgs": 0
-		}
-	},
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "15 pgs stuck degraded"}]}
 }`,
 			reMatch: []*regexp.Regexp{
@@ -56,14 +52,6 @@ func TestClusterHealthCollector(t *testing.T) {
 			name: "16 pgs stuck unclean",
 			input: `
 {
-	"osdmap": {
-		"osdmap": {
-			"num_osds": 0,
-			"num_up_osds": 0,
-			"num_in_osds": 0,
-			"num_remapped_pgs": 0
-		}
-	},
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "16 pgs stuck unclean"}]}
 }`,
 			reMatch: []*regexp.Regexp{
@@ -74,14 +62,6 @@ func TestClusterHealthCollector(t *testing.T) {
 			name: "17 pgs stuck undersized",
 			input: `
 {
-	"osdmap": {
-		"osdmap": {
-			"num_osds": 0,
-			"num_up_osds": 0,
-			"num_in_osds": 0,
-			"num_remapped_pgs": 0
-		}
-	},
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "17 pgs stuck undersized"}]}
 }`,
 			reMatch: []*regexp.Regexp{
@@ -92,14 +72,6 @@ func TestClusterHealthCollector(t *testing.T) {
 			name: "18 pgs stuck stale",
 			input: `
 {
-	"osdmap": {
-		"osdmap": {
-			"num_osds": 0,
-			"num_up_osds": 0,
-			"num_in_osds": 0,
-			"num_remapped_pgs": 0
-		}
-	},
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "18 pgs stuck stale"}]}
 }`,
 			reMatch: []*regexp.Regexp{
@@ -110,14 +82,6 @@ func TestClusterHealthCollector(t *testing.T) {
 			name: "10 degraded objects",
 			input: `
 {
-	"osdmap": {
-		"osdmap": {
-			"num_osds": 0,
-			"num_up_osds": 0,
-			"num_in_osds": 0,
-			"num_remapped_pgs": 0
-		}
-	},
 	"pgmap": { "degraded_objects": 10 }
 }`,
 			reMatch: []*regexp.Regexp{
@@ -128,14 +92,6 @@ func TestClusterHealthCollector(t *testing.T) {
 			name: "20 misplaced objects",
 			input: `
 {
-	"osdmap": {
-		"osdmap": {
-			"num_osds": 0,
-			"num_up_osds": 0,
-			"num_in_osds": 0,
-			"num_remapped_pgs": 0
-		}
-	},
 	"pgmap": { "misplaced_objects": 20 }
 }`,
 			reMatch: []*regexp.Regexp{
@@ -143,7 +99,8 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
-			name: "10 down osds",
+			name:     "10 down osds",
+			versions: nautilusOnly,
 			input: `
 {
 	"osdmap": {
@@ -160,7 +117,8 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
-			name: "normal values 1",
+			name:     "normal osdmap",
+			versions: nautilusOnly,
 			input: `
 {
 	"osdmap": {
@@ -181,17 +139,45 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
-			name: "health ok",
+			name:     "10 down osds",
+			versions: octopusPlus,
 			input: `
 {
 	"osdmap": {
-		"osdmap": {
-			"num_osds": 1200,
-			"num_up_osds": 1200,
-			"num_in_osds": 1190,
-			"num_remapped_pgs": 10
-		}
+		"num_osds": 20,
+		"num_up_osds": 10,
+		"num_in_osds": 0,
+		"num_remapped_pgs": 0
+	}
+}`,
+			reMatch: []*regexp.Regexp{
+				regexp.MustCompile(`osds_down{cluster="ceph"} 10`),
+			},
+		},
+		{
+			name:     "normal osdmap",
+			versions: octopusPlus,
+			input: `
+{
+	"osdmap": {
+		"num_osds": 1200,
+		"num_up_osds": 1200,
+		"num_in_osds": 1190,
+		"num_remapped_pgs": 10
 	},
+	"health": {"summary": []}
+}`,
+			reMatch: []*regexp.Regexp{
+				regexp.MustCompile(`osds{cluster="ceph"} 1200`),
+				regexp.MustCompile(`osds_up{cluster="ceph"} 1200`),
+				regexp.MustCompile(`osds_in{cluster="ceph"} 1190`),
+				regexp.MustCompile(`pgs_remapped{cluster="ceph"} 10`),
+			},
+		},
+		{
+			name: "health ok",
+			input: `
+{
 	"health": { "status": "HEALTH_OK" } }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 0`),
@@ -201,14 +187,6 @@ func TestClusterHealthCollector(t *testing.T) {
 			name: "health warn",
 			input: `
 {
-	"osdmap": {
-		"osdmap": {
-			"num_osds": 1200,
-			"num_up_osds": 1200,
-			"num_in_osds": 1190,
-			"num_remapped_pgs": 10
-		}
-	},
 	"health": { "status": "HEALTH_OK } }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 0`),
@@ -219,14 +197,6 @@ func TestClusterHealthCollector(t *testing.T) {
 			name: "health ok 2",
 			input: `
 {
-	"osdmap": {
-		"osdmap": {
-			"num_osds": 1200,
-			"num_up_osds": 1200,
-			"num_in_osds": 1190,
-			"num_remapped_pgs": 10
-		}
-	},
 	"health": { "status": "HEALTH_OK } }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 0`),
@@ -237,14 +207,6 @@ func TestClusterHealthCollector(t *testing.T) {
 			name: "health warn 2",
 			input: `
 {
-	"osdmap": {
-		"osdmap": {
-			"num_osds": 1200,
-			"num_up_osds": 1200,
-			"num_in_osds": 1190,
-			"num_remapped_pgs": 10
-		}
-	},
 	"health": { "status": "HEALTH_WARN" } }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 1`),
@@ -255,14 +217,6 @@ func TestClusterHealthCollector(t *testing.T) {
 			name: "health err",
 			input: `
 {
-	"osdmap": {
-		"osdmap": {
-			"num_osds": 1200,
-			"num_up_osds": 1200,
-			"num_in_osds": 1190,
-			"num_remapped_pgs": 10
-		}
-	},
 	"health": { "status": "HEALTH_ERR" } }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 2`),
@@ -315,14 +269,6 @@ $ sudo ceph -s
 			name: "pg statistics",
 			input: `
 {
-	"osdmap": {
-		"osdmap": {
-			"num_osds": 0,
-			"num_up_osds": 0,
-			"num_in_osds": 0,
-			"num_remapped_pgs": 0
-		}
-	},
 	"pgmap": { "num_pgs": 52000, "num_objects": 13156 },
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "7 pgs undersized"}]}
 }`,
@@ -335,14 +281,6 @@ $ sudo ceph -s
 			name: "pg states",
 			input: `
 {
-	"osdmap": {
-		"osdmap": {
-			"num_osds": 0,
-			"num_up_osds": 0,
-			"num_in_osds": 0,
-			"num_remapped_pgs": 0
-		}
-	},
 	"pgmap": {
 		"pgs_by_state": [
 			{
@@ -810,30 +748,38 @@ $ sudo ceph -s
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			conn := &MockConn{}
-			conn.On("MonCommand", mock.Anything).Return(
-				[]byte(tt.input), "", nil,
-			)
+			versions := allVersions
+			if len(tt.versions) > 0 {
+				versions = tt.versions
+			}
+			for _, version := range versions {
+				t.Run(version.String(), func(t *testing.T) {
+					conn := &MockConn{}
+					conn.On("MonCommand", mock.Anything).Return(
+						[]byte(tt.input), "", nil,
+					)
 
-			collector := NewClusterHealthCollector(&Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New(), Version: &Version{Major: 14, Minor: 2, Patch: 0}})
-			err := prometheus.Register(collector)
-			require.NoError(t, err)
-			defer prometheus.Unregister(collector)
+					collector := NewClusterHealthCollector(&Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New(), Version: version})
+					err := prometheus.Register(collector)
+					require.NoError(t, err)
+					defer prometheus.Unregister(collector)
 
-			server := httptest.NewServer(promhttp.Handler())
-			defer server.Close()
+					server := httptest.NewServer(promhttp.Handler())
+					defer server.Close()
 
-			resp, err := http.Get(server.URL)
-			require.NoError(t, err)
-			defer resp.Body.Close()
+					resp, err := http.Get(server.URL)
+					require.NoError(t, err)
+					defer resp.Body.Close()
 
-			buf, err := ioutil.ReadAll(resp.Body)
-			require.NoError(t, err)
+					buf, err := ioutil.ReadAll(resp.Body)
+					require.NoError(t, err)
 
-			for _, re := range tt.reMatch {
-				if !re.Match(buf) {
-					t.Errorf("expected %s to match\n", re.String())
-				}
+					for _, re := range tt.reMatch {
+						if !re.Match(buf) {
+							t.Errorf("expected %s to match\n", re.String())
+						}
+					}
+				})
 			}
 		})
 	}
