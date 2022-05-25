@@ -17,6 +17,7 @@ package ceph
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -89,6 +90,10 @@ func (version *Version) String() string {
 
 // ParseCephVersion parses the given ceph version string to a *Version or error
 func ParseCephVersion(cephVersion string) (*Version, error) {
+	// standardize ceph-ansible version format
+	var re = regexp.MustCompile(`(\d+\.\d+\.\d+-\d+)\.(.*)`)
+	cephVersion = re.ReplaceAllString(cephVersion, `$1-$2`)
+
 	splitVersion := strings.Split(cephVersion, " ")
 	if len(splitVersion) < 3 {
 		return nil, ErrInvalidVersion
