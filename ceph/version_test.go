@@ -48,6 +48,12 @@ func TestParseCephVersion(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:    "nautilus-ceph-ansible",
+			args:    args{cephVersion: "ceph version 14.2.11-184.el8cp (44441323476fee97be0ff7a92c6065958c77f1b9) nautilus (stable)"},
+			want:    &Version{Major: 14, Minor: 2, Patch: 11, Revision: 184, Commit: "el8cp"},
+			wantErr: false,
+		},
+		{
 			name:    "octopus",
 			args:    args{cephVersion: "ceph version 15.2.0-1-gcc1e126"},
 			want:    &Version{Major: 15, Minor: 2, Patch: 0, Revision: 1, Commit: "gcc1e126"},
