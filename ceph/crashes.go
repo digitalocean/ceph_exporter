@@ -18,6 +18,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"regexp"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -39,11 +40,7 @@ type CrashesCollector struct {
 	logger  *logrus.Logger
 	version *Version
 
-	// We keep track of which daemons we've seen so that their error count
-	// can be reset to zero if the errors get purged.
-	knownEntities map[string]bool
-
-	CrashReports prometheus.GaugeVec
+	crashReportsDesc *prometheus.Desc
 }
 
 // NewCrashesCollector creates a new CrashesCollector instance
@@ -56,16 +53,11 @@ func NewCrashesCollector(exporter *Exporter) *CrashesCollector {
 		logger:  exporter.Logger,
 		version: exporter.Version,
 
-		knownEntities: map[string]bool{},
-
-		CrashReports: *prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Namespace:   cephNamespace,
-				Name:        "crash_reports",
-				Help:        "Count of crashes reports per daemon, according to `ceph crash ls`",
-				ConstLabels: labels,
-			},
+		crashReportsDesc: prometheus.NewDesc(
+			fmt.Sprintf("%s_crash_reports", cephNamespace),
+			"Count of crashes reports per daemon, according to `ceph crash ls`",
 			[]string{"daemon", "status"},
+			labels,
 		),
 	}
 
@@ -78,8 +70,8 @@ type crashEntry struct {
 }
 
 // getCrashLs runs the 'crash ls' command and parses its results
-func (c *CrashesCollector) getCrashLs() ([]crashEntry, error) {
-	crashes := make([]crashEntry, 0)
+func (c *CrashesCollector) getCrashLs() (map[crashEntry]int, error) {
+	crashes := make(map[crashEntry]int)
 
 	// We parse the plain format because it is quite compact.
 	// The JSON output of this command is very verbose and might be too slow
@@ -101,39 +93,19 @@ func (c *CrashesCollector) getCrashLs() ([]crashEntry, error) {
 	for scanner.Scan() {
 		matched := crashLsLineRegex.FindStringSubmatch(scanner.Text())
 		if len(matched) == 3 {
-			crashes = append(crashes, crashEntry{matched[1], matched[2] == "*"})
+			crashes[crashEntry{matched[1], matched[2] == "*"}]++
 		} else if len(matched) == 2 {
 			// Just in case the line-end spaces were stripped
-			crashes = append(crashes, crashEntry{matched[1], false})
+			crashes[crashEntry{matched[1], false}]++
 		}
 	}
 
 	return crashes, nil
 }
 
-// processCrashLs takes the parsed results from getCrashLs and counts them
-// in a map. It also keeps track of which daemons we've see in the past, and
-// initializes all counts to zero where needed.
-func (c *CrashesCollector) processCrashLs(crashes []crashEntry) map[crashEntry]int {
-	crashMap := make(map[crashEntry]int)
-
-	for _, crash := range crashes {
-		c.knownEntities[crash.entity] = true
-	}
-	for entity := range c.knownEntities {
-		crashMap[crashEntry{entity, true}] = 0
-		crashMap[crashEntry{entity, false}] = 0
-	}
-	for _, crash := range crashes {
-		crashMap[crash]++
-	}
-
-	return crashMap
-}
-
 // Describe provides the metrics descriptions to Prometheus
 func (c *CrashesCollector) Describe(ch chan<- *prometheus.Desc) {
-	c.CrashReports.Describe(ch)
+	ch <- c.crashReportsDesc
 }
 
 // Collect sends all the collected metrics Prometheus.
@@ -142,11 +114,14 @@ func (c *CrashesCollector) Collect(ch chan<- prometheus.Metric) {
 	if err != nil {
 		c.logger.WithError(err).Error("failed to run 'ceph crash ls'")
 	}
-	crashMap := c.processCrashLs(crashes)
 
-	for crash, count := range crashMap {
-		c.CrashReports.WithLabelValues(crash.entity, statusNames[crash.isNew]).Set(float64(count))
+	for crash, count := range crashes {
+		ch <- prometheus.MustNewConstMetric(
+			c.crashReportsDesc,
+			prometheus.GaugeValue,
+			float64(count),
+			crash.entity,
+			statusNames[crash.isNew],
+		)
 	}
-
-	c.CrashReports.Collect(ch)
 }
