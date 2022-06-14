@@ -16,9 +16,10 @@ package ceph
 
 import (
 	"encoding/json"
+	"sync"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
-	"sync"
 )
 
 // Exporter wraps all the ceph collectors and provides a single global
@@ -56,6 +57,7 @@ func (exporter *Exporter) getCollectors() []prometheus.Collector {
 		NewClusterHealthCollector(exporter),
 		NewMonitorCollector(exporter),
 		NewOSDCollector(exporter),
+		NewCrashesCollector(exporter),
 	}
 
 	switch exporter.RgwMode {
