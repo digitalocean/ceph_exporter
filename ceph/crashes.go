@@ -15,19 +15,14 @@
 package ceph
 
 import (
-	"bufio"
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"regexp"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 )
 
 var (
-	crashLsLineRegex = regexp.MustCompile(`.*_[0-9a-f-]{36}\s+(\S+)\s*(\*)?`)
-
 	statusNames = map[bool]string{true: "new", false: "archived"}
 )
 
@@ -56,7 +51,7 @@ func NewCrashesCollector(exporter *Exporter) *CrashesCollector {
 		crashReportsDesc: prometheus.NewDesc(
 			fmt.Sprintf("%s_crash_reports", cephNamespace),
 			"Count of crashes reports per daemon, according to `ceph crash ls`",
-			[]string{"daemon", "status"},
+			[]string{"entity", "status"},
 			labels,
 		),
 	}
@@ -69,6 +64,11 @@ type crashEntry struct {
 	isNew  bool
 }
 
+type cephCrashLs struct {
+	Entity   string `json:"entity_name"`
+	Archived string `json:"archived"`
+}
+
 // getCrashLs runs the 'crash ls' command and parses its results
 func (c *CrashesCollector) getCrashLs() (map[crashEntry]int, error) {
 	crashes := make(map[crashEntry]int)
@@ -78,7 +78,7 @@ func (c *CrashesCollector) getCrashLs() (map[crashEntry]int, error) {
 	// to process in an outage storm.
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix": "crash ls",
-		"format": "plain",
+		"format": "json",
 	})
 	if err != nil {
 		return crashes, err
@@ -89,15 +89,13 @@ func (c *CrashesCollector) getCrashLs() (map[crashEntry]int, error) {
 		return crashes, err
 	}
 
-	scanner := bufio.NewScanner(bytes.NewBuffer(buf))
-	for scanner.Scan() {
-		matched := crashLsLineRegex.FindStringSubmatch(scanner.Text())
-		if len(matched) == 3 {
-			crashes[crashEntry{matched[1], matched[2] == "*"}]++
-		} else if len(matched) == 2 {
-			// Just in case the line-end spaces were stripped
-			crashes[crashEntry{matched[1], false}]++
-		}
+	var crashData []cephCrashLs
+	if err = json.Unmarshal(buf, &crashData); err != nil {
+		return crashes, err
+	}
+
+	for _, crash := range crashData {
+		crashes[crashEntry{crash.Entity, len(crash.Archived) == 0}]++
 	}
 
 	return crashes, nil
