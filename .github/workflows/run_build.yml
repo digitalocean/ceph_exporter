@@ -16,9 +16,9 @@ name: Build
 
 on: 
   push:
-    branches: [main]
+    branches: [mimic]
   pull_request:
-    branches: [main]
+    branches: [mimic]
 
 jobs:
 
@@ -36,10 +36,10 @@ jobs:
       run: wget -q 'https://download.ceph.com/keys/release.asc'
     - name: Install Ceph repository key
       run: sudo apt-key add release.asc
-    - name: Declare Ceph Nautilus repository
-      run: echo deb https://download.ceph.com/debian-nautilus/ $(lsb_release -sc) main | sudo tee /etc/apt/sources.list.d/ceph.list
+    - name: Declare Ceph Mimic repository
+      run: echo deb https://download.ceph.com/debian-mimic/ $(lsb_release -sc) main | sudo tee /etc/apt/sources.list.d/ceph.list
     - name: Install go-ceph dependencies
       run: sudo apt update && sudo apt install -y librados-dev librbd-dev
 
     - name: Go build
-      run: go build -tags nautilus -v ./...
+      run: go build -tags mimic -v ./...

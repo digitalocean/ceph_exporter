@@ -16,7 +16,7 @@ name: Tests
 
 on: 
   push:
-    branches: [main]
+    branches: [mimic]
   pull_request:
     branches: ['**']
 

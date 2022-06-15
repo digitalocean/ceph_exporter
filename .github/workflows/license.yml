@@ -16,9 +16,9 @@ name: License
 
 on:
   push:
-    branches: [ main ]
+    branches: [ mimic ]
   pull_request:
-    branches: [ main ]
+    branches: [ mimic ]
 
 jobs:
   check-file-licenses:
