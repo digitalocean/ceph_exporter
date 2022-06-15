@@ -69,13 +69,10 @@ type cephCrashLs struct {
 	Archived string `json:"archived"`
 }
 
-// getCrashLs runs the 'crash ls' command and parses its results
+// getCrashLs runs the 'ceph crash ls' command and process its results
 func (c *CrashesCollector) getCrashLs() (map[crashEntry]int, error) {
 	crashes := make(map[crashEntry]int)
 
-	// We parse the plain format because it is quite compact.
-	// The JSON output of this command is very verbose and might be too slow
-	// to process in an outage storm.
 	cmd, err := json.Marshal(map[string]interface{}{
 		"prefix": "crash ls",
 		"format": "json",
