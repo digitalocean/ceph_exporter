@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/Jeffail/gabs v1.4.0
-	github.com/ceph/go-ceph v0.14.0
+	github.com/ceph/go-ceph v0.6.0
 	github.com/google/go-cmp v0.5.7
 	github.com/ianschenck/envflag v0.0.0-20140720210342-9111d830d133
 	github.com/prometheus/client_golang v1.12.1
