@@ -564,13 +564,13 @@ type cephOSDTreeDown struct {
 	Stray []osdNode `json:"stray"`
 }
 
-type cephPGDumpBrief struct {
-	PGStats []struct {
-		PGID          string `json:"pgid"`
-		ActingPrimary int64  `json:"acting_primary"`
-		Acting        []int  `json:"acting"`
-		State         string `json:"state"`
-	} `json:"pg_stats"`
+type cephPGDumpBrief []struct {
+	Pgid          string `json:"pgid"`
+	State         string `json:"state"`
+	Up            []int  `json:"up"`
+	Acting        []int  `json:"acting"`
+	UpPrimary     int    `json:"up_primary"`
+	ActingPrimary int    `json:"acting_primary"`
 }
 
 type cephOSDLabel struct {
@@ -984,7 +984,7 @@ func (o *OSDCollector) collectOSDScrubState(ch chan<- prometheus.Metric) error {
 		o.osdScrubCache[i] = scrubStateIdle
 	}
 
-	for _, pg := range o.pgDumpBrief.PGStats {
+	for _, pg := range o.pgDumpBrief {
 		if strings.Contains(pg.State, "scrubbing") {
 			scrubState := scrubStateScrubbing
 			if strings.Contains(pg.State, "deep") {
@@ -1081,19 +1081,19 @@ func (o *OSDCollector) collectPGStates(ch chan<- prometheus.Metric) error {
 	now := time.Now()
 	oldestTime := now
 
-	for _, pg := range o.pgDumpBrief.PGStats {
+	for _, pg := range o.pgDumpBrief {
 		// If we were tracking it, and it's now active, remove it
 		active := strings.Contains(pg.State, "active")
 		if active {
-			delete(o.oldestInactivePGMap, pg.PGID)
+			delete(o.oldestInactivePGMap, pg.Pgid)
 			continue
 		}
 
 		// Now see if it's not here, we'll need to track it now
-		pgTime, ok := o.oldestInactivePGMap[pg.PGID]
+		pgTime, ok := o.oldestInactivePGMap[pg.Pgid]
 		if !ok {
 			pgTime = now
-			o.oldestInactivePGMap[pg.PGID] = now
+			o.oldestInactivePGMap[pg.Pgid] = now
 		}
 
 		// And finally, track our oldest time
