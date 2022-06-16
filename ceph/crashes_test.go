@@ -86,7 +86,7 @@ func TestCrashesCollector(t *testing.T) {
 	}
 ]`,
 			reMatch: []*regexp.Regexp{
-				regexp.MustCompile(`crash_reports{cluster="ceph",entity="client.admin",status="new"} 1`),
+				regexp.MustCompile(`crash_reports{cluster="ceph",entity="client.admin",hostname="test-ceph-server.company.example",status="new"} 1`),
 			},
 		},
 		{
@@ -95,6 +95,7 @@ func TestCrashesCollector(t *testing.T) {
 [
 	{
 		"entity_name": "client.admin",
+		"utsname_hostname": "test-ceph-server.company.example",
 		"timestamp": "2022-01-25 21:02:46.687015Z",
 		"archived": "2022-06-14 19:44:40.356826",
 		"crash_id": "2022-01-25_21:02:46.687015Z_d6513591-c16b-472f-8d40-5a143b28837d"
@@ -102,7 +103,7 @@ func TestCrashesCollector(t *testing.T) {
 ]
 			`,
 			reMatch: []*regexp.Regexp{
-				regexp.MustCompile(`crash_reports{cluster="ceph",entity="client.admin",status="archived"} 1`),
+				regexp.MustCompile(`crash_reports{cluster="ceph",entity="client.admin",hostname="test-ceph-server.company.example",status="archived"} 1`),
 			},
 		},
 		{
@@ -111,17 +112,19 @@ func TestCrashesCollector(t *testing.T) {
 [
 	{
 		"entity_name": "osd.0",
+		"utsname_hostname": "test-ceph-server.company.example",
 		"timestamp": "2022-02-01 21:02:46.687015Z",
 		"crash_id": "2022-02-01_21:02:46.687015Z_0de8b741-b323-4f63-828a-e460294e28b9"
 	},
 	{
 		"entity_name": "osd.0",
+		"utsname_hostname": "test-ceph-server.company.example",
 		"timestamp": "2022-02-03 04:05:45.419226Z",
 		"crash_id": "2022-02-03_04:05:45.419226Z_11c639af-5eb2-4a29-91aa-20120218891a"
 	}
 ]`,
 			reMatch: []*regexp.Regexp{
-				regexp.MustCompile(`crash_reports{cluster="ceph",entity="osd.0",status="new"} 2`),
+				regexp.MustCompile(`crash_reports{cluster="ceph",entity="osd.0",hostname="test-ceph-server.company.example",status="new"} 2`),
 			},
 		},
 		{
@@ -130,19 +133,21 @@ func TestCrashesCollector(t *testing.T) {
 [
 	{
 		"entity_name": "osd.0",
+		"utsname_hostname": "test-ceph-server.company.example",
 		"timestamp": "2022-02-01 21:02:46.687015Z",
 		"crash_id": "2022-02-01_21:02:46.687015Z_0de8b741-b323-4f63-828a-e460294e28b9"
 	},
 	{
 		"entity_name": "osd.0",
+		"utsname_hostname": "test-ceph-server.company.example",
 		"timestamp": "2022-02-03 04:05:45.419226Z",
 		"archived": "2022-06-14 19:44:40.356826",
 		"crash_id": "2022-02-03_04:05:45.419226Z_11c639af-5eb2-4a29-91aa-20120218891a"
 	}
 ]`,
 			reMatch: []*regexp.Regexp{
-				regexp.MustCompile(`crash_reports{cluster="ceph",entity="osd.0",status="new"} 1`),
-				regexp.MustCompile(`crash_reports{cluster="ceph",entity="osd.0",status="archived"} 1`),
+				regexp.MustCompile(`crash_reports{cluster="ceph",entity="osd.0",hostname="test-ceph-server.company.example",status="new"} 1`),
+				regexp.MustCompile(`crash_reports{cluster="ceph",entity="osd.0",hostname="test-ceph-server.company.example",status="archived"} 1`),
 			},
 		},
 		{
@@ -151,18 +156,20 @@ func TestCrashesCollector(t *testing.T) {
 [
 	{
 		"entity_name": "mgr.mgr-node-01",
+		"utsname_hostname": "test-ceph-server.company.example",
 		"timestamp": "2022-02-01 21:02:46.687015Z",
 		"crash_id": "2022-02-01_21:02:46.687015Z_0de8b741-b323-4f63-828a-e460294e28b9"
 	},
 	{
 		"entity_name": "client.admin",
+		"utsname_hostname": "test-ceph-server.company.example",
 		"timestamp": "2022-02-03 04:05:45.419226Z",
 		"crash_id": "2022-02-03_04:05:45.419226Z_11c639af-5eb2-4a29-91aa-20120218891a"
 	}
 ]`,
 			reMatch: []*regexp.Regexp{
-				regexp.MustCompile(`crash_reports{cluster="ceph",entity="mgr.mgr-node-01",status="new"} 1`),
-				regexp.MustCompile(`crash_reports{cluster="ceph",entity="client.admin",status="new"} 1`),
+				regexp.MustCompile(`crash_reports{cluster="ceph",entity="mgr.mgr-node-01",hostname="test-ceph-server.company.example",status="new"} 1`),
+				regexp.MustCompile(`crash_reports{cluster="ceph",entity="client.admin",hostname="test-ceph-server.company.example",status="new"} 1`),
 			},
 		},
 		{

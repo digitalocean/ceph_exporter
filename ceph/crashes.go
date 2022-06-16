@@ -51,7 +51,7 @@ func NewCrashesCollector(exporter *Exporter) *CrashesCollector {
 		crashReportsDesc: prometheus.NewDesc(
 			fmt.Sprintf("%s_crash_reports", cephNamespace),
 			"Count of crashes reports per daemon, according to `ceph crash ls`",
-			[]string{"entity", "status"},
+			[]string{"entity", "hostname", "status"},
 			labels,
 		),
 	}
@@ -60,12 +60,14 @@ func NewCrashesCollector(exporter *Exporter) *CrashesCollector {
 }
 
 type crashEntry struct {
-	entity string
-	isNew  bool
+	entity   string
+	hostname string
+	isNew    bool
 }
 
 type cephCrashLs struct {
 	Entity   string `json:"entity_name"`
+	Hostname string `json:"utsname_hostname"`
 	Archived string `json:"archived"`
 }
 
@@ -92,7 +94,7 @@ func (c *CrashesCollector) getCrashLs() (map[crashEntry]int, error) {
 	}
 
 	for _, crash := range crashData {
-		crashes[crashEntry{crash.Entity, len(crash.Archived) == 0}]++
+		crashes[crashEntry{crash.Entity, crash.Hostname, len(crash.Archived) == 0}]++
 	}
 
 	return crashes, nil
@@ -116,6 +118,7 @@ func (c *CrashesCollector) Collect(ch chan<- prometheus.Metric) {
 			prometheus.GaugeValue,
 			float64(count),
 			crash.entity,
+			crash.hostname,
 			statusNames[crash.isNew],
 		)
 	}
