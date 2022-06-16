@@ -213,21 +213,29 @@ func (p *PoolUsageCollector) collectorList() []prometheus.Collector {
 }
 
 type cephPoolStats struct {
+	Stats struct {
+		TotalBytes      int64 `json:"total_bytes"`
+		TotalUsedBytes  int64 `json:"total_used_bytes"`
+		TotalAvailBytes int64 `json:"total_avail_bytes"`
+		TotalObjects    int   `json:"total_objects"`
+	} `json:"stats"`
 	Pools []struct {
 		Name  string `json:"name"`
 		ID    int    `json:"id"`
 		Stats struct {
-			BytesUsed    float64 `json:"bytes_used"`
-			StoredRaw    float64 `json:"stored_raw"`
-			Stored       float64 `json:"stored"`
-			MaxAvail     float64 `json:"max_avail"`
+			KbUsed       int     `json:"kb_used"`
+			BytesUsed    int     `json:"bytes_used"`
 			PercentUsed  float64 `json:"percent_used"`
-			Objects      float64 `json:"objects"`
-			DirtyObjects float64 `json:"dirty"`
-			ReadIO       float64 `json:"rd"`
-			ReadBytes    float64 `json:"rd_bytes"`
-			WriteIO      float64 `json:"wr"`
-			WriteBytes   float64 `json:"wr_bytes"`
+			MaxAvail     int64   `json:"max_avail"`
+			Objects      int     `json:"objects"`
+			QuotaObjects int     `json:"quota_objects"`
+			QuotaBytes   int     `json:"quota_bytes"`
+			Dirty        int     `json:"dirty"`
+			Rd           int     `json:"rd"`
+			RdBytes      int     `json:"rd_bytes"`
+			Wr           int     `json:"wr"`
+			WrBytes      int     `json:"wr_bytes"`
+			RawBytesUsed int     `json:"raw_bytes_used"`
 		} `json:"stats"`
 	} `json:"pools"`
 }
@@ -262,16 +270,16 @@ func (p *PoolUsageCollector) collect() error {
 	p.WriteBytes.Reset()
 
 	for _, pool := range stats.Pools {
-		p.UsedBytes.WithLabelValues(pool.Name).Set(pool.Stats.Stored)
-		p.RawUsedBytes.WithLabelValues(pool.Name).Set(math.Max(pool.Stats.StoredRaw, pool.Stats.BytesUsed))
-		p.MaxAvail.WithLabelValues(pool.Name).Set(pool.Stats.MaxAvail)
+		p.UsedBytes.WithLabelValues(pool.Name).Set(float64(pool.Stats.BytesUsed))
+		p.RawUsedBytes.WithLabelValues(pool.Name).Set(math.Max(float64(pool.Stats.RawBytesUsed), float64(pool.Stats.BytesUsed)))
+		p.MaxAvail.WithLabelValues(pool.Name).Set(float64(pool.Stats.MaxAvail))
 		p.PercentUsed.WithLabelValues(pool.Name).Set(pool.Stats.PercentUsed)
-		p.Objects.WithLabelValues(pool.Name).Set(pool.Stats.Objects)
-		p.DirtyObjects.WithLabelValues(pool.Name).Set(pool.Stats.DirtyObjects)
-		p.ReadIO.WithLabelValues(pool.Name).Set(pool.Stats.ReadIO)
-		p.ReadBytes.WithLabelValues(pool.Name).Set(pool.Stats.ReadBytes)
-		p.WriteIO.WithLabelValues(pool.Name).Set(pool.Stats.WriteIO)
-		p.WriteBytes.WithLabelValues(pool.Name).Set(pool.Stats.WriteBytes)
+		p.Objects.WithLabelValues(pool.Name).Set(float64(pool.Stats.Objects))
+		p.DirtyObjects.WithLabelValues(pool.Name).Set(float64(pool.Stats.Dirty))
+		p.ReadIO.WithLabelValues(pool.Name).Set(float64(pool.Stats.Rd))
+		p.ReadBytes.WithLabelValues(pool.Name).Set(float64(pool.Stats.RdBytes))
+		p.WriteIO.WithLabelValues(pool.Name).Set(float64(pool.Stats.Wr))
+		p.WriteBytes.WithLabelValues(pool.Name).Set(float64(pool.Stats.WrBytes))
 
 		st, err := p.conn.GetPoolStats(pool.Name)
 		if err != nil {
