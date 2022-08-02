@@ -507,10 +507,6 @@ type cephPerfStat struct {
 	} `json:"osd_perf_infos"`
 }
 
-type CephOSDPerfStat struct {
-	cephPerfStat `json:"osdstats"`
-}
-
 type cephOSDDump struct {
 	OSDs []struct {
 		OSD   json.Number `json:"osd"`
@@ -716,7 +712,7 @@ func (o *OSDCollector) collectOSDPerf() error {
 		return err
 	}
 
-	osdPerf := &CephOSDPerfStat{}
+	osdPerf := &cephPerfStat{}
 	if err := json.Unmarshal(buf, osdPerf); err != nil {
 		return err
 	}
