@@ -325,7 +325,7 @@ func (m *MonitorCollector) collect() error {
 	}
 
 	// Ceph versions
-	cmd = m.cephVersionsCommand()
+	cmd, _ = CephVersionsCmd()
 	buf, _, err = m.conn.MonCommand(cmd)
 	if err != nil {
 		m.logger.WithError(err).WithField(
@@ -335,35 +335,9 @@ func (m *MonitorCollector) collect() error {
 		return err
 	}
 
-	// Rather than a dedicated type, have dynamic daemons and versions
-	// {"daemon": {"version1": 123, "version2": 234}}
-	parsed, err := gabs.ParseJSON(buf)
+	versions, err := ParseCephVersions(buf)
 	if err != nil {
-		return err
-	}
-
-	parsedMap, err := parsed.ChildrenMap()
-	if err != nil {
-		return err
-	}
-
-	versions := make(map[string]map[string]float64)
-	for daemonKey, innerObj := range parsedMap {
-		// Read each daemon, and overall counts
-		versionMap, err := innerObj.ChildrenMap()
-		if err == gabs.ErrNotObj {
-			continue
-		} else if err != nil {
-			return err
-		}
-
-		versions[daemonKey] = make(map[string]float64)
-		for version, countContainer := range versionMap {
-			count, ok := countContainer.Data().(float64)
-			if ok {
-				versions[daemonKey][version] = count
-			}
-		}
+		m.logger.WithError(err).Error("error parsing ceph versions command")
 	}
 
 	// Ceph features
@@ -379,12 +353,12 @@ func (m *MonitorCollector) collect() error {
 
 	// Like versions, the same with features
 	// {"daemon": [ ... ]}
-	parsed, err = gabs.ParseJSON(buf)
+	parsed, err := gabs.ParseJSON(buf)
 	if err != nil {
 		return err
 	}
 
-	parsedMap, err = parsed.ChildrenMap()
+	parsedMap, err := parsed.ChildrenMap()
 	if err != nil {
 		return err
 	}
@@ -550,17 +524,6 @@ func (m *MonitorCollector) cephTimeSyncStatusCommand() []byte {
 	})
 	if err != nil {
 		m.logger.WithError(err).Panic("error marshalling ceph time-sync-status")
-	}
-	return cmd
-}
-
-func (m *MonitorCollector) cephVersionsCommand() []byte {
-	cmd, err := json.Marshal(map[string]interface{}{
-		"prefix": "versions",
-		"format": "json",
-	})
-	if err != nil {
-		m.logger.WithError(err).Panic("error marshalling ceph versions")
 	}
 	return cmd
 }
