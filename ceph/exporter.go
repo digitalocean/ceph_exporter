@@ -16,8 +16,10 @@ package ceph
 
 import (
 	"encoding/json"
+	"fmt"
 	"sync"
 
+	"github.com/Jeffail/gabs"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 )
@@ -28,13 +30,14 @@ import (
 // prometheus. It also implements a prometheus.Collector interface in order
 // to register it correctly.
 type Exporter struct {
-	mu      sync.Mutex
-	Conn    Conn
-	Cluster string
-	Config  string
-	RgwMode int
-	Logger  *logrus.Logger
-	Version *Version
+	mu        sync.Mutex
+	Conn      Conn
+	Cluster   string
+	Config    string
+	RgwMode   int
+	RbdMirror bool
+	Logger    *logrus.Logger
+	Version   *Version
 }
 
 // NewExporter returns an initialized *Exporter
@@ -58,6 +61,10 @@ func (exporter *Exporter) getCollectors() []prometheus.Collector {
 		NewMonitorCollector(exporter),
 		NewOSDCollector(exporter),
 		NewCrashesCollector(exporter),
+	}
+
+	if exporter.RbdMirror {
+		standardCollectors = append(standardCollectors, NewRbdMirrorStatusCollector(exporter))
 	}
 
 	switch exporter.RgwMode {
@@ -84,6 +91,83 @@ func (exporter *Exporter) cephVersionCmd() []byte {
 	}
 
 	return cmd
+}
+
+func CephVersionsCmd() ([]byte, error) {
+	// Ceph versions
+	cmd, err := json.Marshal(map[string]interface{}{
+		"prefix": "versions",
+		"format": "json",
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal ceph versions command: %s", err)
+	}
+	return cmd, nil
+}
+
+func ParseCephVersions(buf []byte) (map[string]map[string]float64, error) {
+	// Rather than a dedicated type, have dynamic daemons and versions
+	// {"daemon": {"version1": 123, "version2": 234}}
+	parsed, err := gabs.ParseJSON(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	parsedMap, err := parsed.ChildrenMap()
+	if err != nil {
+		return nil, err
+	}
+
+	versions := make(map[string]map[string]float64)
+	for daemonKey, innerObj := range parsedMap {
+		// Read each daemon, and overall counts
+		versionMap, err := innerObj.ChildrenMap()
+		if err == gabs.ErrNotObj {
+			continue
+		} else if err != nil {
+			return nil, err
+		}
+
+		versions[daemonKey] = make(map[string]float64)
+		for version, countContainer := range versionMap {
+			count, ok := countContainer.Data().(float64)
+			if ok {
+				versions[daemonKey][version] = count
+			}
+		}
+	}
+
+	return versions, nil
+}
+
+func (exporter *Exporter) setRbdMirror() error {
+
+	cmd, err := CephVersionsCmd()
+	if err != nil {
+		exporter.Logger.WithError(err).Panic("failed to marshal ceph versions command")
+	}
+
+	buf, _, err := exporter.Conn.MonCommand(cmd)
+	if err != nil {
+		exporter.Logger.WithError(err).WithField(
+			"args", string(cmd),
+		).Error("error executing mon command")
+		return err
+	}
+
+	versions, err := ParseCephVersions(buf)
+	if err != nil {
+		return err
+	}
+
+	// check to see if rbd-mirror is in ceph version output and not empty
+	if _, exists := versions["rbd-mirror"]; exists {
+		if len(versions["rbd-mirror"]) > 0 {
+			exporter.RbdMirror = true
+		}
+	}
+
+	return nil
 }
 
 func (exporter *Exporter) setCephVersion() error {
@@ -121,6 +205,12 @@ func (exporter *Exporter) Describe(ch chan<- *prometheus.Desc) {
 		return
 	}
 
+	err = exporter.setRbdMirror()
+	if err != nil {
+		exporter.Logger.WithError(err).Error("failed to set rbd mirror")
+		return
+	}
+
 	for _, cc := range exporter.getCollectors() {
 		cc.Describe(ch)
 	}
@@ -136,6 +226,12 @@ func (exporter *Exporter) Collect(ch chan<- prometheus.Metric) {
 	err := exporter.setCephVersion()
 	if err != nil {
 		exporter.Logger.WithError(err).Error("failed to set ceph Version")
+		return
+	}
+
+	err = exporter.setRbdMirror()
+	if err != nil {
+		exporter.Logger.WithError(err).Error("failed to set rbd mirror")
 		return
 	}
 
