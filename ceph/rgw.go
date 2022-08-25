@@ -57,13 +57,13 @@ func (gc rgwTaskGC) ExpiresAt() time.Time {
 }
 
 // rgwGetGCTaskList get the RGW Garbage Collection task list
-func rgwGetGCTaskList(config string) ([]byte, error) {
+func rgwGetGCTaskList(config string, user string) ([]byte, error) {
 	var (
 		out []byte
 		err error
 	)
 
-	if out, err = exec.Command(radosgwAdminPath, "-c", config, "gc", "list", "--include-all").Output(); err != nil {
+	if out, err = exec.Command(radosgwAdminPath, "-c", config, "--user", user, "gc", "list", "--include-all").Output(); err != nil {
 		return nil, err
 	}
 
@@ -73,6 +73,7 @@ func rgwGetGCTaskList(config string) ([]byte, error) {
 // RGWCollector collects metrics from the RGW service
 type RGWCollector struct {
 	config     string
+	user       string
 	background bool
 	logger     *logrus.Logger
 	version    *Version
@@ -87,7 +88,7 @@ type RGWCollector struct {
 	// PendingObjects reports the total number of RGW GC objects contained in pending tasks
 	PendingObjects *prometheus.GaugeVec
 
-	getRGWGCTaskList func(string) ([]byte, error)
+	getRGWGCTaskList func(string, string) ([]byte, error)
 }
 
 // NewRGWCollector creates an instance of the RGWCollector and instantiates
@@ -171,7 +172,7 @@ func (r *RGWCollector) backgroundCollect() error {
 }
 
 func (r *RGWCollector) collect() error {
-	data, err := r.getRGWGCTaskList(r.config)
+	data, err := r.getRGWGCTaskList(r.config, r.user)
 	if err != nil {
 		return err
 	}

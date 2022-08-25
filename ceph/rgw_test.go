@@ -132,7 +132,7 @@ func TestRGWCollector(t *testing.T) {
 	} {
 		func() {
 			collector := NewRGWCollector(&Exporter{Cluster: "ceph", Logger: logrus.New()}, false) // run in foreground for testing
-			collector.getRGWGCTaskList = func(cluster string) ([]byte, error) {
+			collector.getRGWGCTaskList = func(cluster string, user string) ([]byte, error) {
 				if tt.input != nil {
 					return tt.input, nil
 				}

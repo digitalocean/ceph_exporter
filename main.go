@@ -130,6 +130,7 @@ func main() {
 			conn,
 			cluster.ClusterLabel,
 			cluster.ConfigFile,
+			cluster.User,
 			*rgwMode,
 			logger))
 
