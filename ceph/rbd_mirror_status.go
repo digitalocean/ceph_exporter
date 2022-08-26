@@ -49,10 +49,11 @@ type rbdMirrorPoolStatus struct {
 // RbdMirrorStatusCollector displays statistics about each pool in the Ceph cluster.
 type RbdMirrorStatusCollector struct {
 	config  string
+	user    string
 	logger  *logrus.Logger
 	version *Version
 
-	getRbdMirrorStatus func(config string) ([]byte, error)
+	getRbdMirrorStatus func(config string, user string) ([]byte, error)
 
 	// RbdMirrorStatus shows the overall health status of a rbd-mirror.
 	RbdMirrorStatus prometheus.Gauge
@@ -65,8 +66,8 @@ type RbdMirrorStatusCollector struct {
 }
 
 // rbdMirrorStatus get the RBD Mirror Pool Status
-var rbdMirrorStatus = func(config string) ([]byte, error) {
-	out, err := exec.Command(rbdPath, "-c", config, "mirror", "pool", "status", "--format", "json").Output()
+var rbdMirrorStatus = func(config string, user string) ([]byte, error) {
+	out, err := exec.Command(rbdPath, "-c", config, "--user", user, "mirror", "pool", "status", "--format", "json").Output()
 	if err != nil {
 		return nil, err
 	}
@@ -80,6 +81,7 @@ func NewRbdMirrorStatusCollector(exporter *Exporter) *RbdMirrorStatusCollector {
 
 	collector := &RbdMirrorStatusCollector{
 		config:  exporter.Config,
+		user:    exporter.User,
 		logger:  exporter.Logger,
 		version: exporter.Version,
 
@@ -154,7 +156,7 @@ func (c *RbdMirrorStatusCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect sends all the collected metrics Prometheus.
 func (c *RbdMirrorStatusCollector) Collect(ch chan<- prometheus.Metric) {
-	status, err := rbdMirrorStatus(c.config)
+	status, err := rbdMirrorStatus(c.config, c.user)
 	if err != nil {
 		c.logger.WithError(err).Error("failed to run 'rbd mirror pool status'")
 	}

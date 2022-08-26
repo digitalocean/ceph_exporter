@@ -34,6 +34,7 @@ type Exporter struct {
 	Conn      Conn
 	Cluster   string
 	Config    string
+	User      string
 	RgwMode   int
 	RbdMirror bool
 	Logger    *logrus.Logger
@@ -42,11 +43,12 @@ type Exporter struct {
 
 // NewExporter returns an initialized *Exporter
 // We can choose to enable a collector to extract stats out of by adding it to the list of collectors.
-func NewExporter(conn Conn, cluster string, config string, rgwMode int, logger *logrus.Logger) *Exporter {
+func NewExporter(conn Conn, cluster string, config string, user string, rgwMode int, logger *logrus.Logger) *Exporter {
 	return &Exporter{
 		Conn:    conn,
 		Cluster: cluster,
 		Config:  config,
+		User:    user,
 		RgwMode: rgwMode,
 		Logger:  logger,
 	}

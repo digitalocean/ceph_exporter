@@ -29,7 +29,7 @@ import (
 )
 
 func setStatus(b []byte) {
-	rbdMirrorStatus = func(string) ([]byte, error) {
+	rbdMirrorStatus = func(string, string) ([]byte, error) {
 		return b, nil
 	}
 }
