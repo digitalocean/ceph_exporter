@@ -175,49 +175,39 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
-			name: "health ok",
-			input: `
-{
-	"health": { "status": "HEALTH_OK" } }`,
+			name:  "health ok",
+			input: `{"health": { "status": "HEALTH_OK" } }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 0`),
 			},
 		},
 		{
-			name: "health warn",
-			input: `
-{
-	"health": { "status": "HEALTH_OK } }`,
+			name:  "health warn",
+			input: `{"health": { "status": "HEALTH_OK" } }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 0`),
 				regexp.MustCompile(`health_status_interp{cluster="ceph"} 0`),
 			},
 		},
 		{
-			name: "health ok 2",
-			input: `
-{
-	"health": { "status": "HEALTH_OK } }`,
+			name:  "health ok 2",
+			input: `{"health": { "status": "HEALTH_OK" } }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 0`),
 				regexp.MustCompile(`health_status_interp{cluster="ceph"} 0`),
 			},
 		},
 		{
-			name: "health warn 2",
-			input: `
-{
-	"health": { "status": "HEALTH_WARN" } }`,
+			name:  "health warn 2",
+			input: `{"health": { "status": "HEALTH_WARN" } }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 1`),
 				regexp.MustCompile(`health_status_interp{cluster="ceph"} 2`),
 			},
 		},
 		{
-			name: "health err",
-			input: `
-{
-	"health": { "status": "HEALTH_ERR" } }`,
+			name:  "health err",
+			input: `{"health": { "status": "HEALTH_ERR" } }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 2`),
 				regexp.MustCompile(`health_status_interp{cluster="ceph"} 3`),
