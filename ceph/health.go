@@ -511,7 +511,7 @@ func NewClusterHealthCollector(exporter *Exporter) *ClusterHealthCollector {
 			},
 		),
 
-		OSDMapFlags:            prometheus.NewDesc(fmt.Sprintf("%s_osd_map_flags", cephNamespace), "A metric for all OSD flags", []string{"flag"}, labels),
+		OSDMapFlags:            prometheus.NewDesc(fmt.Sprintf("%s_osd_map_flags", cephNamespace), "A metric for all OSDMap flags", []string{"flag"}, labels),
 		OSDsDown:               prometheus.NewDesc(fmt.Sprintf("%s_osds_down", cephNamespace), "Count of OSDs that are in DOWN state", nil, labels),
 		OSDsUp:                 prometheus.NewDesc(fmt.Sprintf("%s_osds_up", cephNamespace), "Count of OSDs that are in UP state", nil, labels),
 		OSDsIn:                 prometheus.NewDesc(fmt.Sprintf("%s_osds_in", cephNamespace), "Count of OSDs that are in IN state and available to serve requests", nil, labels),
@@ -810,7 +810,6 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 	}
 
 	// This stores OSD map flags that were found, so the rest can be set to 0
-	matchedOsdMapFlags := make(map[string]bool)
 	for k, check := range stats.Health.Checks {
 		if k == "MON_DOWN" {
 			matched := monsDownRegex.FindStringSubmatch(check.Summary.Message)
@@ -863,10 +862,10 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 				for _, f := range flags {
 					// Update the global metric for this specific flag
 					ch <- prometheus.MustNewConstMetric(c.OSDMapFlags, prometheus.GaugeValue, float64(1), f)
-					// Update the legacy gauges, based on the map
-					(*c.OSDFlagToGaugeMap[f]).Set(1)
-					// Mark the flag as having been set
-					matchedOsdMapFlags[f] = true
+					// Update the legacy gauges, based on the map, if valid
+					if _, exists := c.OSDFlagToGaugeMap[f]; exists {
+						(*c.OSDFlagToGaugeMap[f]).Set(1)
+					}
 				}
 			}
 		}
@@ -874,13 +873,6 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 			if val, present := c.healthChecksMap[k]; present {
 				ch <- prometheus.MustNewConstMetric(c.HealthStatusInterpreter, prometheus.GaugeValue, float64(val))
 			}
-		}
-	}
-
-	// Zero-fill the OSD Map ConstMetrics (the ones that haven't already been set to 1)
-	for flagKey := range c.OSDFlagToGaugeMap {
-		if matchedOsdMapFlags[flagKey] == false {
-			ch <- prometheus.MustNewConstMetric(c.OSDMapFlags, prometheus.GaugeValue, float64(0), flagKey)
 		}
 	}
 

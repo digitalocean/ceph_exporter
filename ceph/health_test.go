@@ -509,26 +509,21 @@ $ sudo ceph -s
 				  "OSDMAP_FLAGS": {
 					"severity": "HEALTH_WARN",
 					"summary": {
-						"message": "pauserd,pausewr,noout,noin,norecover,noscrub,notieragent flag(s) set; mon 482f68d873d2 is low on available space"
+						"message": "pauserd,pausewr,noout,noin,norecover,noscrub,notieragent,newhypotheticalcephflag flag(s) set; mon 482f68d873d2 is low on available space"
 					}
 				  }
 				}
 			  }
 			}`,
 			reMatch: []*regexp.Regexp{
-				regexp.MustCompile(`osd_map_flags{cluster="ceph",flag="full"} 0`),
 				regexp.MustCompile(`osd_map_flags{cluster="ceph",flag="pauserd"} 1`),
 				regexp.MustCompile(`osd_map_flags{cluster="ceph",flag="pausewr"} 1`),
-				regexp.MustCompile(`osd_map_flags{cluster="ceph",flag="noup"} 0`),
-				regexp.MustCompile(`osd_map_flags{cluster="ceph",flag="nodown"} 0`),
 				regexp.MustCompile(`osd_map_flags{cluster="ceph",flag="noin"} 1`),
 				regexp.MustCompile(`osd_map_flags{cluster="ceph",flag="noout"} 1`),
-				regexp.MustCompile(`osd_map_flags{cluster="ceph",flag="nobackfill"} 0`),
 				regexp.MustCompile(`osd_map_flags{cluster="ceph",flag="norecover"} 1`),
-				regexp.MustCompile(`osd_map_flags{cluster="ceph",flag="norebalance"} 0`),
 				regexp.MustCompile(`osd_map_flags{cluster="ceph",flag="noscrub"} 1`),
-				regexp.MustCompile(`osd_map_flags{cluster="ceph",flag="nodeep_scrub"} 0`),
 				regexp.MustCompile(`osd_map_flags{cluster="ceph",flag="notieragent"} 1`),
+				regexp.MustCompile(`osd_map_flags{cluster="ceph",flag="newhypotheticalcephflag"} 1`),
 				regexp.MustCompile(`health_status_interp{cluster="ceph"} 1`),
 			},
 		},
