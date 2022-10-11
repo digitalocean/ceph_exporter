@@ -188,7 +188,7 @@ type ClusterHealthCollector struct {
 	// Objects show the total no. of RADOS objects that are currently allocated
 	Objects *prometheus.Desc
 
-	// OSDMapFlags
+	// OSDMapFlags - **these are being deprecated in favor of using the OSDMapFlags ConstMetrics descriptor**
 	OSDMapFlagFull        prometheus.Gauge
 	OSDMapFlagPauseRd     prometheus.Gauge
 	OSDMapFlagPauseWr     prometheus.Gauge
