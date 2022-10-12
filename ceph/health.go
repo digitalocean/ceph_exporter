@@ -60,7 +60,7 @@ type ClusterHealthCollector struct {
 	// HealthStatusInterpreter shows the overall health status of a given
 	// cluster, with a breakdown of the HEALTH_WARN status into two groups
 	// based on criticality.
-	HealthStatusInterpreter *prometheus.Desc
+	HealthStatusInterpreter prometheus.Gauge
 
 	// MONsDown show the no. of Monitor that are int DOWN state
 	MONsDown *prometheus.Desc
@@ -367,26 +367,34 @@ func NewClusterHealthCollector(exporter *Exporter) *ClusterHealthCollector {
 			"TOO_FEW_PGS":                          1,
 			"TOO_MANY_PGS":                         1},
 
-		HealthStatus:            prometheus.NewDesc(fmt.Sprintf("%s_health_status", cephNamespace), "Health status of Cluster, can vary only between 3 states (err:2, warn:1, ok:0)", nil, labels),
-		HealthStatusInterpreter: prometheus.NewDesc(fmt.Sprintf("%s_health_status_interp", cephNamespace), "Health status of Cluster, can vary only between 4 states (err:3, critical_warn:2, soft_warn:1, ok:0)", nil, labels),
-		MONsDown:                prometheus.NewDesc(fmt.Sprintf("%s_mons_down", cephNamespace), "Count of Mons that are in DOWN state", nil, labels),
-		TotalPGs:                prometheus.NewDesc(fmt.Sprintf("%s_total_pgs", cephNamespace), "Total no. of PGs in the cluster", nil, labels),
-		PGState:                 prometheus.NewDesc(fmt.Sprintf("%s_pg_state", cephNamespace), "State of PGs in the cluster", []string{"state"}, labels),
-		ActivePGs:               prometheus.NewDesc(fmt.Sprintf("%s_active_pgs", cephNamespace), "No. of active PGs in the cluster", nil, labels),
-		ScrubbingPGs:            prometheus.NewDesc(fmt.Sprintf("%s_scrubbing_pgs", cephNamespace), "No. of scrubbing PGs in the cluster", nil, labels),
-		DeepScrubbingPGs:        prometheus.NewDesc(fmt.Sprintf("%s_deep_scrubbing_pgs", cephNamespace), "No. of deep scrubbing PGs in the cluster", nil, labels),
-		RecoveringPGs:           prometheus.NewDesc(fmt.Sprintf("%s_recovering_pgs", cephNamespace), "No. of recovering PGs in the cluster", nil, labels),
-		RecoveryWaitPGs:         prometheus.NewDesc(fmt.Sprintf("%s_recovery_wait_pgs", cephNamespace), "No. of PGs in the cluster with recovery_wait state", nil, labels),
-		BackfillingPGs:          prometheus.NewDesc(fmt.Sprintf("%s_backfilling_pgs", cephNamespace), "No. of backfilling PGs in the cluster", nil, labels),
-		BackfillWaitPGs:         prometheus.NewDesc(fmt.Sprintf("%s_backfill_wait_pgs", cephNamespace), "No. of PGs in the cluster with backfill_wait state", nil, labels),
-		ForcedRecoveryPGs:       prometheus.NewDesc(fmt.Sprintf("%s_forced_recovery_pgs", cephNamespace), "No. of PGs in the cluster with forced_recovery state", nil, labels),
-		ForcedBackfillPGs:       prometheus.NewDesc(fmt.Sprintf("%s_forced_backfill_pgs", cephNamespace), "No. of PGs in the cluster with forced_backfill state", nil, labels),
-		DownPGs:                 prometheus.NewDesc(fmt.Sprintf("%s_down_pgs", cephNamespace), "No. of PGs in the cluster in down state", nil, labels),
-		IncompletePGs:           prometheus.NewDesc(fmt.Sprintf("%s_incomplete_pgs", cephNamespace), "No. of PGs in the cluster in incomplete state", nil, labels),
-		InconsistentPGs:         prometheus.NewDesc(fmt.Sprintf("%s_inconsistent_pgs", cephNamespace), "No. of PGs in the cluster in inconsistent state", nil, labels),
-		SnaptrimPGs:             prometheus.NewDesc(fmt.Sprintf("%s_snaptrim_pgs", cephNamespace), "No. of snaptrim PGs in the cluster", nil, labels),
-		SnaptrimWaitPGs:         prometheus.NewDesc(fmt.Sprintf("%s_snaptrim_wait_pgs", cephNamespace), "No. of PGs in the cluster with snaptrim_wait state", nil, labels),
-		RepairingPGs:            prometheus.NewDesc(fmt.Sprintf("%s_repairing_pgs", cephNamespace), "No. of PGs in the cluster with repair state", nil, labels),
+		HealthStatus: prometheus.NewDesc(fmt.Sprintf("%s_health_status", cephNamespace), "Health status of Cluster, can vary only between 3 states (err:2, warn:1, ok:0)", nil, labels),
+		//HealthStatusInterpreter: prometheus.NewDesc(fmt.Sprintf("%s_health_status_interp", cephNamespace), "Health status of Cluster, can vary only between 4 states (err:3, critical_warn:2, soft_warn:1, ok:0)", nil, labels),
+		HealthStatusInterpreter: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "health_status_interp",
+				Help:        "Health status of Cluster, can vary only between 4 states (err:3, critical_warn:2, soft_warn:1, ok:0)",
+				ConstLabels: labels,
+			},
+		),
+		MONsDown:          prometheus.NewDesc(fmt.Sprintf("%s_mons_down", cephNamespace), "Count of Mons that are in DOWN state", nil, labels),
+		TotalPGs:          prometheus.NewDesc(fmt.Sprintf("%s_total_pgs", cephNamespace), "Total no. of PGs in the cluster", nil, labels),
+		PGState:           prometheus.NewDesc(fmt.Sprintf("%s_pg_state", cephNamespace), "State of PGs in the cluster", []string{"state"}, labels),
+		ActivePGs:         prometheus.NewDesc(fmt.Sprintf("%s_active_pgs", cephNamespace), "No. of active PGs in the cluster", nil, labels),
+		ScrubbingPGs:      prometheus.NewDesc(fmt.Sprintf("%s_scrubbing_pgs", cephNamespace), "No. of scrubbing PGs in the cluster", nil, labels),
+		DeepScrubbingPGs:  prometheus.NewDesc(fmt.Sprintf("%s_deep_scrubbing_pgs", cephNamespace), "No. of deep scrubbing PGs in the cluster", nil, labels),
+		RecoveringPGs:     prometheus.NewDesc(fmt.Sprintf("%s_recovering_pgs", cephNamespace), "No. of recovering PGs in the cluster", nil, labels),
+		RecoveryWaitPGs:   prometheus.NewDesc(fmt.Sprintf("%s_recovery_wait_pgs", cephNamespace), "No. of PGs in the cluster with recovery_wait state", nil, labels),
+		BackfillingPGs:    prometheus.NewDesc(fmt.Sprintf("%s_backfilling_pgs", cephNamespace), "No. of backfilling PGs in the cluster", nil, labels),
+		BackfillWaitPGs:   prometheus.NewDesc(fmt.Sprintf("%s_backfill_wait_pgs", cephNamespace), "No. of PGs in the cluster with backfill_wait state", nil, labels),
+		ForcedRecoveryPGs: prometheus.NewDesc(fmt.Sprintf("%s_forced_recovery_pgs", cephNamespace), "No. of PGs in the cluster with forced_recovery state", nil, labels),
+		ForcedBackfillPGs: prometheus.NewDesc(fmt.Sprintf("%s_forced_backfill_pgs", cephNamespace), "No. of PGs in the cluster with forced_backfill state", nil, labels),
+		DownPGs:           prometheus.NewDesc(fmt.Sprintf("%s_down_pgs", cephNamespace), "No. of PGs in the cluster in down state", nil, labels),
+		IncompletePGs:     prometheus.NewDesc(fmt.Sprintf("%s_incomplete_pgs", cephNamespace), "No. of PGs in the cluster in incomplete state", nil, labels),
+		InconsistentPGs:   prometheus.NewDesc(fmt.Sprintf("%s_inconsistent_pgs", cephNamespace), "No. of PGs in the cluster in inconsistent state", nil, labels),
+		SnaptrimPGs:       prometheus.NewDesc(fmt.Sprintf("%s_snaptrim_pgs", cephNamespace), "No. of snaptrim PGs in the cluster", nil, labels),
+		SnaptrimWaitPGs:   prometheus.NewDesc(fmt.Sprintf("%s_snaptrim_wait_pgs", cephNamespace), "No. of PGs in the cluster with snaptrim_wait state", nil, labels),
+		RepairingPGs:      prometheus.NewDesc(fmt.Sprintf("%s_repairing_pgs", cephNamespace), "No. of PGs in the cluster with repair state", nil, labels),
 		// with Nautilus, SLOW_OPS has replaced both REQUEST_SLOW and REQUEST_STUCK
 		// therefore slow_requests is deprecated, but for backwards compatibility
 		// the metric name will be kept the same for the time being
@@ -563,6 +571,8 @@ func NewClusterHealthCollector(exporter *Exporter) *ClusterHealthCollector {
 // collectorsList represents legacy gauges before the migration to constmetrics
 func (c *ClusterHealthCollector) collectorsList() []prometheus.Collector {
 	return []prometheus.Collector{
+		c.HealthStatusInterpreter,
+
 		c.OSDMapFlagFull,
 		c.OSDMapFlagPauseRd,
 		c.OSDMapFlagPauseWr,
@@ -582,7 +592,7 @@ func (c *ClusterHealthCollector) collectorsList() []prometheus.Collector {
 func (c *ClusterHealthCollector) descriptorList() []*prometheus.Desc {
 	return []*prometheus.Desc{
 		c.HealthStatus,
-		c.HealthStatusInterpreter,
+		c.HealthStatusInterpreter.Desc(),
 		c.MONsDown,
 		c.TotalPGs,
 		c.DegradedPGs,
@@ -739,13 +749,17 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 	switch stats.Health.Status {
 	case CephHealthOK:
 		ch <- prometheus.MustNewConstMetric(c.HealthStatus, prometheus.GaugeValue, float64(0))
-		ch <- prometheus.MustNewConstMetric(c.HealthStatusInterpreter, prometheus.GaugeValue, float64(0))
+		c.HealthStatusInterpreter.Set(float64(0))
+		// migration of HealthStatusInterpreter to ConstMetrics had to be reverted due to duplication issues with the current structure (and labels not being used)
+		//ch <- prometheus.MustNewConstMetric(c.HealthStatusInterpreter, prometheus.GaugeValue, float64(0))
 	case CephHealthWarn:
 		ch <- prometheus.MustNewConstMetric(c.HealthStatus, prometheus.GaugeValue, float64(1))
-		ch <- prometheus.MustNewConstMetric(c.HealthStatusInterpreter, prometheus.GaugeValue, float64(2))
+		c.HealthStatusInterpreter.Set(float64(2))
+		//ch <- prometheus.MustNewConstMetric(c.HealthStatusInterpreter, prometheus.GaugeValue, float64(2))
 	case CephHealthErr:
 		ch <- prometheus.MustNewConstMetric(c.HealthStatus, prometheus.GaugeValue, float64(2))
-		ch <- prometheus.MustNewConstMetric(c.HealthStatusInterpreter, prometheus.GaugeValue, float64(3))
+		c.HealthStatusInterpreter.Set(float64(3))
+		//ch <- prometheus.MustNewConstMetric(c.HealthStatusInterpreter, prometheus.GaugeValue, float64(3))
 	}
 
 	var (
@@ -871,7 +885,9 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 		}
 		if !mapEmpty {
 			if val, present := c.healthChecksMap[k]; present {
-				ch <- prometheus.MustNewConstMetric(c.HealthStatusInterpreter, prometheus.GaugeValue, float64(val))
+				c.HealthStatusInterpreter.Set(float64(val))
+				// migration of HealthStatusInterpreter to ConstMetrics had to be reverted due to duplication issues with the current structure (and labels not being used)
+				//ch <- prometheus.MustNewConstMetric(c.HealthStatusInterpreter, prometheus.GaugeValue, float64(val))
 			}
 		}
 	}
