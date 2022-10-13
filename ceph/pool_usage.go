@@ -16,6 +16,7 @@ package ceph
 
 import (
 	"encoding/json"
+	"fmt"
 	"math"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -30,41 +31,41 @@ type PoolUsageCollector struct {
 
 	// UsedBytes tracks the amount of bytes currently allocated for the pool. This
 	// does not factor in the overcommitment made for individual images.
-	UsedBytes *prometheus.GaugeVec
+	UsedBytes *prometheus.Desc
 
 	// RawUsedBytes tracks the amount of raw bytes currently used for the pool. This
 	// factors in the replication factor (size) of the pool.
-	RawUsedBytes *prometheus.GaugeVec
+	RawUsedBytes *prometheus.Desc
 
 	// MaxAvail tracks the amount of bytes currently free for the pool,
 	// which depends on the replication settings for the pool in question.
-	MaxAvail *prometheus.GaugeVec
+	MaxAvail *prometheus.Desc
 
 	// PercentUsed is the percentage of raw space available to the pool currently in use
-	PercentUsed *prometheus.GaugeVec
+	PercentUsed *prometheus.Desc
 
 	// Objects shows the no. of RADOS objects created within the pool.
-	Objects *prometheus.GaugeVec
+	Objects *prometheus.Desc
 
 	// DirtyObjects shows the no. of RADOS dirty objects in a cache-tier pool,
 	// this doesn't make sense in a regular pool, see:
 	// http://lists.ceph.com/pipermail/ceph-users-ceph.com/2015-April/000557.html
-	DirtyObjects *prometheus.GaugeVec
+	DirtyObjects *prometheus.Desc
 
 	// UnfoundObjects shows the no. of RADOS unfound object within each pool.
-	UnfoundObjects *prometheus.GaugeVec
+	UnfoundObjects *prometheus.Desc
 
 	// ReadIO tracks the read IO calls made for the images within each pool.
-	ReadIO *prometheus.GaugeVec
+	ReadIO *prometheus.Desc
 
 	// Readbytes tracks the read throughput made for the images within each pool.
-	ReadBytes *prometheus.GaugeVec
+	ReadBytes *prometheus.Desc
 
 	// WriteIO tracks the write IO calls made for the images within each pool.
-	WriteIO *prometheus.GaugeVec
+	WriteIO *prometheus.Desc
 
 	// WriteBytes tracks the write throughput made for the images within each pool.
-	WriteBytes *prometheus.GaugeVec
+	WriteBytes *prometheus.Desc
 }
 
 // NewPoolUsageCollector creates a new instance of PoolUsageCollector and returns
@@ -83,132 +84,39 @@ func NewPoolUsageCollector(exporter *Exporter) *PoolUsageCollector {
 		logger:  exporter.Logger,
 		version: exporter.Version,
 
-		UsedBytes: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Namespace:   cephNamespace,
-				Subsystem:   subSystem,
-				Name:        "used_bytes",
-				Help:        "Capacity of the pool that is currently under use",
-				ConstLabels: labels,
-			},
-			poolLabel,
+		UsedBytes: prometheus.NewDesc(fmt.Sprintf("%s_%s_used_bytes", cephNamespace, subSystem), "Capacity of the pool that is currently under use",
+			poolLabel, labels,
 		),
-		RawUsedBytes: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Namespace:   cephNamespace,
-				Subsystem:   subSystem,
-				Name:        "raw_used_bytes",
-				Help:        "Raw capacity of the pool that is currently under use, this factors in the size",
-				ConstLabels: labels,
-			},
-			poolLabel,
+		RawUsedBytes: prometheus.NewDesc(fmt.Sprintf("%s_%s_raw_used_bytes", cephNamespace, subSystem), "Raw capacity of the pool that is currently under use, this factors in the size",
+			poolLabel, labels,
 		),
-		MaxAvail: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Namespace:   cephNamespace,
-				Subsystem:   subSystem,
-				Name:        "available_bytes",
-				Help:        "Free space for the pool",
-				ConstLabels: labels,
-			},
-			poolLabel,
+		MaxAvail: prometheus.NewDesc(fmt.Sprintf("%s_%s_available_bytes", cephNamespace, subSystem), "Free space for the pool",
+			poolLabel, labels,
 		),
-		PercentUsed: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Namespace:   cephNamespace,
-				Subsystem:   subSystem,
-				Name:        "percent_used",
-				Help:        "Percentage of the capacity available to this pool that is used by this pool",
-				ConstLabels: labels,
-			},
-			poolLabel,
+		PercentUsed: prometheus.NewDesc(fmt.Sprintf("%s_%s_percent_used", cephNamespace, subSystem), "Percentage of the capacity available to this pool that is used by this pool",
+			poolLabel, labels,
 		),
-		Objects: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Namespace:   cephNamespace,
-				Subsystem:   subSystem,
-				Name:        "objects_total",
-				Help:        "Total no. of objects allocated within the pool",
-				ConstLabels: labels,
-			},
-			poolLabel,
+		Objects: prometheus.NewDesc(fmt.Sprintf("%s_%s_objects_total", cephNamespace, subSystem), "Total no. of objects allocated within the pool",
+			poolLabel, labels,
 		),
-		DirtyObjects: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Namespace:   cephNamespace,
-				Subsystem:   subSystem,
-				Name:        "dirty_objects_total",
-				Help:        "Total no. of dirty objects in a cache-tier pool",
-				ConstLabels: labels,
-			},
-			poolLabel,
+		DirtyObjects: prometheus.NewDesc(fmt.Sprintf("%s_%s_dirty_objects_total", cephNamespace, subSystem), "Total no. of dirty objects in a cache-tier pool",
+			poolLabel, labels,
 		),
-		UnfoundObjects: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Namespace:   cephNamespace,
-				Subsystem:   subSystem,
-				Name:        "unfound_objects_total",
-				Help:        "Total no. of unfound objects for the pool",
-				ConstLabels: labels,
-			},
-			poolLabel,
+		UnfoundObjects: prometheus.NewDesc(fmt.Sprintf("%s_%s_unfound_objects_total", cephNamespace, subSystem), "Total no. of unfound objects for the pool",
+			poolLabel, labels,
 		),
-		ReadIO: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Namespace:   cephNamespace,
-				Subsystem:   subSystem,
-				Name:        "read_total",
-				Help:        "Total read I/O calls for the pool",
-				ConstLabels: labels,
-			},
-			poolLabel,
+		ReadIO: prometheus.NewDesc(fmt.Sprintf("%s_%s_read_total", cephNamespace, subSystem), "Total read I/O calls for the pool",
+			poolLabel, labels,
 		),
-		ReadBytes: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Namespace:   cephNamespace,
-				Subsystem:   subSystem,
-				Name:        "read_bytes_total",
-				Help:        "Total read throughput for the pool",
-				ConstLabels: labels,
-			},
-			poolLabel,
+		ReadBytes: prometheus.NewDesc(fmt.Sprintf("%s_%s_read_bytes_total", cephNamespace, subSystem), "Total read throughput for the pool",
+			poolLabel, labels,
 		),
-		WriteIO: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Namespace:   cephNamespace,
-				Subsystem:   subSystem,
-				Name:        "write_total",
-				Help:        "Total write I/O calls for the pool",
-				ConstLabels: labels,
-			},
-			poolLabel,
+		WriteIO: prometheus.NewDesc(fmt.Sprintf("%s_%s_write_total", cephNamespace, subSystem), "Total write I/O calls for the pool",
+			poolLabel, labels,
 		),
-		WriteBytes: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Namespace:   cephNamespace,
-				Subsystem:   subSystem,
-				Name:        "write_bytes_total",
-				Help:        "Total write throughput for the pool",
-				ConstLabels: labels,
-			},
-			poolLabel,
+		WriteBytes: prometheus.NewDesc(fmt.Sprintf("%s_%s_write_bytes_total", cephNamespace, subSystem), "Total write throughput for the pool",
+			poolLabel, labels,
 		),
-	}
-}
-
-func (p *PoolUsageCollector) collectorList() []prometheus.Collector {
-	return []prometheus.Collector{
-		p.UsedBytes,
-		p.RawUsedBytes,
-		p.MaxAvail,
-		p.PercentUsed,
-		p.Objects,
-		p.DirtyObjects,
-		p.UnfoundObjects,
-		p.ReadIO,
-		p.ReadBytes,
-		p.WriteIO,
-		p.WriteBytes,
 	}
 }
 
@@ -232,7 +140,7 @@ type cephPoolStats struct {
 	} `json:"pools"`
 }
 
-func (p *PoolUsageCollector) collect() error {
+func (p *PoolUsageCollector) collect(ch chan<- prometheus.Metric) error {
 	cmd := p.cephUsageCommand()
 	buf, _, err := p.conn.MonCommand(cmd)
 	if err != nil {
@@ -248,30 +156,17 @@ func (p *PoolUsageCollector) collect() error {
 		return err
 	}
 
-	// Reset pool specfic metrics, pools can be removed
-	p.UsedBytes.Reset()
-	p.RawUsedBytes.Reset()
-	p.MaxAvail.Reset()
-	p.PercentUsed.Reset()
-	p.Objects.Reset()
-	p.DirtyObjects.Reset()
-	p.UnfoundObjects.Reset()
-	p.ReadIO.Reset()
-	p.ReadBytes.Reset()
-	p.WriteIO.Reset()
-	p.WriteBytes.Reset()
-
 	for _, pool := range stats.Pools {
-		p.UsedBytes.WithLabelValues(pool.Name).Set(pool.Stats.Stored)
-		p.RawUsedBytes.WithLabelValues(pool.Name).Set(math.Max(pool.Stats.StoredRaw, pool.Stats.BytesUsed))
-		p.MaxAvail.WithLabelValues(pool.Name).Set(pool.Stats.MaxAvail)
-		p.PercentUsed.WithLabelValues(pool.Name).Set(pool.Stats.PercentUsed)
-		p.Objects.WithLabelValues(pool.Name).Set(pool.Stats.Objects)
-		p.DirtyObjects.WithLabelValues(pool.Name).Set(pool.Stats.DirtyObjects)
-		p.ReadIO.WithLabelValues(pool.Name).Set(pool.Stats.ReadIO)
-		p.ReadBytes.WithLabelValues(pool.Name).Set(pool.Stats.ReadBytes)
-		p.WriteIO.WithLabelValues(pool.Name).Set(pool.Stats.WriteIO)
-		p.WriteBytes.WithLabelValues(pool.Name).Set(pool.Stats.WriteBytes)
+		ch <- prometheus.MustNewConstMetric(p.UsedBytes, prometheus.GaugeValue, pool.Stats.Stored, pool.Name)
+		ch <- prometheus.MustNewConstMetric(p.RawUsedBytes, prometheus.GaugeValue, math.Max(pool.Stats.StoredRaw, pool.Stats.BytesUsed), pool.Name)
+		ch <- prometheus.MustNewConstMetric(p.MaxAvail, prometheus.GaugeValue, pool.Stats.MaxAvail, pool.Name)
+		ch <- prometheus.MustNewConstMetric(p.PercentUsed, prometheus.GaugeValue, pool.Stats.PercentUsed, pool.Name)
+		ch <- prometheus.MustNewConstMetric(p.Objects, prometheus.GaugeValue, pool.Stats.Objects, pool.Name)
+		ch <- prometheus.MustNewConstMetric(p.DirtyObjects, prometheus.GaugeValue, pool.Stats.DirtyObjects, pool.Name)
+		ch <- prometheus.MustNewConstMetric(p.ReadIO, prometheus.GaugeValue, pool.Stats.ReadIO, pool.Name)
+		ch <- prometheus.MustNewConstMetric(p.ReadBytes, prometheus.GaugeValue, pool.Stats.ReadBytes, pool.Name)
+		ch <- prometheus.MustNewConstMetric(p.WriteIO, prometheus.GaugeValue, pool.Stats.WriteIO, pool.Name)
+		ch <- prometheus.MustNewConstMetric(p.WriteBytes, prometheus.GaugeValue, pool.Stats.WriteBytes, pool.Name)
 
 		st, err := p.conn.GetPoolStats(pool.Name)
 		if err != nil {
@@ -282,7 +177,7 @@ func (p *PoolUsageCollector) collect() error {
 			continue
 		}
 
-		p.UnfoundObjects.WithLabelValues(pool.Name).Set(float64(st.ObjectsUnfound))
+		ch <- prometheus.MustNewConstMetric(p.UnfoundObjects, prometheus.GaugeValue, float64(st.ObjectsUnfound), pool.Name)
 	}
 
 	return nil
@@ -303,21 +198,25 @@ func (p *PoolUsageCollector) cephUsageCommand() []byte {
 // Describe fulfills the prometheus.Collector's interface and sends the descriptors
 // of pool's metrics to the given channel.
 func (p *PoolUsageCollector) Describe(ch chan<- *prometheus.Desc) {
-	for _, metric := range p.collectorList() {
-		metric.Describe(ch)
-	}
+	ch <- p.UsedBytes
+	ch <- p.RawUsedBytes
+	ch <- p.MaxAvail
+	ch <- p.PercentUsed
+	ch <- p.Objects
+	ch <- p.DirtyObjects
+	ch <- p.UnfoundObjects
+	ch <- p.ReadIO
+	ch <- p.ReadBytes
+	ch <- p.WriteIO
+	ch <- p.WriteBytes
 }
 
 // Collect extracts the current values of all the metrics and sends them to the
 // prometheus channel.
 func (p *PoolUsageCollector) Collect(ch chan<- prometheus.Metric) {
 	p.logger.Debug("collecting pool usage metrics")
-	if err := p.collect(); err != nil {
+	if err := p.collect(ch); err != nil {
 		p.logger.WithError(err).Error("error collecting pool usage metrics")
 		return
-	}
-
-	for _, metric := range p.collectorList() {
-		metric.Collect(ch)
 	}
 }

@@ -175,49 +175,39 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
-			name: "health ok",
-			input: `
-{
-	"health": { "status": "HEALTH_OK" } }`,
+			name:  "health ok",
+			input: `{"health": { "status": "HEALTH_OK" } }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 0`),
 			},
 		},
 		{
-			name: "health warn",
-			input: `
-{
-	"health": { "status": "HEALTH_OK } }`,
+			name:  "health warn",
+			input: `{"health": { "status": "HEALTH_OK" } }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 0`),
 				regexp.MustCompile(`health_status_interp{cluster="ceph"} 0`),
 			},
 		},
 		{
-			name: "health ok 2",
-			input: `
-{
-	"health": { "status": "HEALTH_OK } }`,
+			name:  "health ok 2",
+			input: `{"health": { "status": "HEALTH_OK" } }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 0`),
 				regexp.MustCompile(`health_status_interp{cluster="ceph"} 0`),
 			},
 		},
 		{
-			name: "health warn 2",
-			input: `
-{
-	"health": { "status": "HEALTH_WARN" } }`,
+			name:  "health warn 2",
+			input: `{"health": { "status": "HEALTH_WARN" } }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 1`),
 				regexp.MustCompile(`health_status_interp{cluster="ceph"} 2`),
 			},
 		},
 		{
-			name: "health err",
-			input: `
-{
-	"health": { "status": "HEALTH_ERR" } }`,
+			name:  "health err",
+			input: `{"health": { "status": "HEALTH_ERR" } }`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 2`),
 				regexp.MustCompile(`health_status_interp{cluster="ceph"} 3`),
@@ -507,6 +497,33 @@ $ sudo ceph -s
 				regexp.MustCompile(`osdmap_flag_noscrub{cluster="ceph"} 1`),
 				regexp.MustCompile(`osdmap_flag_nodeep_scrub{cluster="ceph"} 0`),
 				regexp.MustCompile(`osdmap_flag_notieragent{cluster="ceph"} 1`),
+				regexp.MustCompile(`health_status_interp{cluster="ceph"} 1`),
+			},
+		},
+		{
+			name: "many flags set new osdmap constmetrics filled",
+			input: `
+			{
+			  "health": {
+				"checks": {
+				  "OSDMAP_FLAGS": {
+					"severity": "HEALTH_WARN",
+					"summary": {
+						"message": "pauserd,pausewr,noout,noin,norecover,noscrub,notieragent,newhypotheticalcephflag flag(s) set; mon 482f68d873d2 is low on available space"
+					}
+				  }
+				}
+			  }
+			}`,
+			reMatch: []*regexp.Regexp{
+				regexp.MustCompile(`osd_map_flags{cluster="ceph",flag="pauserd"} 1`),
+				regexp.MustCompile(`osd_map_flags{cluster="ceph",flag="pausewr"} 1`),
+				regexp.MustCompile(`osd_map_flags{cluster="ceph",flag="noin"} 1`),
+				regexp.MustCompile(`osd_map_flags{cluster="ceph",flag="noout"} 1`),
+				regexp.MustCompile(`osd_map_flags{cluster="ceph",flag="norecover"} 1`),
+				regexp.MustCompile(`osd_map_flags{cluster="ceph",flag="noscrub"} 1`),
+				regexp.MustCompile(`osd_map_flags{cluster="ceph",flag="notieragent"} 1`),
+				regexp.MustCompile(`osd_map_flags{cluster="ceph",flag="newhypotheticalcephflag"} 1`),
 				regexp.MustCompile(`health_status_interp{cluster="ceph"} 1`),
 			},
 		},
