@@ -922,7 +922,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 			"peering":         &peeringPGs,
 			"stale":           &stalePGs,
 			"scrubbing":       &scrubbingPGs,
-			"scrubbing+deep":  &deepScrubbingPGs,
+			"deep_scrubbing":  &deepScrubbingPGs,
 			"recovering":      &recoveringPGs,
 			"recovery_wait":   &recoveryWaitPGs,
 			"backfilling":     &backfillingPGs,
@@ -944,7 +944,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 			"peering":         c.PeeringPGs,
 			"stale":           c.StalePGs,
 			"scrubbing":       c.ScrubbingPGs,
-			"scrubbing+deep":  c.DeepScrubbingPGs,
+			"deep_scrubbing":  c.DeepScrubbingPGs,
 			"recovering":      c.RecoveringPGs,
 			"recovery_wait":   c.RecoveryWaitPGs,
 			"backfilling":     c.BackfillingPGs,
@@ -961,27 +961,20 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 	)
 
 	for _, p := range stats.PGMap.PGsByState {
-		for pgState := range pgStateCounterMap {
-			if strings.Contains(p.States, pgState) {
-				*pgStateCounterMap[pgState] += p.Count
+		p.States = strings.ReplaceAll(p.States, "scrubbing+deep", "deep_scrubbing")
+		stateArray := strings.Split(p.States, "+")
+
+		for _, state := range stateArray {
+			if count, has := pgStateCounterMap[state]; has {
+				*count += p.Count
 			}
 		}
 	}
 
 	for state, gauge := range pgStateGaugeMap {
 		val := *pgStateCounterMap[state]
-		if state == "scrubbing" {
-			val -= *pgStateCounterMap["scrubbing+deep"]
-		}
-		if state == "snaptrim" {
-			val -= *pgStateCounterMap["snaptrim_wait"]
-		}
 
 		ch <- prometheus.MustNewConstMetric(gauge, prometheus.GaugeValue, val)
-
-		if state == "scrubbing+deep" {
-			state = "deep_scrubbing"
-		}
 		ch <- prometheus.MustNewConstMetric(c.PGState, prometheus.GaugeValue, val, state)
 	}
 
