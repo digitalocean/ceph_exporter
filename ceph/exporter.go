@@ -39,12 +39,13 @@ type Exporter struct {
 	RbdMirror bool
 	Logger    *logrus.Logger
 	Version   *Version
+	cc        []prometheus.Collector
 }
 
 // NewExporter returns an initialized *Exporter
 // We can choose to enable a collector to extract stats out of by adding it to the list of collectors.
 func NewExporter(conn Conn, cluster string, config string, user string, rgwMode int, logger *logrus.Logger) *Exporter {
-	return &Exporter{
+	e := &Exporter{
 		Conn:    conn,
 		Cluster: cluster,
 		Config:  config,
@@ -52,9 +53,22 @@ func NewExporter(conn Conn, cluster string, config string, user string, rgwMode 
 		RgwMode: rgwMode,
 		Logger:  logger,
 	}
+	err := e.setCephVersion()
+	if err != nil {
+		e.Logger.WithError(err).Error("failed to set rbd mirror")
+		return nil
+	}
+	err = e.setRbdMirror()
+	if err != nil {
+		e.Logger.WithError(err).Error("failed to set rbd mirror")
+		return nil
+	}
+	e.cc = e.initCollectors()
+
+	return e
 }
 
-func (exporter *Exporter) getCollectors() []prometheus.Collector {
+func (exporter *Exporter) initCollectors() []prometheus.Collector {
 	standardCollectors := []prometheus.Collector{
 		NewClusterUsageCollector(exporter),
 		NewPoolUsageCollector(exporter),
@@ -213,7 +227,7 @@ func (exporter *Exporter) Describe(ch chan<- *prometheus.Desc) {
 		return
 	}
 
-	for _, cc := range exporter.getCollectors() {
+	for _, cc := range exporter.cc {
 		cc.Describe(ch)
 	}
 }
@@ -237,7 +251,7 @@ func (exporter *Exporter) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
-	for _, cc := range exporter.getCollectors() {
+	for _, cc := range exporter.cc {
 		cc.Collect(ch)
 	}
 }
