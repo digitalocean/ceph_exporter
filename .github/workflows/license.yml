@@ -16,9 +16,9 @@ name: License
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   check-file-licenses:
@@ -38,4 +38,4 @@ jobs:
         run: go build -o addlicense github.com/google/addlicense
 
       - name: Check file licenses
-        run: ./addlicense -c DigitalOcean -l apache -y 2022 --check .
+        run: ./addlicense -c DigitalOcean -l apache -y $(date +"%Y") --check .
