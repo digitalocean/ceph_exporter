@@ -15,12 +15,14 @@
 package ceph
 
 import (
+	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
@@ -29,14 +31,11 @@ import (
 )
 
 func TestClusterHealthCollector(t *testing.T) {
-	allVersions := []*Version{Nautilus, Octopus, Pacific}
-	nautilusOnly := []*Version{Nautilus}
-	octopusPlus := []*Version{Octopus, Pacific}
 	for _, tt := range []struct {
-		name     string
-		versions []*Version // Defaults to allVersions if not provided.
-		input    string
-		reMatch  []*regexp.Regexp
+		name    string
+		version string
+		input   string
+		reMatch []*regexp.Regexp
 	}{
 		{
 			name: "15 pgs stuck degraded",
@@ -44,6 +43,7 @@ func TestClusterHealthCollector(t *testing.T) {
 {
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "15 pgs stuck degraded"}]}
 }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`stuck_degraded_pgs{cluster="ceph"} 15`),
 			},
@@ -54,6 +54,7 @@ func TestClusterHealthCollector(t *testing.T) {
 {
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "16 pgs stuck unclean"}]}
 }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`stuck_unclean_pgs{cluster="ceph"} 16`),
 			},
@@ -64,6 +65,7 @@ func TestClusterHealthCollector(t *testing.T) {
 {
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "17 pgs stuck undersized"}]}
 }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`stuck_undersized_pgs{cluster="ceph"} 17`),
 			},
@@ -74,6 +76,7 @@ func TestClusterHealthCollector(t *testing.T) {
 {
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "18 pgs stuck stale"}]}
 }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`stuck_stale_pgs{cluster="ceph"} 18`),
 			},
@@ -84,6 +87,7 @@ func TestClusterHealthCollector(t *testing.T) {
 {
 	"pgmap": { "degraded_objects": 10 }
 }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`degraded_objects{cluster="ceph"} 10`),
 			},
@@ -94,13 +98,14 @@ func TestClusterHealthCollector(t *testing.T) {
 {
 	"pgmap": { "misplaced_objects": 20 }
 }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`misplaced_objects{cluster="ceph"} 20`),
 			},
 		},
 		{
-			name:     "10 down osds",
-			versions: nautilusOnly,
+			name:    "10 down osds",
+			version: `{"version":"ceph version 14.2.9-12-zasd (1337) pacific (stable)"}`,
 			input: `
 {
 	"osdmap": {
@@ -117,8 +122,8 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
-			name:     "normal osdmap",
-			versions: nautilusOnly,
+			name:    "normal osdmap",
+			version: `{"version":"ceph version 14.2.9-12-zasd (1337) pacific (stable)"}`,
 			input: `
 {
 	"osdmap": {
@@ -139,8 +144,8 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
-			name:     "10 down osds",
-			versions: octopusPlus,
+			name:    "10 down osds",
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			input: `
 {
 	"osdmap": {
@@ -155,8 +160,8 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
-			name:     "normal osdmap",
-			versions: octopusPlus,
+			name:    "normal osdmap",
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			input: `
 {
 	"osdmap": {
@@ -175,39 +180,44 @@ func TestClusterHealthCollector(t *testing.T) {
 			},
 		},
 		{
-			name:  "health ok",
-			input: `{"health": { "status": "HEALTH_OK" } }`,
+			name:    "health ok",
+			input:   `{"health": { "status": "HEALTH_OK" } }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 0`),
 			},
 		},
 		{
-			name:  "health warn",
-			input: `{"health": { "status": "HEALTH_OK" } }`,
-			reMatch: []*regexp.Regexp{
-				regexp.MustCompile(`health_status{cluster="ceph"} 0`),
-				regexp.MustCompile(`health_status_interp{cluster="ceph"} 0`),
-			},
-		},
-		{
-			name:  "health ok 2",
-			input: `{"health": { "status": "HEALTH_OK" } }`,
+			name:    "health warn",
+			input:   `{"health": { "status": "HEALTH_OK" } }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 0`),
 				regexp.MustCompile(`health_status_interp{cluster="ceph"} 0`),
 			},
 		},
 		{
-			name:  "health warn 2",
-			input: `{"health": { "status": "HEALTH_WARN" } }`,
+			name:    "health ok 2",
+			input:   `{"health": { "status": "HEALTH_OK" } }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
+			reMatch: []*regexp.Regexp{
+				regexp.MustCompile(`health_status{cluster="ceph"} 0`),
+				regexp.MustCompile(`health_status_interp{cluster="ceph"} 0`),
+			},
+		},
+		{
+			name:    "health warn 2",
+			input:   `{"health": { "status": "HEALTH_WARN" } }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 1`),
 				regexp.MustCompile(`health_status_interp{cluster="ceph"} 2`),
 			},
 		},
 		{
-			name:  "health err",
-			input: `{"health": { "status": "HEALTH_ERR" } }`,
+			name:    "health err",
+			input:   `{"health": { "status": "HEALTH_ERR" } }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status{cluster="ceph"} 2`),
 				regexp.MustCompile(`health_status_interp{cluster="ceph"} 3`),
@@ -223,6 +233,7 @@ $ sudo ceph -s
   recovery io 5779 MB/s, 4 keys/s, 1522 objects/s
   client io 4273 kB/s rd, 2740 MB/s wr, 2863 op/s
 `,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`recovery_io_bytes{cluster="ceph"} 5.779e`),
 				regexp.MustCompile(`recovery_io_keys{cluster="ceph"} 4`),
@@ -243,6 +254,7 @@ $ sudo ceph -s
   client io 2863 op/s rd, 5847 op/s wr
   cache io 251 MB/s flush, 6646 kB/s evict, 55 op/s promote
 `,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`recovery_io_bytes{cluster="ceph"} 5.779e`),
 				regexp.MustCompile(`recovery_io_keys{cluster="ceph"} 4`),
@@ -262,6 +274,7 @@ $ sudo ceph -s
 	"pgmap": { "num_pgs": 52000, "num_objects": 13156 },
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "7 pgs undersized"}]}
 }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`total_pgs{cluster="ceph"} 52000`),
 				regexp.MustCompile(`cluster_objects{cluster="ceph"} 13156`),
@@ -303,6 +316,7 @@ $ sudo ceph -s
 	},
 	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "7 pgs undersized"}]}
 }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`active_pgs{cluster="ceph"} 49`),
 				regexp.MustCompile(`scrubbing_pgs{cluster="ceph"} 2`),
@@ -329,6 +343,7 @@ $ sudo ceph -s
     }
   }
 }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`mons_down{cluster="ceph"} 1`),
 			},
@@ -346,6 +361,7 @@ $ sudo ceph -s
 		]
 	}
 }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`slow_requests{cluster="ceph"} 3`),
 			},
@@ -365,6 +381,7 @@ $ sudo ceph -s
     }
   }
 }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`slow_requests{cluster="ceph"} 3`),
 			},
@@ -384,6 +401,7 @@ $ sudo ceph -s
     }
   }
 }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`slow_requests{cluster="ceph"} 18`),
 			},
@@ -404,6 +422,7 @@ $ sudo ceph -s
   },
   "pgmap": { "degraded_objects": 154443937 }
 }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`degraded_objects{cluster="ceph"} 1.54443937e\+08`),
 				regexp.MustCompile(`health_status_interp{cluster="ceph"} 1`),
@@ -424,6 +443,7 @@ $ sudo ceph -s
     }
   }
 }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`new_crash_reports{cluster="ceph"} 2`),
 				regexp.MustCompile(`health_status_interp{cluster="ceph"} 1`),
@@ -444,6 +464,7 @@ $ sudo ceph -s
     }
   }
 }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`osds_too_many_repair{cluster="ceph"} 25`),
 				regexp.MustCompile(`health_status_interp{cluster="ceph"} 1`),
@@ -464,6 +485,7 @@ $ sudo ceph -s
     }
   }
 }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`health_status_interp{cluster="ceph"} 2`),
 			},
@@ -483,6 +505,7 @@ $ sudo ceph -s
     }
   }
 }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`osdmap_flag_full{cluster="ceph"} 0`),
 				regexp.MustCompile(`osdmap_flag_pauserd{cluster="ceph"} 1`),
@@ -515,6 +538,7 @@ $ sudo ceph -s
 				}
 			  }
 			}`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`osd_map_flags{cluster="ceph",flag="pauserd"} 1`),
 				regexp.MustCompile(`osd_map_flags{cluster="ceph",flag="pausewr"} 1`),
@@ -628,6 +652,7 @@ $ sudo ceph -s
 		"bytes_total": 2537720565469184
 	}	
 }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`active_pgs{cluster="ceph"} 44`),
 				regexp.MustCompile(`degraded_pgs{cluster="ceph"} 40`),
@@ -674,8 +699,8 @@ $ sudo ceph -s
 			},
 		},
 		{
-			name:     "manager map",
-			versions: nautilusOnly,
+			name:    "manager map",
+			version: `{"version":"ceph version 14.2.9-12-zasd (1337) pacific (stable)"}`,
 			input: `
 {
     "mgrmap": {
@@ -725,8 +750,8 @@ $ sudo ceph -s
 			},
 		},
 		{
-			name:     "manager map",
-			versions: octopusPlus,
+			name:    "manager map",
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			input: `
 {
     "mgrmap": {
@@ -784,6 +809,7 @@ $ sudo ceph -s
         }
     }
 }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`rbd_mirror_up{cluster="ceph",\s*name="prod-mon01-block01"} 1`),
 				regexp.MustCompile(`rbd_mirror_up{cluster="ceph",\s*name="prod-mon02-block01"} 1`),
@@ -791,38 +817,58 @@ $ sudo ceph -s
 		},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			versions := allVersions
-			if len(tt.versions) > 0 {
-				versions = tt.versions
-			}
-			for _, version := range versions {
-				t.Run(version.String(), func(t *testing.T) {
-					conn := &MockConn{}
-					conn.On("MonCommand", mock.Anything).Return(
-						[]byte(tt.input), "", nil,
-					)
+			conn := &MockConn{}
+			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
+				v := map[string]interface{}{}
 
-					collector := NewClusterHealthCollector(&Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New(), Version: version})
-					err := prometheus.Register(collector)
-					require.NoError(t, err)
-					defer prometheus.Unregister(collector)
+				err := json.Unmarshal(in.([]byte), &v)
+				require.NoError(t, err)
 
-					server := httptest.NewServer(promhttp.Handler())
-					defer server.Close()
-
-					resp, err := http.Get(server.URL)
-					require.NoError(t, err)
-					defer resp.Body.Close()
-
-					buf, err := ioutil.ReadAll(resp.Body)
-					require.NoError(t, err)
-
-					for _, re := range tt.reMatch {
-						if !re.Match(buf) {
-							t.Errorf("expected %s to match\n", re.String())
-						}
-					}
+				return cmp.Equal(v, map[string]interface{}{
+					"prefix": "version",
+					"format": "json",
 				})
+			})).Return([]byte(tt.version), "", nil)
+
+			// versions is only used to check if rbd mirror is present
+			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
+				v := map[string]interface{}{}
+
+				err := json.Unmarshal(in.([]byte), &v)
+				require.NoError(t, err)
+
+				return cmp.Equal(v, map[string]interface{}{
+					"prefix": "versions",
+					"format": "json",
+				})
+			})).Return([]byte(`{}`), "", nil)
+
+			conn.On("MonCommand", mock.Anything).Return(
+				[]byte(tt.input), "", nil,
+			)
+			e := &Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()}
+			e.cc = map[string]interface{}{
+				"clusterHealth": NewClusterHealthCollector(e),
+			}
+
+			err := prometheus.Register(e)
+			require.NoError(t, err)
+			defer prometheus.Unregister(e)
+
+			server := httptest.NewServer(promhttp.Handler())
+			defer server.Close()
+
+			resp, err := http.Get(server.URL)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+
+			buf, err := ioutil.ReadAll(resp.Body)
+			require.NoError(t, err)
+
+			for _, re := range tt.reMatch {
+				if !re.Match(buf) {
+					t.Errorf("expected %s to match\n", re.String())
+				}
 			}
 		})
 	}

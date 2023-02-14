@@ -447,28 +447,33 @@ func TestOSDCollector(t *testing.T) {
 
 	for _, tt := range []struct {
 		test    string
+		version string
 		reMatch []*regexp.Regexp
 	}{
 		{
-			test: "1",
+			test:    "1",
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_osd_down{cluster="ceph",device_class="ssd",host="prod-data02-block01",osd="osd.524",rack="default",root="A8R2",status="destroyed"} 1`),
 			},
 		},
 		{
-			test: "2",
+			test:    "2",
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_osd_down{cluster="ceph",device_class="ssd",host="prod-data02-block01",osd="osd.524",rack="default",root="A8R2",status="down"} 1`),
 			},
 		},
 		{
-			test: "3",
+			test:    "3",
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_osd_down{cluster="ceph",device_class="ssd",host="prod-data02-block01",osd="osd.524",rack="default",root="A8R2",status="destroyed"} 1`),
 			},
 		},
 		{
-			test: "4",
+			test:    "4",
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_osd_down{cluster="ceph",device_class="ssd",host="prod-data02-block01",osd="osd.524",rack="default",root="A8R2",status="destroyed"} 1`),
 				regexp.MustCompile(`ceph_osd_down{cluster="ceph",device_class="ssd",host="prod-data02-block01",osd="osd.525",rack="default",root="A8R2",status="down"} 1`),
@@ -476,6 +481,7 @@ func TestOSDCollector(t *testing.T) {
 		},
 		{
 			test:    "5",
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{},
 		},
 	} {
@@ -965,11 +971,38 @@ func TestOSDCollector(t *testing.T) {
         ]
     }
 }`), "", nil)
+			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
+				v := map[string]interface{}{}
 
-			collector := NewOSDCollector(&Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()})
-			err := prometheus.Register(collector)
+				err := json.Unmarshal(in.([]byte), &v)
+				require.NoError(t, err)
+
+				return cmp.Equal(v, map[string]interface{}{
+					"prefix": "version",
+					"format": "json",
+				})
+			})).Return([]byte(tt.version), "", nil)
+
+			// versions is only used to check if rbd mirror is present
+			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
+				v := map[string]interface{}{}
+
+				err := json.Unmarshal(in.([]byte), &v)
+				require.NoError(t, err)
+
+				return cmp.Equal(v, map[string]interface{}{
+					"prefix": "versions",
+					"format": "json",
+				})
+			})).Return([]byte(`{}`), "", nil)
+
+			e := &Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()}
+			e.cc = map[string]interface{}{
+				"osd": NewOSDCollector(e),
+			}
+			err := prometheus.Register(e)
 			require.NoError(t, err)
-			defer prometheus.Unregister(collector)
+			defer prometheus.Unregister(e)
 
 			server := httptest.NewServer(promhttp.Handler())
 			defer server.Close()

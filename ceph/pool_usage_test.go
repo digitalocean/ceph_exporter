@@ -15,6 +15,7 @@
 package ceph
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -22,6 +23,7 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
@@ -32,6 +34,7 @@ import (
 func TestPoolUsageCollector(t *testing.T) {
 	for _, tt := range []struct {
 		input              string
+		version            string
 		reMatch, reUnmatch []*regexp.Regexp
 	}{
 		{
@@ -39,6 +42,7 @@ func TestPoolUsageCollector(t *testing.T) {
 {"pools": [
 	{"name": "rbd", "id": 11, "stats": {"stored": 20, "objects": 5, "rd": 4, "wr": 6}}
 ]}`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`pool_used_bytes{cluster="ceph",pool="rbd"} 20`),
 				regexp.MustCompile(`pool_objects_total{cluster="ceph",pool="rbd"} 5`),
@@ -52,6 +56,7 @@ func TestPoolUsageCollector(t *testing.T) {
 {"pools": [
 	{"name": "rbd", "id": 11, "stats": {"objects": 5, "rd": 4, "wr": 6}}
 ]}`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`pool_used_bytes{cluster="ceph",pool="rbd"} 0`),
 				regexp.MustCompile(`pool_objects_total{cluster="ceph",pool="rbd"} 5`),
@@ -65,6 +70,7 @@ func TestPoolUsageCollector(t *testing.T) {
 {"pools": [
 	{"name": "rbd", "id": 11, "stats": {"stored": 20, "rd": 4, "wr": 6}}
 ]}`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`pool_used_bytes{cluster="ceph",pool="rbd"} 20`),
 				regexp.MustCompile(`pool_objects_total{cluster="ceph",pool="rbd"} 0`),
@@ -78,6 +84,7 @@ func TestPoolUsageCollector(t *testing.T) {
 {"pools": [
 	{"name": "rbd", "id": 11, "stats": {"stored": 20, "objects": 5, "wr": 6}}
 ]}`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`pool_used_bytes{cluster="ceph",pool="rbd"} 20`),
 				regexp.MustCompile(`pool_objects_total{cluster="ceph",pool="rbd"} 5`),
@@ -91,6 +98,7 @@ func TestPoolUsageCollector(t *testing.T) {
 {"pools": [
 	{"name": "rbd", "id": 11, "stats": {"stored": 20, "objects": 5, "rd": 4}}
 ]}`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`pool_used_bytes{cluster="ceph",pool="rbd"} 20`),
 				regexp.MustCompile(`pool_objects_total{cluster="ceph",pool="rbd"} 5`),
@@ -104,6 +112,7 @@ func TestPoolUsageCollector(t *testing.T) {
 {"pools": [
     {{{{"name": "rbd", "id": 11, "stats": {"stored": 20, "objects": 5, "rd": 4, "wr": 6}}
 ]}`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{},
 			reUnmatch: []*regexp.Regexp{
 				regexp.MustCompile(`pool_used_bytes{cluster="ceph"}`),
@@ -118,6 +127,7 @@ func TestPoolUsageCollector(t *testing.T) {
 	{"name": "rbd", "id": 11, "stats": {"stored": 20, "objects": 5, "rd": 4, "wr": 6}},
 	{"name": "rbd-new", "id": 12, "stats": {"stored": 50, "objects": 20, "rd": 10, "wr": 30}}
 ]}`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`pool_used_bytes{cluster="ceph",pool="rbd"} 20`),
 				regexp.MustCompile(`pool_objects_total{cluster="ceph",pool="rbd"} 5`),
@@ -135,6 +145,7 @@ func TestPoolUsageCollector(t *testing.T) {
 {"pools": [
 	{"name": "ssd", "id": 11, "stats": {"max_avail": 4618201748262, "objects": 5, "rd": 4, "wr": 6}}
 ]}`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`pool_available_bytes{cluster="ceph",pool="ssd"} 4.618201748262e\+12`),
 			},
@@ -144,6 +155,7 @@ func TestPoolUsageCollector(t *testing.T) {
 {"pools": [
 	{"name": "ssd", "id": 11, "stats": {"percent_used": 1.3390908861765638e-06, "objects": 5, "rd": 4, "wr": 6}}
 ]}`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`pool_percent_used{cluster="ceph",pool="ssd"} 1.3390908861765638e\-06`),
 			},
@@ -154,6 +166,7 @@ func TestPoolUsageCollector(t *testing.T) {
 	{"id": 32, "name": "cinder_sas", "stats": { "stored": 71525351713, "dirty": 17124, "kb_used": 69848977, "max_avail": 6038098673664, "objects": 17124, "quota_bytes": 0, "quota_objects": 0, "stored_raw": 214576054272, "rd": 348986643, "rd_bytes": 3288983853056, "wr": 45792703, "wr_bytes": 272268791808 }},
 	{"id": 33, "name": "cinder_ssd", "stats": { "stored": 68865564849, "dirty": 16461, "kb_used": 67251529, "max_avail": 186205372416, "objects": 16461, "quota_bytes": 0, "quota_objects": 0, "stored_raw": 206596702208, "rd": 347, "rd_bytes": 12899328, "wr": 26721, "wr_bytes": 68882356224 }}
 ]}`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_pool_available_bytes{cluster="ceph",pool="cinder_sas"} 6.038098673664e\+12`),
 				regexp.MustCompile(`ceph_pool_dirty_objects_total{cluster="ceph",pool="cinder_sas"} 17124`),
@@ -178,6 +191,32 @@ func TestPoolUsageCollector(t *testing.T) {
 	} {
 		func() {
 			conn := &MockConn{}
+
+			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
+				v := map[string]interface{}{}
+
+				err := json.Unmarshal(in.([]byte), &v)
+				require.NoError(t, err)
+
+				return cmp.Equal(v, map[string]interface{}{
+					"prefix": "version",
+					"format": "json",
+				})
+			})).Return([]byte(tt.version), "", nil)
+
+			// versions is only used to check if rbd mirror is present
+			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
+				v := map[string]interface{}{}
+
+				err := json.Unmarshal(in.([]byte), &v)
+				require.NoError(t, err)
+
+				return cmp.Equal(v, map[string]interface{}{
+					"prefix": "versions",
+					"format": "json",
+				})
+			})).Return([]byte(`{}`), "", nil)
+
 			conn.On("MonCommand", mock.Anything).Return(
 				[]byte(tt.input), "", nil,
 			)
@@ -186,10 +225,13 @@ func TestPoolUsageCollector(t *testing.T) {
 				nil, fmt.Errorf("not implemented"),
 			)
 
-			collector := NewPoolUsageCollector(&Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()})
-			err := prometheus.Register(collector)
+			e := &Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()}
+			e.cc = map[string]interface{}{
+				"poolUsage": NewPoolUsageCollector(e),
+			}
+			err := prometheus.Register(e)
 			require.NoError(t, err)
-			defer prometheus.Unregister(collector)
+			defer prometheus.Unregister(e)
 
 			server := httptest.NewServer(promhttp.Handler())
 			defer server.Close()
