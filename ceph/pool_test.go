@@ -184,7 +184,7 @@ func TestPoolInfoCollector(t *testing.T) {
 			})).Return([]byte(""), "", fmt.Errorf("unknown erasure code profile"))
 
 			e := &Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()}
-			e.cc = map[string]interface{}{
+			e.cc = map[string]versionedCollector{
 				"poolInfo": NewPoolInfoCollector(e),
 			}
 			err := prometheus.Register(e)

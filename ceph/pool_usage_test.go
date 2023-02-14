@@ -199,7 +199,7 @@ func TestPoolUsageCollector(t *testing.T) {
 			)
 
 			e := &Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()}
-			e.cc = map[string]interface{}{
+			e.cc = map[string]versionedCollector{
 				"poolUsage": NewPoolUsageCollector(e),
 			}
 			err := prometheus.Register(e)

@@ -274,7 +274,7 @@ func TestMonitorCollector(t *testing.T) {
 			)
 
 			e := &Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()}
-			e.cc = map[string]interface{}{
+			e.cc = map[string]versionedCollector{
 				"mon": NewMonitorCollector(e),
 			}
 			err := prometheus.Register(e)
@@ -405,7 +405,7 @@ func TestMonitorTimeSyncStats(t *testing.T) {
 			)
 
 			e := &Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()}
-			e.cc = map[string]interface{}{
+			e.cc = map[string]versionedCollector{
 				"mon": NewMonitorCollector(e),
 			}
 			err := prometheus.Register(e)
@@ -472,7 +472,7 @@ func TestMonitorCephVersions(t *testing.T) {
 			)
 
 			e := &Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()}
-			e.cc = map[string]interface{}{
+			e.cc = map[string]versionedCollector{
 				"mon": NewMonitorCollector(e),
 			}
 			err := prometheus.Register(e)
@@ -558,7 +558,7 @@ func TestMonitorCephFeatures(t *testing.T) {
 			)
 
 			e := &Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()}
-			e.cc = map[string]interface{}{
+			e.cc = map[string]versionedCollector{
 				"mon": NewMonitorCollector(e),
 			}
 			err := prometheus.Register(e)

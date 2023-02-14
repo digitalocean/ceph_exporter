@@ -138,7 +138,7 @@ func TestRbdMirrorStatusCollector(t *testing.T) {
 			// We do not create the rbdCollector since it will
 			// be automatically initiated from the output of `ceph versions`
 			// if the rbd-mirror key is present
-			e.cc = map[string]interface{}{}
+			e.cc = map[string]versionedCollector{}
 
 			err := prometheus.Register(e)
 			require.NoError(t, err)

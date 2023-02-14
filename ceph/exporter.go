@@ -24,6 +24,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type versionedCollector interface {
+	Collect(chan<- prometheus.Metric, *Version)
+	Describe(chan<- *prometheus.Desc)
+}
+
 // Exporter wraps all the ceph collectors and provides a single global
 // exporter to extracts metrics out of. It also ensures that the collection
 // is done in a thread-safe manner, the necessary requirement stated by
@@ -39,7 +44,7 @@ type Exporter struct {
 	RbdMirror bool
 	Logger    *logrus.Logger
 	Version   *Version
-	cc        map[string]interface{}
+	cc        map[string]versionedCollector
 }
 
 // NewExporter returns an initialized *Exporter
@@ -63,8 +68,8 @@ func NewExporter(conn Conn, cluster string, config string, user string, rgwMode 
 	return e
 }
 
-func (exporter *Exporter) initCollectors() map[string]interface{} {
-	standardCollectors := map[string]interface{}{
+func (exporter *Exporter) initCollectors() map[string]versionedCollector {
+	standardCollectors := map[string]versionedCollector{
 		"clusterUage":   NewClusterUsageCollector(exporter),
 		"poolUsage":     NewPoolUsageCollector(exporter),
 		"poolInfo":      NewPoolInfoCollector(exporter),
@@ -226,26 +231,7 @@ func (exporter *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	}
 
 	for _, cc := range exporter.cc {
-		switch cc.(type) {
-		case *ClusterUsageCollector:
-			cc.(*ClusterUsageCollector).Describe(ch)
-		case *PoolUsageCollector:
-			cc.(*PoolUsageCollector).Describe(ch)
-		case *PoolInfoCollector:
-			cc.(*PoolInfoCollector).Describe(ch)
-		case *ClusterHealthCollector:
-			cc.(*ClusterHealthCollector).Describe(ch)
-		case *MonitorCollector:
-			cc.(*MonitorCollector).Describe(ch)
-		case *OSDCollector:
-			cc.(*OSDCollector).Describe(ch)
-		case *CrashesCollector:
-			cc.(*CrashesCollector).Describe(ch)
-		case *RbdMirrorStatusCollector:
-			cc.(*RbdMirrorStatusCollector).Describe(ch)
-		case *RGWCollector:
-			cc.(*RGWCollector).Describe(ch)
-		}
+		cc.Describe(ch)
 	}
 }
 
@@ -269,25 +255,6 @@ func (exporter *Exporter) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	for _, cc := range exporter.cc {
-		switch cc.(type) {
-		case *ClusterUsageCollector:
-			cc.(*ClusterUsageCollector).Collect(ch, exporter.Version)
-		case *PoolUsageCollector:
-			cc.(*PoolUsageCollector).Collect(ch, exporter.Version)
-		case *PoolInfoCollector:
-			cc.(*PoolInfoCollector).Collect(ch, exporter.Version)
-		case *ClusterHealthCollector:
-			cc.(*ClusterHealthCollector).Collect(ch, exporter.Version)
-		case *MonitorCollector:
-			cc.(*MonitorCollector).Collect(ch, exporter.Version)
-		case *OSDCollector:
-			cc.(*OSDCollector).Collect(ch, exporter.Version)
-		case *CrashesCollector:
-			cc.(*CrashesCollector).Collect(ch, exporter.Version)
-		case *RbdMirrorStatusCollector:
-			cc.(*RbdMirrorStatusCollector).Collect(ch, exporter.Version)
-		case *RGWCollector:
-			cc.(*RGWCollector).Collect(ch, exporter.Version)
-		}
+		cc.Collect(ch, exporter.Version)
 	}
 }

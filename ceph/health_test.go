@@ -820,7 +820,7 @@ $ sudo ceph -s
 				[]byte(tt.input), "", nil,
 			)
 			e := &Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()}
-			e.cc = map[string]interface{}{
+			e.cc = map[string]versionedCollector{
 				"clusterHealth": NewClusterHealthCollector(e),
 			}
 
