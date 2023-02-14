@@ -32,9 +32,8 @@ var versionRegexp = regexp.MustCompile(`ceph version (?P<version_tag>\d+\.\d+\.\
 // to each monitor instance, there are various vector metrics we
 // need to use.
 type MonitorCollector struct {
-	conn    Conn
-	logger  *logrus.Logger
-	version *Version
+	conn   Conn
+	logger *logrus.Logger
 
 	// TotalKBs display the total storage a given monitor node has.
 	TotalKBs *prometheus.GaugeVec
@@ -96,9 +95,8 @@ func NewMonitorCollector(exporter *Exporter) *MonitorCollector {
 	labels["cluster"] = exporter.Cluster
 
 	return &MonitorCollector{
-		conn:    exporter.Conn,
-		logger:  exporter.Logger,
-		version: exporter.Version,
+		conn:   exporter.Conn,
+		logger: exporter.Logger,
 
 		TotalKBs: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -553,7 +551,7 @@ func (m *MonitorCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect extracts the given metrics from the Monitors and sends it to the prometheus
 // channel.
-func (m *MonitorCollector) Collect(ch chan<- prometheus.Metric) {
+func (m *MonitorCollector) Collect(ch chan<- prometheus.Metric, version *Version) {
 	m.logger.Debug("collecting ceph monitor metrics")
 	if err := m.collect(); err != nil {
 		m.logger.WithError(err).Error("error collecting ceph monitor metrics")

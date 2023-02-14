@@ -40,9 +40,8 @@ const (
 // An important aspect of monitoring OSDs is to ensure that when the cluster is
 // up and running that all OSDs that are in the cluster are up and running, too
 type OSDCollector struct {
-	conn    Conn
-	logger  *logrus.Logger
-	version *Version
+	conn   Conn
+	logger *logrus.Logger
 
 	// osdScrubCache holds the cache of previous PG scrubs
 	osdScrubCache map[int]int
@@ -152,9 +151,6 @@ type OSDCollector struct {
 	OldestInactivePG prometheus.Gauge
 }
 
-// This ensures OSDCollector implements interface prometheus.Collector.
-var _ prometheus.Collector = &OSDCollector{}
-
 // NewOSDCollector creates an instance of the OSDCollector and instantiates the
 // individual metrics that show information about the OSD.
 func NewOSDCollector(exporter *Exporter) *OSDCollector {
@@ -163,9 +159,8 @@ func NewOSDCollector(exporter *Exporter) *OSDCollector {
 	osdLabels := []string{"osd", "device_class", "host", "rack", "root"}
 
 	return &OSDCollector{
-		conn:    exporter.Conn,
-		logger:  exporter.Logger,
-		version: exporter.Version,
+		conn:   exporter.Conn,
+		logger: exporter.Logger,
 
 		osdScrubCache:       make(map[int]int),
 		osdLabelsCache:      make(map[int64]*cephOSDLabel),
@@ -1119,7 +1114,7 @@ func (o *OSDCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect sends all the collected metrics to the provided Prometheus channel.
 // It requires the caller to handle synchronization.
-func (o *OSDCollector) Collect(ch chan<- prometheus.Metric) {
+func (o *OSDCollector) Collect(ch chan<- prometheus.Metric, version *Version) {
 	// Reset daemon specifc metrics; daemons can leave the cluster
 	o.CrushWeight.Reset()
 	o.Depth.Reset()

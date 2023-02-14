@@ -47,9 +47,8 @@ var (
 // It surfaces changes in the ceph parameters unlike data usage that ClusterUsageCollector
 // does.
 type ClusterHealthCollector struct {
-	conn    Conn
-	logger  *logrus.Logger
-	version *Version
+	conn   Conn
+	logger *logrus.Logger
 
 	// healthChecksMap stores warnings and their criticality
 	healthChecksMap map[string]int
@@ -287,9 +286,8 @@ func NewClusterHealthCollector(exporter *Exporter) *ClusterHealthCollector {
 	labels["cluster"] = exporter.Cluster
 
 	collector := &ClusterHealthCollector{
-		conn:    exporter.Conn,
-		logger:  exporter.Logger,
-		version: exporter.Version,
+		conn:   exporter.Conn,
+		logger: exporter.Logger,
 
 		healthChecksMap: map[string]int{
 			"AUTH_BAD_CAPS":                        2,
@@ -558,13 +556,6 @@ func NewClusterHealthCollector(exporter *Exporter) *ClusterHealthCollector {
 		"notieragent":  &collector.OSDMapFlagNoTierAgent,
 	}
 
-	if exporter.Version.IsAtLeast(Pacific) {
-		// pacific adds the DAEMON_OLD_VERSION health check
-		// that indicates that multiple versions of Ceph have been running for longer than mon_warn_older_version_delay
-		// we'll interpret this is a critical warning (2)
-		collector.healthChecksMap["DAEMON_OLD_VERSION"] = 2
-	}
-
 	return collector
 }
 
@@ -724,7 +715,7 @@ type cephHealthStats struct {
 	} `json:"servicemap"`
 }
 
-func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
+func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric, version *Version) error {
 	cmd := c.cephUsageCommand(jsonFormat)
 	buf, _, err := c.conn.MonCommand(cmd)
 	if err != nil {
@@ -883,6 +874,14 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 				}
 			}
 		}
+
+		if version.IsAtLeast(Pacific) {
+			// pacific adds the DAEMON_OLD_VERSION health check
+			// that indicates that multiple versions of Ceph have been running for longer than mon_warn_older_version_delay
+			// we'll interpret this is a critical warning (2)
+			c.healthChecksMap["DAEMON_OLD_VERSION"] = 2
+		}
+
 		if !mapEmpty {
 			if val, present := c.healthChecksMap[k]; present {
 				c.HealthStatusInterpreter.Set(float64(val))
@@ -991,7 +990,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 	ch <- prometheus.MustNewConstMetric(c.CachePromoteIOOps, prometheus.GaugeValue, stats.PGMap.CachePromoteOpPerSec)
 
 	var actualOsdMap osdMap
-	if c.version.IsAtLeast(Octopus) {
+	if version.IsAtLeast(Octopus) {
 		if stats.OSDMap != nil {
 			actualOsdMap = osdMap{
 				NumOSDs:        stats.OSDMap["num_osds"].(float64),
@@ -1031,7 +1030,7 @@ func (c *ClusterHealthCollector) collect(ch chan<- prometheus.Metric) error {
 
 	activeMgr := 0
 	standByMgrs := 0
-	if c.version.IsAtLeast(Octopus) {
+	if version.IsAtLeast(Octopus) {
 		if stats.MgrMap.Available {
 			activeMgr = 1
 		}
@@ -1334,9 +1333,9 @@ func (c *ClusterHealthCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect sends all the collected metrics to the provided prometheus channel.
 // It requires the caller to handle synchronization.
-func (c *ClusterHealthCollector) Collect(ch chan<- prometheus.Metric) {
+func (c *ClusterHealthCollector) Collect(ch chan<- prometheus.Metric, version *Version) {
 	c.logger.Debug("collecting cluster health metrics")
-	if err := c.collect(ch); err != nil {
+	if err := c.collect(ch, version); err != nil {
 		c.logger.WithError(err).Error("error collecting cluster health metrics " + err.Error())
 	}
 

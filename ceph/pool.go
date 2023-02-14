@@ -32,9 +32,8 @@ const (
 // PoolInfoCollector gives information about each pool that exists in a given
 // ceph cluster.
 type PoolInfoCollector struct {
-	conn    Conn
-	logger  *logrus.Logger
-	version *Version
+	conn   Conn
+	logger *logrus.Logger
 
 	// PGNum contains the count of PGs allotted to a particular pool.
 	PGNum *prometheus.GaugeVec
@@ -75,9 +74,8 @@ func NewPoolInfoCollector(exporter *Exporter) *PoolInfoCollector {
 	labels["cluster"] = exporter.Cluster
 
 	return &PoolInfoCollector{
-		conn:    exporter.Conn,
-		logger:  exporter.Logger,
-		version: exporter.Version,
+		conn:   exporter.Conn,
+		logger: exporter.Logger,
 
 		PGNum: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -261,7 +259,7 @@ func (p *PoolInfoCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect extracts the current values of all the metrics and sends them to the
 // prometheus channel.
-func (p *PoolInfoCollector) Collect(ch chan<- prometheus.Metric) {
+func (p *PoolInfoCollector) Collect(ch chan<- prometheus.Metric, version *Version) {
 	p.logger.Debug("collecting pool metrics")
 	if err := p.collect(); err != nil {
 		p.logger.WithError(err).Error("error collecting pool metrics")

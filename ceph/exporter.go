@@ -226,7 +226,26 @@ func (exporter *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	}
 
 	for _, cc := range exporter.cc {
-		cc.Describe(ch)
+		switch cc.(type) {
+		case *ClusterUsageCollector:
+			cc.(*ClusterUsageCollector).Describe(ch)
+		case *PoolUsageCollector:
+			cc.(*PoolUsageCollector).Describe(ch)
+		case *PoolInfoCollector:
+			cc.(*PoolInfoCollector).Describe(ch)
+		case *ClusterHealthCollector:
+			cc.(*ClusterHealthCollector).Describe(ch)
+		case *MonitorCollector:
+			cc.(*MonitorCollector).Describe(ch)
+		case *OSDCollector:
+			cc.(*OSDCollector).Describe(ch)
+		case *CrashesCollector:
+			cc.(*CrashesCollector).Describe(ch)
+		case *RbdMirrorStatusCollector:
+			cc.(*RbdMirrorStatusCollector).Describe(ch)
+		case *RGWCollector:
+			cc.(*RGWCollector).Describe(ch)
+		}
 	}
 }
 
@@ -250,6 +269,25 @@ func (exporter *Exporter) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	for _, cc := range exporter.cc {
-		cc.Collect(ch)
+		switch cc.(type) {
+		case *ClusterUsageCollector:
+			cc.(*ClusterUsageCollector).Collect(ch, exporter.Version)
+		case *PoolUsageCollector:
+			cc.(*PoolUsageCollector).Collect(ch, exporter.Version)
+		case *PoolInfoCollector:
+			cc.(*PoolInfoCollector).Collect(ch, exporter.Version)
+		case *ClusterHealthCollector:
+			cc.(*ClusterHealthCollector).Collect(ch, exporter.Version)
+		case *MonitorCollector:
+			cc.(*MonitorCollector).Collect(ch, exporter.Version)
+		case *OSDCollector:
+			cc.(*OSDCollector).Collect(ch, exporter.Version)
+		case *CrashesCollector:
+			cc.(*CrashesCollector).Collect(ch, exporter.Version)
+		case *RbdMirrorStatusCollector:
+			cc.(*RbdMirrorStatusCollector).Collect(ch, exporter.Version)
+		case *RGWCollector:
+			cc.(*RGWCollector).Collect(ch, exporter.Version)
+		}
 	}
 }

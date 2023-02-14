@@ -25,9 +25,8 @@ import (
 
 // PoolUsageCollector displays statistics about each pool in the Ceph cluster.
 type PoolUsageCollector struct {
-	conn    Conn
-	logger  *logrus.Logger
-	version *Version
+	conn   Conn
+	logger *logrus.Logger
 
 	// UsedBytes tracks the amount of bytes currently allocated for the pool. This
 	// does not factor in the overcommitment made for individual images.
@@ -80,9 +79,8 @@ func NewPoolUsageCollector(exporter *Exporter) *PoolUsageCollector {
 	labels["cluster"] = exporter.Cluster
 
 	return &PoolUsageCollector{
-		conn:    exporter.Conn,
-		logger:  exporter.Logger,
-		version: exporter.Version,
+		conn:   exporter.Conn,
+		logger: exporter.Logger,
 
 		UsedBytes: prometheus.NewDesc(fmt.Sprintf("%s_%s_used_bytes", cephNamespace, subSystem), "Capacity of the pool that is currently under use",
 			poolLabel, labels,
@@ -213,7 +211,7 @@ func (p *PoolUsageCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect extracts the current values of all the metrics and sends them to the
 // prometheus channel.
-func (p *PoolUsageCollector) Collect(ch chan<- prometheus.Metric) {
+func (p *PoolUsageCollector) Collect(ch chan<- prometheus.Metric, version *Version) {
 	p.logger.Debug("collecting pool usage metrics")
 	if err := p.collect(ch); err != nil {
 		p.logger.WithError(err).Error("error collecting pool usage metrics")

@@ -31,9 +31,8 @@ var (
 // This is NOT the same as new_crash_reports, that only counts new reports in the past
 // two weeks as reported by 'ceph health'.
 type CrashesCollector struct {
-	conn    Conn
-	logger  *logrus.Logger
-	version *Version
+	conn   Conn
+	logger *logrus.Logger
 
 	crashReportsDesc *prometheus.Desc
 }
@@ -44,9 +43,8 @@ func NewCrashesCollector(exporter *Exporter) *CrashesCollector {
 	labels["cluster"] = exporter.Cluster
 
 	collector := &CrashesCollector{
-		conn:    exporter.Conn,
-		logger:  exporter.Logger,
-		version: exporter.Version,
+		conn:   exporter.Conn,
+		logger: exporter.Logger,
 
 		crashReportsDesc: prometheus.NewDesc(
 			fmt.Sprintf("%s_crash_reports", cephNamespace),
@@ -106,7 +104,7 @@ func (c *CrashesCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 // Collect sends all the collected metrics Prometheus.
-func (c *CrashesCollector) Collect(ch chan<- prometheus.Metric) {
+func (c *CrashesCollector) Collect(ch chan<- prometheus.Metric, version *Version) {
 	crashes, err := c.getCrashLs()
 	if err != nil {
 		c.logger.WithError(err).Error("failed to run 'ceph crash ls'")

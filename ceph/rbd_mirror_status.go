@@ -155,7 +155,7 @@ func (c *RbdMirrorStatusCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 // Collect sends all the collected metrics Prometheus.
-func (c *RbdMirrorStatusCollector) Collect(ch chan<- prometheus.Metric) {
+func (c *RbdMirrorStatusCollector) Collect(ch chan<- prometheus.Metric, version *Version) {
 	status, err := rbdMirrorStatus(c.config, c.user)
 	if err != nil {
 		c.logger.WithError(err).Error("failed to run 'rbd mirror pool status'")
@@ -166,6 +166,7 @@ func (c *RbdMirrorStatusCollector) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	c.RbdMirrorStatus.Set(c.mirrorStatusStringToInt(rbdStatus.Summary.Health))
+	c.version = version
 
 	if c.version.IsAtLeast(Pacific) {
 		c.RbdMirrorDaemonStatus.Set(c.mirrorStatusStringToInt(rbdStatus.Summary.DaemonHealth))

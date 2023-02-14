@@ -76,7 +76,6 @@ type RGWCollector struct {
 	user       string
 	background bool
 	logger     *logrus.Logger
-	version    *Version
 
 	// ActiveTasks reports the number of (expired) RGW GC tasks
 	ActiveTasks *prometheus.GaugeVec
@@ -101,7 +100,6 @@ func NewRGWCollector(exporter *Exporter, background bool) *RGWCollector {
 		config:           exporter.Config,
 		background:       background,
 		logger:           exporter.Logger,
-		version:          exporter.Version,
 		getRGWGCTaskList: rgwGetGCTaskList,
 
 		ActiveTasks: prometheus.NewGaugeVec(
@@ -219,7 +217,7 @@ func (r *RGWCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect sends all the collected metrics to the provided prometheus channel.
 // It requires the caller to handle synchronization.
-func (r *RGWCollector) Collect(ch chan<- prometheus.Metric) {
+func (r *RGWCollector) Collect(ch chan<- prometheus.Metric, version *Version) {
 	if !r.background {
 		r.logger.WithField("background", r.background).Debug("collecting RGW GC stats")
 		err := r.collect()
