@@ -15,18 +15,15 @@
 package ceph
 
 import (
-	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -135,31 +132,7 @@ func TestRbdMirrorStatusCollector(t *testing.T) {
 		},
 	} {
 		func() {
-			conn := &MockConn{}
-			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
-				v := map[string]interface{}{}
-
-				err := json.Unmarshal(in.([]byte), &v)
-				require.NoError(t, err)
-
-				return cmp.Equal(v, map[string]interface{}{
-					"prefix": "version",
-					"format": "json",
-				})
-			})).Return([]byte(tt.version), "", nil)
-
-			// versions is only used to check if rbd mirror is present
-			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
-				v := map[string]interface{}{}
-
-				err := json.Unmarshal(in.([]byte), &v)
-				require.NoError(t, err)
-
-				return cmp.Equal(v, map[string]interface{}{
-					"prefix": "versions",
-					"format": "json",
-				})
-			})).Return([]byte(tt.versions), "", nil)
+			conn := setupVersionMocks(tt.version, tt.versions)
 
 			e := &Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()}
 			// We do not create the rbdCollector since it will

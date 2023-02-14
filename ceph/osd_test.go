@@ -486,7 +486,7 @@ func TestOSDCollector(t *testing.T) {
 		},
 	} {
 		func() {
-			conn := &MockConn{}
+			conn := setupVersionMocks(tt.version, "{}")
 
 			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
 				v := map[string]interface{}{}
@@ -971,30 +971,6 @@ func TestOSDCollector(t *testing.T) {
         ]
     }
 }`), "", nil)
-			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
-				v := map[string]interface{}{}
-
-				err := json.Unmarshal(in.([]byte), &v)
-				require.NoError(t, err)
-
-				return cmp.Equal(v, map[string]interface{}{
-					"prefix": "version",
-					"format": "json",
-				})
-			})).Return([]byte(tt.version), "", nil)
-
-			// versions is only used to check if rbd mirror is present
-			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
-				v := map[string]interface{}{}
-
-				err := json.Unmarshal(in.([]byte), &v)
-				require.NoError(t, err)
-
-				return cmp.Equal(v, map[string]interface{}{
-					"prefix": "versions",
-					"format": "json",
-				})
-			})).Return([]byte(`{}`), "", nil)
 
 			e := &Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()}
 			e.cc = map[string]interface{}{

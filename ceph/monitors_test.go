@@ -15,14 +15,12 @@
 package ceph
 
 import (
-	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
 	"testing"
 
-	"github.com/google/go-cmp/cmp"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
@@ -270,32 +268,7 @@ func TestMonitorCollector(t *testing.T) {
 		},
 	} {
 		func() {
-			conn := &MockConn{}
-			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
-				v := map[string]interface{}{}
-
-				err := json.Unmarshal(in.([]byte), &v)
-				require.NoError(t, err)
-
-				return cmp.Equal(v, map[string]interface{}{
-					"prefix": "version",
-					"format": "json",
-				})
-			})).Return([]byte(tt.version), "", nil)
-
-			// versions is only used to check if rbd mirror is present
-			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
-				v := map[string]interface{}{}
-
-				err := json.Unmarshal(in.([]byte), &v)
-				require.NoError(t, err)
-
-				return cmp.Equal(v, map[string]interface{}{
-					"prefix": "versions",
-					"format": "json",
-				})
-			})).Return([]byte(`{}`), "", nil)
-
+			conn := setupVersionMocks(tt.version, "{}")
 			conn.On("MonCommand", mock.Anything).Return(
 				[]byte(tt.input), "", nil,
 			)
@@ -426,32 +399,7 @@ func TestMonitorTimeSyncStats(t *testing.T) {
 		},
 	} {
 		func() {
-			conn := &MockConn{}
-			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
-				v := map[string]interface{}{}
-
-				err := json.Unmarshal(in.([]byte), &v)
-				require.NoError(t, err)
-
-				return cmp.Equal(v, map[string]interface{}{
-					"prefix": "version",
-					"format": "json",
-				})
-			})).Return([]byte(tt.version), "", nil)
-
-			// versions is only used to check if rbd mirror is present
-			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
-				v := map[string]interface{}{}
-
-				err := json.Unmarshal(in.([]byte), &v)
-				require.NoError(t, err)
-
-				return cmp.Equal(v, map[string]interface{}{
-					"prefix": "versions",
-					"format": "json",
-				})
-			})).Return([]byte(`{}`), "", nil)
-
+			conn := setupVersionMocks(tt.version, "{}")
 			conn.On("MonCommand", mock.Anything).Return(
 				[]byte(tt.input), "", nil,
 			)
@@ -518,19 +466,7 @@ func TestMonitorCephVersions(t *testing.T) {
 		},
 	} {
 		func() {
-			conn := &MockConn{}
-			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
-				v := map[string]interface{}{}
-
-				err := json.Unmarshal(in.([]byte), &v)
-				require.NoError(t, err)
-
-				return cmp.Equal(v, map[string]interface{}{
-					"prefix": "version",
-					"format": "json",
-				})
-			})).Return([]byte(tt.version), "", nil)
-
+			conn := setupVersionMocks(tt.version, tt.input)
 			conn.On("MonCommand", mock.Anything).Return(
 				[]byte(tt.input), "", nil,
 			)
@@ -616,32 +552,7 @@ func TestMonitorCephFeatures(t *testing.T) {
 		},
 	} {
 		func() {
-			conn := &MockConn{}
-			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
-				v := map[string]interface{}{}
-
-				err := json.Unmarshal(in.([]byte), &v)
-				require.NoError(t, err)
-
-				return cmp.Equal(v, map[string]interface{}{
-					"prefix": "version",
-					"format": "json",
-				})
-			})).Return([]byte(tt.version), "", nil)
-
-			// versions is only used to check if rbd mirror is present
-			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
-				v := map[string]interface{}{}
-
-				err := json.Unmarshal(in.([]byte), &v)
-				require.NoError(t, err)
-
-				return cmp.Equal(v, map[string]interface{}{
-					"prefix": "versions",
-					"format": "json",
-				})
-			})).Return([]byte(`{}`), "", nil)
-
+			conn := setupVersionMocks(tt.version, "{}")
 			conn.On("MonCommand", mock.Anything).Return(
 				[]byte(tt.input), "", nil,
 			)

@@ -15,6 +15,9 @@
 package ceph
 
 import (
+	"encoding/json"
+
+	"github.com/google/go-cmp/cmp"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -104,4 +107,33 @@ func (_m *MockConn) MonCommand(_a0 []byte) ([]byte, string, error) {
 	}
 
 	return r0, r1, r2
+}
+
+func setupVersionMocks(cephVersion string, cephVersions string) *MockConn {
+	conn := &MockConn{}
+
+	conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
+		v := map[string]interface{}{}
+
+		_ = json.Unmarshal(in.([]byte), &v)
+
+		return cmp.Equal(v, map[string]interface{}{
+			"prefix": "version",
+			"format": "json",
+		})
+	})).Return([]byte(cephVersion), "", nil)
+
+	// versions is only used to check if rbd mirror is present
+	conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
+		v := map[string]interface{}{}
+
+		_ = json.Unmarshal(in.([]byte), &v)
+
+		return cmp.Equal(v, map[string]interface{}{
+			"prefix": "versions",
+			"format": "json",
+		})
+	})).Return([]byte(cephVersions), "", nil)
+
+	return conn
 }
