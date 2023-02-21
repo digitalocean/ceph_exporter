@@ -6,6 +6,8 @@ with the monitors using an appropriate wrapper over
 `rados_mon_command()`. Hence, no additional setup is necessary other than
 having a working Ceph cluster.
 
+A List of all the metrics collected is available on [METRICS.md](./METRICS.md) page.
+
 ## Dependencies
 
 You should ideally run this exporter from the client that can talk to the Ceph
@@ -129,6 +131,4 @@ can generate views like:
 
 ![](sample.png)
 
----
-
-Copyright @ 2016-2020 DigitalOcean™ Inc.
+Copyright @ 2016-2023 DigitalOcean™ Inc.
