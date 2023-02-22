@@ -15,7 +15,6 @@
 package ceph
 
 import (
-	"encoding/json"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -37,8 +36,10 @@ func setStatus(b []byte) {
 func TestRbdMirrorStatusCollector(t *testing.T) {
 
 	for _, tt := range []struct {
-		input   []byte
-		reMatch []*regexp.Regexp
+		input    []byte
+		version  string
+		versions string
+		reMatch  []*regexp.Regexp
 	}{
 		{
 			input: []byte(`
@@ -52,6 +53,8 @@ func TestRbdMirrorStatusCollector(t *testing.T) {
 				  }
 				}
 			  }`),
+			version:  `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
+			versions: `{"rbd-mirror":{"ceph version 16.2.11-98-g1984a8c (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)":3}}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_rbd_mirror_pool_status{cluster="ceph"} 1`),
 				regexp.MustCompile(`ceph_rbd_mirror_pool_image_status{cluster="ceph"} 1`),
@@ -68,6 +71,8 @@ func TestRbdMirrorStatusCollector(t *testing.T) {
 				  "states": {}
 				}
 			  }`),
+			version:  `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
+			versions: `{"rbd-mirror":{"ceph version 16.2.11-98-g1984a8c (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)":3}}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_rbd_mirror_pool_status{cluster="ceph"} 1`),
 				regexp.MustCompile(`ceph_rbd_mirror_pool_daemon_status{cluster="ceph"} 1`),
@@ -84,6 +89,8 @@ func TestRbdMirrorStatusCollector(t *testing.T) {
 				  "states": {}
 				}
 			  }`),
+			version:  `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
+			versions: `{"rbd-mirror":{"ceph version 16.2.11-98-g1984a8c (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)":3}}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_rbd_mirror_pool_status{cluster="ceph"} 0`),
 				regexp.MustCompile(`ceph_rbd_mirror_pool_daemon_status{cluster="ceph"} 0`),
@@ -100,23 +107,44 @@ func TestRbdMirrorStatusCollector(t *testing.T) {
 				  "states": {}
 				}
 			  }`),
+			version:  `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
+			versions: `{"rbd-mirror":{"ceph version 16.2.11-98-g1984a8c (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)":3}}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_rbd_mirror_pool_status{cluster="ceph"} 2`),
 				regexp.MustCompile(`ceph_rbd_mirror_pool_daemon_status{cluster="ceph"} 0`),
 				regexp.MustCompile(`ceph_rbd_mirror_pool_image_status{cluster="ceph"} 2`),
 			},
 		},
+		{
+			input: []byte(`
+			{
+				"summary": {
+				  "health": "OK",
+				  "daemon_health": "OK",
+				  "image_health": "ERROR"
+				}
+			  }`),
+			version:  `{"version":"ceph version 14.2.9-12-zasd (1337) pacific (stable)"}`,
+			versions: `{"rbd-mirror":{"ceph version 14.2.9-12-zasd (1337) pacific (stable)":3}}`,
+			reMatch: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_rbd_mirror_pool_status{cluster="ceph"} 0`),
+			},
+		},
 	} {
 		func() {
-			collector := NewRbdMirrorStatusCollector(&Exporter{Cluster: "ceph", Version: Pacific, Logger: logrus.New()})
+			conn := setupVersionMocks(tt.version, tt.versions)
 
-			var rbdStatus rbdMirrorPoolStatus
-			setStatus(tt.input)
-			_ = json.Unmarshal([]byte(tt.input), &rbdStatus)
+			e := &Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()}
+			// We do not create the rbdCollector since it will
+			// be automatically initiated from the output of `ceph versions`
+			// if the rbd-mirror key is present
+			e.cc = map[string]versionedCollector{}
 
-			err := prometheus.Register(collector)
+			err := prometheus.Register(e)
 			require.NoError(t, err)
-			defer prometheus.Unregister(collector)
+			defer prometheus.Unregister(e)
+
+			setStatus(tt.input)
 
 			server := httptest.NewServer(promhttp.Handler())
 			defer server.Close()

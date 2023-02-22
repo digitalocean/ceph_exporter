@@ -24,6 +24,11 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type versionedCollector interface {
+	Collect(chan<- prometheus.Metric, *Version)
+	Describe(chan<- *prometheus.Desc)
+}
+
 // Exporter wraps all the ceph collectors and provides a single global
 // exporter to extracts metrics out of. It also ensures that the collection
 // is done in a thread-safe manner, the necessary requirement stated by
@@ -39,12 +44,13 @@ type Exporter struct {
 	RbdMirror bool
 	Logger    *logrus.Logger
 	Version   *Version
+	cc        map[string]versionedCollector
 }
 
 // NewExporter returns an initialized *Exporter
 // We can choose to enable a collector to extract stats out of by adding it to the list of collectors.
 func NewExporter(conn Conn, cluster string, config string, user string, rgwMode int, logger *logrus.Logger) *Exporter {
-	return &Exporter{
+	e := &Exporter{
 		Conn:    conn,
 		Cluster: cluster,
 		Config:  config,
@@ -52,28 +58,32 @@ func NewExporter(conn Conn, cluster string, config string, user string, rgwMode 
 		RgwMode: rgwMode,
 		Logger:  logger,
 	}
+	err := e.setCephVersion()
+	if err != nil {
+		e.Logger.WithError(err).Error("failed to set ceph version")
+		return nil
+	}
+	e.cc = e.initCollectors()
+
+	return e
 }
 
-func (exporter *Exporter) getCollectors() []prometheus.Collector {
-	standardCollectors := []prometheus.Collector{
-		NewClusterUsageCollector(exporter),
-		NewPoolUsageCollector(exporter),
-		NewPoolInfoCollector(exporter),
-		NewClusterHealthCollector(exporter),
-		NewMonitorCollector(exporter),
-		NewOSDCollector(exporter),
-		NewCrashesCollector(exporter),
-	}
-
-	if exporter.RbdMirror {
-		standardCollectors = append(standardCollectors, NewRbdMirrorStatusCollector(exporter))
+func (exporter *Exporter) initCollectors() map[string]versionedCollector {
+	standardCollectors := map[string]versionedCollector{
+		"clusterUage":   NewClusterUsageCollector(exporter),
+		"poolUsage":     NewPoolUsageCollector(exporter),
+		"poolInfo":      NewPoolInfoCollector(exporter),
+		"clusterHealth": NewClusterHealthCollector(exporter),
+		"mon":           NewMonitorCollector(exporter),
+		"osd":           NewOSDCollector(exporter),
+		"crashes":       NewCrashesCollector(exporter),
 	}
 
 	switch exporter.RgwMode {
 	case RGWModeForeground:
-		standardCollectors = append(standardCollectors, NewRGWCollector(exporter, false))
+		standardCollectors["rgw"] = NewRGWCollector(exporter, false)
 	case RGWModeBackground:
-		standardCollectors = append(standardCollectors, NewRGWCollector(exporter, true))
+		standardCollectors["rgw"] = NewRGWCollector(exporter, true)
 	case RGWModeDisabled:
 		// nothing to do
 	default:
@@ -165,7 +175,14 @@ func (exporter *Exporter) setRbdMirror() error {
 	// check to see if rbd-mirror is in ceph version output and not empty
 	if _, exists := versions["rbd-mirror"]; exists {
 		if len(versions["rbd-mirror"]) > 0 {
-			exporter.RbdMirror = true
+			if _, ok := exporter.cc["rbdMirror"]; !ok {
+				exporter.cc["rbdMirror"] = NewRbdMirrorStatusCollector(exporter)
+			}
+		}
+	} else {
+		// remove the rbdMirror collector if present
+		if _, ok := exporter.cc["rbdMirror"]; ok {
+			delete(exporter.cc, "rbdMirror")
 		}
 	}
 
@@ -213,7 +230,7 @@ func (exporter *Exporter) Describe(ch chan<- *prometheus.Desc) {
 		return
 	}
 
-	for _, cc := range exporter.getCollectors() {
+	for _, cc := range exporter.cc {
 		cc.Describe(ch)
 	}
 }
@@ -237,7 +254,7 @@ func (exporter *Exporter) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
-	for _, cc := range exporter.getCollectors() {
-		cc.Collect(ch)
+	for _, cc := range exporter.cc {
+		cc.Collect(ch, exporter.Version)
 	}
 }

@@ -33,9 +33,11 @@ import (
 
 func TestPoolInfoCollector(t *testing.T) {
 	for _, tt := range []struct {
+		version            string
 		reMatch, reUnmatch []*regexp.Regexp
 	}{
 		{
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`pool_size{cluster="ceph",pool="rbd",profile="ec-4-2",root="non-default-root"} 6`),
 				regexp.MustCompile(`pool_min_size{cluster="ceph",pool="rbd",profile="ec-4-2",root="non-default-root"} 4`),
@@ -59,7 +61,7 @@ func TestPoolInfoCollector(t *testing.T) {
 		},
 	} {
 		func() {
-			conn := &MockConn{}
+			conn := setupVersionMocks(tt.version, "{}")
 			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
 				v := map[string]interface{}{}
 
@@ -181,11 +183,13 @@ func TestPoolInfoCollector(t *testing.T) {
 				})
 			})).Return([]byte(""), "", fmt.Errorf("unknown erasure code profile"))
 
-			collector := NewPoolInfoCollector(&Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()})
-
-			err := prometheus.Register(collector)
+			e := &Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()}
+			e.cc = map[string]versionedCollector{
+				"poolInfo": NewPoolInfoCollector(e),
+			}
+			err := prometheus.Register(e)
 			require.NoError(t, err)
-			defer prometheus.Unregister(collector)
+			defer prometheus.Unregister(e)
 
 			server := httptest.NewServer(promhttp.Handler())
 			defer server.Close()

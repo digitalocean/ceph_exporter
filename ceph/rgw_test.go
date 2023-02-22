@@ -31,6 +31,7 @@ import (
 func TestRGWCollector(t *testing.T) {
 	for _, tt := range []struct {
 		input     []byte
+		version   string
 		reMatch   []*regexp.Regexp
 		reUnmatch []*regexp.Regexp
 	}{
@@ -99,6 +100,7 @@ func TestRGWCollector(t *testing.T) {
 	}
 ]
 `),
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_rgw_gc_active_tasks{cluster="ceph"} 2`),
 				regexp.MustCompile(`ceph_rgw_gc_active_objects{cluster="ceph"} 4`),
@@ -107,7 +109,8 @@ func TestRGWCollector(t *testing.T) {
 			},
 		},
 		{
-			input: []byte(`[]`),
+			input:   []byte(`[]`),
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_rgw_gc_active_tasks{cluster="ceph"} 0`),
 				regexp.MustCompile(`ceph_rgw_gc_active_objects{cluster="ceph"} 0`),
@@ -117,31 +120,39 @@ func TestRGWCollector(t *testing.T) {
 		},
 		{
 			// force an error return json deserialization
-			input: []byte(`[ { "bad-object": 17,,, ]`),
+			input:   []byte(`[ { "bad-object": 17,,, ]`),
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reUnmatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_rgw_gc`),
 			},
 		},
 		{
 			// force an error return from getRGWGCTaskList
-			input: nil,
+			input:   nil,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reUnmatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_rgw_gc`),
 			},
 		},
 	} {
 		func() {
-			collector := NewRGWCollector(&Exporter{Cluster: "ceph", Logger: logrus.New()}, false) // run in foreground for testing
-			collector.getRGWGCTaskList = func(cluster string, user string) ([]byte, error) {
+			conn := setupVersionMocks(tt.version, "{}")
+
+			e := &Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()}
+			e.cc = map[string]versionedCollector{
+				"rgw": NewRGWCollector(e, false),
+			}
+
+			e.cc["rgw"].(*RGWCollector).getRGWGCTaskList = func(cluster string, user string) ([]byte, error) {
 				if tt.input != nil {
 					return tt.input, nil
 				}
 				return nil, errors.New("fake error")
 			}
 
-			err := prometheus.Register(collector)
+			err := prometheus.Register(e)
 			require.NoError(t, err)
-			defer prometheus.Unregister(collector)
+			defer prometheus.Unregister(e)
 
 			server := httptest.NewServer(promhttp.Handler())
 			defer server.Close()

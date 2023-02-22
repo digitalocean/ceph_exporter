@@ -31,10 +31,11 @@ import (
 func TestMonitorCollector(t *testing.T) {
 	for _, tt := range []struct {
 		input   string
+		version string
 		regexes []*regexp.Regexp
 	}{
 		{
-			`
+			input: `
 {
     "health": {
         "health": {
@@ -210,7 +211,8 @@ func TestMonitorCollector(t *testing.T) {
     }
 }
 `,
-			[]*regexp.Regexp{
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
+			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_monitor_avail_bytes{cluster="ceph",monitor="test-mon01"} 3.9927552e`),
 				regexp.MustCompile(`ceph_monitor_avail_bytes{cluster="ceph",monitor="test-mon02"} 3.99211569152e`),
 				regexp.MustCompile(`ceph_monitor_avail_bytes{cluster="ceph",monitor="test-mon03"} 3.98986235904e`),
@@ -266,15 +268,18 @@ func TestMonitorCollector(t *testing.T) {
 		},
 	} {
 		func() {
-			conn := &MockConn{}
+			conn := setupVersionMocks(tt.version, "{}")
 			conn.On("MonCommand", mock.Anything).Return(
 				[]byte(tt.input), "", nil,
 			)
 
-			collector := NewMonitorCollector(&Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()})
-			err := prometheus.Register(collector)
+			e := &Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()}
+			e.cc = map[string]versionedCollector{
+				"mon": NewMonitorCollector(e),
+			}
+			err := prometheus.Register(e)
 			require.NoError(t, err)
-			defer prometheus.Unregister(collector)
+			defer prometheus.Unregister(e)
 
 			server := httptest.NewServer(promhttp.Handler())
 			defer server.Close()
@@ -296,9 +301,11 @@ func TestMonitorCollector(t *testing.T) {
 func TestMonitorTimeSyncStats(t *testing.T) {
 	for _, tt := range []struct {
 		input   string
+		version string
 		reMatch []*regexp.Regexp
 	}{
-		{`
+		{
+			input: `
             {
                 "time_skew_status": {
                     "test-mon01": {
@@ -334,7 +341,8 @@ func TestMonitorTimeSyncStats(t *testing.T) {
                 }
             }            
 `,
-			[]*regexp.Regexp{
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
+			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_monitor_clock_skew_seconds{cluster="ceph",monitor="test-mon01"} 2.2e\-05`),
 				regexp.MustCompile(`ceph_monitor_clock_skew_seconds{cluster="ceph",monitor="test-mon02"} 0.001051`),
 				regexp.MustCompile(`ceph_monitor_clock_skew_seconds{cluster="ceph",monitor="test-mon03"} 0.003029`),
@@ -347,7 +355,8 @@ func TestMonitorTimeSyncStats(t *testing.T) {
 				regexp.MustCompile(`ceph_monitor_latency_seconds{cluster="ceph",monitor="test-mon05"} 0.000667`),
 			},
 		},
-		{`
+		{
+			input: `
             {
                 "time_skew_status": {
                     "test-mon01": {
@@ -357,9 +366,11 @@ func TestMonitorTimeSyncStats(t *testing.T) {
                 }
             }            
 `,
-			[]*regexp.Regexp{},
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
+			reMatch: []*regexp.Regexp{},
 		},
-		{`
+		{
+			input: `
             {
                 "time_skew_status": {
                     "test-mon01": {
@@ -369,9 +380,11 @@ func TestMonitorTimeSyncStats(t *testing.T) {
                 }
             }            
 `,
-			[]*regexp.Regexp{},
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
+			reMatch: []*regexp.Regexp{},
 		},
-		{`
+		{
+			input: `
             {
                 "time_skew_status": {
                     "test-mon01": {
@@ -381,19 +394,23 @@ func TestMonitorTimeSyncStats(t *testing.T) {
                 }
             }            
 `,
-			[]*regexp.Regexp{},
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
+			reMatch: []*regexp.Regexp{},
 		},
 	} {
 		func() {
-			conn := &MockConn{}
+			conn := setupVersionMocks(tt.version, "{}")
 			conn.On("MonCommand", mock.Anything).Return(
 				[]byte(tt.input), "", nil,
 			)
 
-			collector := NewMonitorCollector(&Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()})
-			err := prometheus.Register(collector)
+			e := &Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()}
+			e.cc = map[string]versionedCollector{
+				"mon": NewMonitorCollector(e),
+			}
+			err := prometheus.Register(e)
 			require.NoError(t, err)
-			defer prometheus.Unregister(collector)
+			defer prometheus.Unregister(e)
 
 			server := httptest.NewServer(promhttp.Handler())
 			defer server.Close()
@@ -415,9 +432,11 @@ func TestMonitorTimeSyncStats(t *testing.T) {
 func TestMonitorCephVersions(t *testing.T) {
 	for _, tt := range []struct {
 		input   string
+		version string
 		reMatch []*regexp.Regexp
 	}{
-		{`
+		{
+			input: `
 {
     "mon": {
         "ceph version 12.2.13 (584a20eb0237c657dc0567da126be145106aa47e) luminous (stable)": 5
@@ -439,22 +458,26 @@ func TestMonitorCephVersions(t *testing.T) {
     }
 }
 `,
-			[]*regexp.Regexp{
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
+			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_versions{cluster="ceph",daemon="mon",release_name="luminous",sha1="584a20eb0237c657dc0567da126be145106aa47e",version_tag="12.2.13"} 5`),
 				regexp.MustCompile(`ceph_versions{cluster="ceph",daemon="rgw",release_name="luminous",sha1="58a2283da6a62d2cc1600d4a9928a0799d63c7c9",version_tag="12.2.5-8-g58a2283"} 4`),
 			},
 		},
 	} {
 		func() {
-			conn := &MockConn{}
+			conn := setupVersionMocks(tt.version, tt.input)
 			conn.On("MonCommand", mock.Anything).Return(
 				[]byte(tt.input), "", nil,
 			)
 
-			collector := NewMonitorCollector(&Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()})
-			err := prometheus.Register(collector)
+			e := &Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()}
+			e.cc = map[string]versionedCollector{
+				"mon": NewMonitorCollector(e),
+			}
+			err := prometheus.Register(e)
 			require.NoError(t, err)
-			defer prometheus.Unregister(collector)
+			defer prometheus.Unregister(e)
 
 			server := httptest.NewServer(promhttp.Handler())
 			defer server.Close()
@@ -476,9 +499,11 @@ func TestMonitorCephVersions(t *testing.T) {
 func TestMonitorCephFeatures(t *testing.T) {
 	for _, tt := range []struct {
 		input   string
+		version string
 		reMatch []*regexp.Regexp
 	}{
-		{`
+		{
+			input: `
 {
     "mon": [
         {
@@ -520,21 +545,25 @@ func TestMonitorCephFeatures(t *testing.T) {
     ]
 }
 		`,
-			[]*regexp.Regexp{
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
+			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_features{cluster="ceph",daemon="client",features="0x3ffddff8ffacffff",release="luminous"} 53`),
 			},
 		},
 	} {
 		func() {
-			conn := &MockConn{}
+			conn := setupVersionMocks(tt.version, "{}")
 			conn.On("MonCommand", mock.Anything).Return(
 				[]byte(tt.input), "", nil,
 			)
 
-			collector := NewMonitorCollector(&Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()})
-			err := prometheus.Register(collector)
+			e := &Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()}
+			e.cc = map[string]versionedCollector{
+				"mon": NewMonitorCollector(e),
+			}
+			err := prometheus.Register(e)
 			require.NoError(t, err)
-			defer prometheus.Unregister(collector)
+			defer prometheus.Unregister(e)
 
 			server := httptest.NewServer(promhttp.Handler())
 			defer server.Close()

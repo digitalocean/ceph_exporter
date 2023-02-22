@@ -30,9 +30,8 @@ const (
 // is growing or shrinking as a whole in order to zero in on the cause. The
 // pool specific stats are provided separately.
 type ClusterUsageCollector struct {
-	conn    Conn
-	logger  *logrus.Logger
-	version *Version
+	conn   Conn
+	logger *logrus.Logger
 
 	// GlobalCapacity displays the total storage capacity of the cluster. This
 	// information is based on the actual no. of objects that are
@@ -55,9 +54,8 @@ func NewClusterUsageCollector(exporter *Exporter) *ClusterUsageCollector {
 	labels["cluster"] = exporter.Cluster
 
 	return &ClusterUsageCollector{
-		conn:    exporter.Conn,
-		logger:  exporter.Logger,
-		version: exporter.Version,
+		conn:   exporter.Conn,
+		logger: exporter.Logger,
 
 		GlobalCapacity: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace:   cephNamespace,
@@ -106,7 +104,6 @@ func (c *ClusterUsageCollector) collect() error {
 
 		return err
 	}
-
 	stats := &cephClusterStats{}
 	if err := json.Unmarshal(buf, stats); err != nil {
 		return err
@@ -143,7 +140,7 @@ func (c *ClusterUsageCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect sends the metric values for each metric pertaining to the global
 // cluster usage over to the provided prometheus Metric channel.
-func (c *ClusterUsageCollector) Collect(ch chan<- prometheus.Metric) {
+func (c *ClusterUsageCollector) Collect(ch chan<- prometheus.Metric, version *Version) {
 	c.logger.Debug("collecting cluster usage metrics")
 	if err := c.collect(); err != nil {
 		c.logger.WithError(err).Error("error collecting cluster usage metrics")

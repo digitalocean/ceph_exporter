@@ -31,6 +31,7 @@ import (
 func TestClusterUsage(t *testing.T) {
 	for _, tt := range []struct {
 		input              string
+		version            string
 		reMatch, reUnmatch []*regexp.Regexp
 	}{
 		{
@@ -42,6 +43,7 @@ func TestClusterUsage(t *testing.T) {
 		"total_avail_bytes": 4
 	}
 }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_cluster_capacity_bytes{cluster="ceph"} 10`),
 				regexp.MustCompile(`ceph_cluster_used_bytes{cluster="ceph"} 6`),
@@ -57,6 +59,7 @@ func TestClusterUsage(t *testing.T) {
 		"total_avail_bytes": 4
 	}
 }`,
+			version: `{"version":"ceph version 16.2.11-98-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_cluster_capacity_bytes{cluster="ceph"} 0`),
 				regexp.MustCompile(`ceph_cluster_used_bytes{cluster="ceph"} 6`),
@@ -72,6 +75,7 @@ func TestClusterUsage(t *testing.T) {
 		"total_avail_bytes": 4
 	}
 }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_cluster_capacity_bytes{cluster="ceph"} 10`),
 				regexp.MustCompile(`ceph_cluster_used_bytes{cluster="ceph"} 0`),
@@ -87,6 +91,7 @@ func TestClusterUsage(t *testing.T) {
 		"total_used_bytes": 6
 	}
 }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_cluster_capacity_bytes{cluster="ceph"} 10`),
 				regexp.MustCompile(`ceph_cluster_used_bytes{cluster="ceph"} 6`),
@@ -103,6 +108,7 @@ func TestClusterUsage(t *testing.T) {
 		"total_avail_bytes": 4
 	}
 }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_cluster_capacity_bytes{cluster="ceph"} 10`),
 				regexp.MustCompile(`ceph_cluster_used_bytes{cluster="ceph"} 6`),
@@ -119,6 +125,7 @@ func TestClusterUsage(t *testing.T) {
 		"total_avail_bytes": 4
 	}
 }`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{},
 			reUnmatch: []*regexp.Regexp{
 				regexp.MustCompile(`ceph_cluster_capacity_bytes{cluster="ceph"}`),
@@ -128,15 +135,18 @@ func TestClusterUsage(t *testing.T) {
 		},
 	} {
 		func() {
-			conn := &MockConn{}
+			conn := setupVersionMocks(tt.version, "{}")
 			conn.On("MonCommand", mock.Anything).Return(
 				[]byte(tt.input), "", nil,
 			)
 
-			collector := NewClusterUsageCollector(&Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()})
-			err := prometheus.Register(collector)
+			e := &Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()}
+			e.cc = map[string]versionedCollector{
+				"clusterUsage": NewClusterUsageCollector(e),
+			}
+			err := prometheus.Register(e)
 			require.NoError(t, err)
-			defer prometheus.Unregister(collector)
+			defer prometheus.Unregister(e)
 
 			server := httptest.NewServer(promhttp.Handler())
 			defer server.Close()
