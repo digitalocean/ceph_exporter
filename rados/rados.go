@@ -16,6 +16,7 @@ package rados
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -80,7 +81,17 @@ func (c *RadosConn) newRadosConn() (*rados.Conn, error) {
 		return nil, fmt.Errorf("error setting rados_mon_op_timeout: %s", err)
 	}
 
-	err = conn.Connect()
+	ch := make(chan error, 1)
+	go func(conn *rados.Conn) {
+		ch <- conn.Connect()
+	}(conn)
+
+	select {
+	case err = <-ch:
+	case <-time.After(c.timeout):
+		return nil, fmt.Errorf("error connecting to rados: timeout")
+	}
+
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to rados: %s", err)
 	}
@@ -96,17 +107,28 @@ func (c *RadosConn) MonCommand(args []byte) (buffer []byte, info string, err err
 
 	conn, err := c.newRadosConn()
 	if err != nil {
-		return nil, "", err
+		return
 	}
-	defer conn.Shutdown()
 
+	defer conn.Shutdown()
 	ll = ll.WithField("conn", conn.GetInstanceID())
 
-	ll.Trace("start executing mon command")
+	ch := make(chan bool, 1)
+	go func() {
+		ll.Trace("start executing mon command")
+		buffer, info, err = conn.MonCommand(args)
+		ch <- true
+	}()
 
-	buffer, info, err = conn.MonCommand(args)
-
-	ll.WithError(err).Trace("complete executing mon command")
+	select {
+	case <-ch:
+		ll.WithError(err).Trace("complete executing mon command")
+		break
+	case <-time.After(c.timeout):
+		err = errors.New("timed out while waiting for mon command")
+		ll.WithError(err).WithField("timeout", c.timeout.Seconds()).Trace("error executing mon command")
+		break
+	}
 
 	return
 }
@@ -125,11 +147,22 @@ func (c *RadosConn) MgrCommand(args [][]byte) (buffer []byte, info string, err e
 
 	ll = ll.WithField("conn", conn.GetInstanceID())
 
-	ll.Trace("start executing mgr command")
+	ch := make(chan bool, 1)
+	go func() {
+		ll.Trace("start executing mgr command")
+		buffer, info, err = conn.MgrCommand(args)
+		ch <- true
+	}()
 
-	buffer, info, err = conn.MgrCommand(args)
-
-	ll.WithError(err).Trace("complete executing mgr command")
+	select {
+	case <-ch:
+		ll.WithError(err).Trace("complete executing mgr command")
+		break
+	case <-time.After(c.timeout):
+		err = errors.New("timed out while waiting for mgr command")
+		ll.WithError(err).WithField("timeout", c.timeout.Seconds()).Trace("error executing mgr command")
+		break
+	}
 
 	return
 }
