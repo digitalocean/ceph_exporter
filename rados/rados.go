@@ -16,7 +16,6 @@ package rados
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -81,6 +80,11 @@ func (c *RadosConn) newRadosConn() (*rados.Conn, error) {
 		return nil, fmt.Errorf("error setting rados_mon_op_timeout: %s", err)
 	}
 
+	err = conn.SetConfigOption("client_mount_timeout", tv)
+	if err != nil {
+		return nil, fmt.Errorf("error setting client_mount_timeout: %s", err)
+	}
+
 	ch := make(chan error, 1)
 	go func(conn *rados.Conn) {
 		ch <- conn.Connect()
@@ -107,28 +111,17 @@ func (c *RadosConn) MonCommand(args []byte) (buffer []byte, info string, err err
 
 	conn, err := c.newRadosConn()
 	if err != nil {
-		return
+		return nil, "", err
 	}
-
 	defer conn.Shutdown()
+
 	ll = ll.WithField("conn", conn.GetInstanceID())
 
-	ch := make(chan bool, 1)
-	go func() {
-		ll.Trace("start executing mon command")
-		buffer, info, err = conn.MonCommand(args)
-		ch <- true
-	}()
+	ll.Trace("start executing mon command")
 
-	select {
-	case <-ch:
-		ll.WithError(err).Trace("complete executing mon command")
-		break
-	case <-time.After(c.timeout):
-		err = errors.New("timed out while waiting for mon command")
-		ll.WithError(err).WithField("timeout", c.timeout.Seconds()).Trace("error executing mon command")
-		break
-	}
+	buffer, info, err = conn.MonCommand(args)
+
+	ll.WithError(err).Trace("complete executing mon command")
 
 	return
 }
@@ -147,22 +140,11 @@ func (c *RadosConn) MgrCommand(args [][]byte) (buffer []byte, info string, err e
 
 	ll = ll.WithField("conn", conn.GetInstanceID())
 
-	ch := make(chan bool, 1)
-	go func() {
-		ll.Trace("start executing mgr command")
-		buffer, info, err = conn.MgrCommand(args)
-		ch <- true
-	}()
+	ll.Trace("start executing mgr command")
 
-	select {
-	case <-ch:
-		ll.WithError(err).Trace("complete executing mgr command")
-		break
-	case <-time.After(c.timeout):
-		err = errors.New("timed out while waiting for mgr command")
-		ll.WithError(err).WithField("timeout", c.timeout.Seconds()).Trace("error executing mgr command")
-		break
-	}
+	buffer, info, err = conn.MgrCommand(args)
+
+	ll.WithError(err).Trace("complete executing mgr command")
 
 	return
 }
