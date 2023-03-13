@@ -1337,8 +1337,8 @@ func (c *ClusterHealthCollector) Describe(ch chan<- *prometheus.Desc) {
 func (c *ClusterHealthCollector) Collect(ch chan<- prometheus.Metric, version *Version, wg *sync.WaitGroup) {
 	defer wg.Done()
 	localWg := &sync.WaitGroup{}
-	localWg.Add(2)
 
+	localWg.Add(1)
 	go func() {
 		defer localWg.Done()
 
@@ -1348,6 +1348,7 @@ func (c *ClusterHealthCollector) Collect(ch chan<- prometheus.Metric, version *V
 		}
 	}()
 
+	localWg.Add(1)
 	go func() {
 		defer localWg.Done()
 

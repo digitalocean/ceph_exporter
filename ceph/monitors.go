@@ -293,10 +293,10 @@ type cephFeatureGroup struct {
 
 func (m *MonitorCollector) collect() error {
 	wg := &sync.WaitGroup{}
-	wg.Add(4)
 
 	stats := &cephMonitorStats{}
 	var statsErr error
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		// Ceph usage
@@ -318,6 +318,7 @@ func (m *MonitorCollector) collect() error {
 
 	timeStats := &cephTimeSyncStatus{}
 	var timeErr error
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		// Ceph time sync status
@@ -339,6 +340,7 @@ func (m *MonitorCollector) collect() error {
 
 	var versionsErr error
 	var versions map[string]map[string]float64
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 
@@ -362,6 +364,7 @@ func (m *MonitorCollector) collect() error {
 
 	var featuresErr error
 	var buf []byte
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 

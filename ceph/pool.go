@@ -197,8 +197,8 @@ func (p *PoolInfoCollector) collect() error {
 	var err error
 	var ruleToRootMappings map[int64]string
 	wg := &sync.WaitGroup{}
-	wg.Add(2)
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 
@@ -211,6 +211,7 @@ func (p *PoolInfoCollector) collect() error {
 		}
 	}()
 
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		ruleToRootMappings = p.getCrushRuleToRootMappings()
