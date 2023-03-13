@@ -85,10 +85,13 @@ func (c *RadosConn) newRadosConn() (*rados.Conn, error) {
 		return nil, fmt.Errorf("error setting client_mount_timeout: %s", err)
 	}
 
+	// Ceph may retry the connection up to 10 times internally, which essentially makes client_mount_timeout 10x longer.
+	// Use a goroutine, channel, and a select statement to implement our own timeout wrapper for connections
 	ch := make(chan error, 1)
-	go func(conn *rados.Conn) {
+	go func(conn *rados.Conn, ch chan error) {
+		defer close(ch)
 		ch <- conn.Connect()
-	}(conn)
+	}(conn, ch)
 
 	select {
 	case err = <-ch:
