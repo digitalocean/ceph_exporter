@@ -1334,13 +1334,12 @@ func (c *ClusterHealthCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect sends all the collected metrics to the provided prometheus channel.
 // It requires the caller to handle synchronization.
-func (c *ClusterHealthCollector) Collect(ch chan<- prometheus.Metric, version *Version, wg *sync.WaitGroup) {
-	defer wg.Done()
-	localWg := &sync.WaitGroup{}
+func (c *ClusterHealthCollector) Collect(ch chan<- prometheus.Metric, version *Version) {
+	wg := &sync.WaitGroup{}
 
-	localWg.Add(1)
+	wg.Add(1)
 	go func() {
-		defer localWg.Done()
+		defer wg.Done()
 
 		c.logger.Debug("collecting cluster health metrics")
 		if err := c.collect(ch, version); err != nil {
@@ -1348,9 +1347,9 @@ func (c *ClusterHealthCollector) Collect(ch chan<- prometheus.Metric, version *V
 		}
 	}()
 
-	localWg.Add(1)
+	wg.Add(1)
 	go func() {
-		defer localWg.Done()
+		defer wg.Done()
 
 		c.logger.Debug("collecting cluster recovery/client I/O metrics")
 		if err := c.collectRecoveryClientIO(ch); err != nil {
@@ -1358,7 +1357,7 @@ func (c *ClusterHealthCollector) Collect(ch chan<- prometheus.Metric, version *V
 		}
 	}()
 
-	localWg.Wait()
+	wg.Wait()
 
 	for _, metric := range c.collectorsList() {
 		metric.Collect(ch)

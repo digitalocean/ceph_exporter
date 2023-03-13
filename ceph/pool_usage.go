@@ -18,7 +18,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
@@ -212,9 +211,7 @@ func (p *PoolUsageCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect extracts the current values of all the metrics and sends them to the
 // prometheus channel.
-func (p *PoolUsageCollector) Collect(ch chan<- prometheus.Metric, version *Version, wg *sync.WaitGroup) {
-	defer wg.Done()
-
+func (p *PoolUsageCollector) Collect(ch chan<- prometheus.Metric, version *Version) {
 	p.logger.Debug("collecting pool usage metrics")
 	if err := p.collect(ch); err != nil {
 		p.logger.WithError(err).Error("error collecting pool usage metrics")

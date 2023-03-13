@@ -277,9 +277,7 @@ func (p *PoolInfoCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect extracts the current values of all the metrics and sends them to the
 // prometheus channel.
-func (p *PoolInfoCollector) Collect(ch chan<- prometheus.Metric, version *Version, wg *sync.WaitGroup) {
-	defer wg.Done()
-
+func (p *PoolInfoCollector) Collect(ch chan<- prometheus.Metric, version *Version) {
 	p.logger.Debug("collecting pool metrics")
 	if err := p.collect(); err != nil {
 		p.logger.WithError(err).Error("error collecting pool metrics")

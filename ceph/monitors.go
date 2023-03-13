@@ -585,9 +585,7 @@ func (m *MonitorCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect extracts the given metrics from the Monitors and sends it to the prometheus
 // channel.
-func (m *MonitorCollector) Collect(ch chan<- prometheus.Metric, version *Version, wg *sync.WaitGroup) {
-	defer wg.Done()
-
+func (m *MonitorCollector) Collect(ch chan<- prometheus.Metric, version *Version) {
 	m.logger.Debug("collecting ceph monitor metrics")
 	if err := m.collect(); err != nil {
 		m.logger.WithError(err).Error("error collecting ceph monitor metrics")
