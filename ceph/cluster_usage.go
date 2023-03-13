@@ -16,6 +16,7 @@ package ceph
 
 import (
 	"encoding/json"
+	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
@@ -140,7 +141,9 @@ func (c *ClusterUsageCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect sends the metric values for each metric pertaining to the global
 // cluster usage over to the provided prometheus Metric channel.
-func (c *ClusterUsageCollector) Collect(ch chan<- prometheus.Metric, version *Version) {
+func (c *ClusterUsageCollector) Collect(ch chan<- prometheus.Metric, version *Version, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	c.logger.Debug("collecting cluster usage metrics")
 	if err := c.collect(); err != nil {
 		c.logger.WithError(err).Error("error collecting cluster usage metrics")

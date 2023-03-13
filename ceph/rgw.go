@@ -18,6 +18,7 @@ import (
 	"encoding/json"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -217,7 +218,9 @@ func (r *RGWCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect sends all the collected metrics to the provided prometheus channel.
 // It requires the caller to handle synchronization.
-func (r *RGWCollector) Collect(ch chan<- prometheus.Metric, version *Version) {
+func (r *RGWCollector) Collect(ch chan<- prometheus.Metric, version *Version, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	if !r.background {
 		r.logger.WithField("background", r.background).Debug("collecting RGW GC stats")
 		err := r.collect()

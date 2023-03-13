@@ -16,7 +16,9 @@ package ceph
 
 import (
 	"encoding/json"
+	"errors"
 	"regexp"
+	"sync"
 
 	"github.com/Jeffail/gabs"
 	"github.com/prometheus/client_golang/prometheus"
@@ -290,63 +292,92 @@ type cephFeatureGroup struct {
 }
 
 func (m *MonitorCollector) collect() error {
-	// Ceph usage
-	cmd := m.cephUsageCommand()
-	buf, _, err := m.conn.MonCommand(cmd)
-	if err != nil {
-		m.logger.WithError(err).WithField(
-			"args", string(cmd),
-		).Error("error executing mon command")
-
-		return err
-	}
+	wg := &sync.WaitGroup{}
+	wg.Add(4)
 
 	stats := &cephMonitorStats{}
-	if err := json.Unmarshal(buf, stats); err != nil {
-		return err
-	}
+	var statsErr error
+	go func() {
+		defer wg.Done()
+		// Ceph usage
+		cmd := m.cephUsageCommand()
+		buf, _, err := m.conn.MonCommand(cmd)
+		if err != nil {
+			m.logger.WithError(err).WithField(
+				"args", string(cmd),
+			).Error("error executing mon command")
 
-	// Ceph time sync status
-	cmd = m.cephTimeSyncStatusCommand()
-	buf, _, err = m.conn.MonCommand(cmd)
-	if err != nil {
-		m.logger.WithError(err).WithField(
-			"args", string(cmd),
-		).Error("error executing mon command")
+			statsErr = err
+			return
+		}
 
-		return err
-	}
+		if err := json.Unmarshal(buf, stats); err != nil {
+			statsErr = err
+		}
+	}()
 
 	timeStats := &cephTimeSyncStatus{}
-	if err := json.Unmarshal(buf, timeStats); err != nil {
-		return err
-	}
+	var timeErr error
+	go func() {
+		defer wg.Done()
+		// Ceph time sync status
+		cmd := m.cephTimeSyncStatusCommand()
+		buf, _, err := m.conn.MonCommand(cmd)
+		if err != nil {
+			m.logger.WithError(err).WithField(
+				"args", string(cmd),
+			).Error("error executing mon command")
 
-	// Ceph versions
-	cmd, _ = CephVersionsCmd()
-	buf, _, err = m.conn.MonCommand(cmd)
-	if err != nil {
-		m.logger.WithError(err).WithField(
-			"args", string(cmd),
-		).Error("error executing mon command")
+			timeErr = err
+			return
+		}
 
-		return err
-	}
+		if err := json.Unmarshal(buf, timeStats); err != nil {
+			timeErr = err
+		}
+	}()
 
-	versions, err := ParseCephVersions(buf)
-	if err != nil {
-		m.logger.WithError(err).Error("error parsing ceph versions command")
-	}
+	var versionsErr error
+	var versions map[string]map[string]float64
+	go func() {
+		defer wg.Done()
 
-	// Ceph features
-	cmd = m.cephFeaturesCommand()
-	buf, _, err = m.conn.MonCommand(cmd)
-	if err != nil {
-		m.logger.WithError(err).WithField(
-			"args", string(cmd),
-		).Error("error executing mon command")
+		// Ceph versions
+		cmd, _ := CephVersionsCmd()
+		buf, _, err := m.conn.MonCommand(cmd)
+		if err != nil {
+			m.logger.WithError(err).WithField(
+				"args", string(cmd),
+			).Error("error executing mon command")
 
-		return err
+			versionsErr = err
+			return
+		}
+
+		versions, err = ParseCephVersions(buf)
+		if err != nil {
+			m.logger.WithError(err).Error("error parsing ceph versions command")
+		}
+	}()
+
+	var featuresErr error
+	var buf []byte
+	go func() {
+		defer wg.Done()
+
+		// Ceph features
+		cmd := m.cephFeaturesCommand()
+		buf, _, featuresErr = m.conn.MonCommand(cmd)
+		if featuresErr != nil {
+			m.logger.WithError(featuresErr).WithField(
+				"args", string(cmd),
+			).Error("error executing mon command")
+		}
+	}()
+
+	wg.Wait()
+	if featuresErr != nil || versionsErr != nil || timeErr != nil || statsErr != nil {
+		return errors.New("errors occurred in monitors collector")
 	}
 
 	// Like versions, the same with features
@@ -551,7 +582,9 @@ func (m *MonitorCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect extracts the given metrics from the Monitors and sends it to the prometheus
 // channel.
-func (m *MonitorCollector) Collect(ch chan<- prometheus.Metric, version *Version) {
+func (m *MonitorCollector) Collect(ch chan<- prometheus.Metric, version *Version, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	m.logger.Debug("collecting ceph monitor metrics")
 	if err := m.collect(); err != nil {
 		m.logger.WithError(err).Error("error collecting ceph monitor metrics")

@@ -17,6 +17,7 @@ package ceph
 import (
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
@@ -104,7 +105,9 @@ func (c *CrashesCollector) Describe(ch chan<- *prometheus.Desc) {
 }
 
 // Collect sends all the collected metrics Prometheus.
-func (c *CrashesCollector) Collect(ch chan<- prometheus.Metric, version *Version) {
+func (c *CrashesCollector) Collect(ch chan<- prometheus.Metric, version *Version, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	crashes, err := c.getCrashLs()
 	if err != nil {
 		c.logger.WithError(err).Error("failed to run 'ceph crash ls'")

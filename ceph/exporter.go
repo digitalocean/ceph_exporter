@@ -25,7 +25,7 @@ import (
 )
 
 type versionedCollector interface {
-	Collect(chan<- prometheus.Metric, *Version)
+	Collect(chan<- prometheus.Metric, *Version, *sync.WaitGroup)
 	Describe(chan<- *prometheus.Desc)
 }
 
@@ -254,7 +254,10 @@ func (exporter *Exporter) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
+	wg := &sync.WaitGroup{}
 	for _, cc := range exporter.cc {
-		cc.Collect(ch, exporter.Version)
+		wg.Add(1)
+		go cc.Collect(ch, exporter.Version, wg)
 	}
+	wg.Wait()
 }

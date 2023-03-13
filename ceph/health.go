@@ -22,6 +22,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
@@ -1333,16 +1334,30 @@ func (c *ClusterHealthCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect sends all the collected metrics to the provided prometheus channel.
 // It requires the caller to handle synchronization.
-func (c *ClusterHealthCollector) Collect(ch chan<- prometheus.Metric, version *Version) {
-	c.logger.Debug("collecting cluster health metrics")
-	if err := c.collect(ch, version); err != nil {
-		c.logger.WithError(err).Error("error collecting cluster health metrics " + err.Error())
-	}
+func (c *ClusterHealthCollector) Collect(ch chan<- prometheus.Metric, version *Version, wg *sync.WaitGroup) {
+	defer wg.Done()
+	localWg := &sync.WaitGroup{}
+	localWg.Add(2)
 
-	c.logger.Debug("collecting cluster recovery/client I/O metrics")
-	if err := c.collectRecoveryClientIO(ch); err != nil {
-		c.logger.WithError(err).Error("error collecting cluster recovery/client I/O metrics")
-	}
+	go func() {
+		defer localWg.Done()
+
+		c.logger.Debug("collecting cluster health metrics")
+		if err := c.collect(ch, version); err != nil {
+			c.logger.WithError(err).Error("error collecting cluster health metrics " + err.Error())
+		}
+	}()
+
+	go func() {
+		defer localWg.Done()
+
+		c.logger.Debug("collecting cluster recovery/client I/O metrics")
+		if err := c.collectRecoveryClientIO(ch); err != nil {
+			c.logger.WithError(err).Error("error collecting cluster recovery/client I/O metrics")
+		}
+	}()
+
+	localWg.Wait()
 
 	for _, metric := range c.collectorsList() {
 		metric.Collect(ch)

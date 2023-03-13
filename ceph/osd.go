@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -1114,7 +1115,9 @@ func (o *OSDCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect sends all the collected metrics to the provided Prometheus channel.
 // It requires the caller to handle synchronization.
-func (o *OSDCollector) Collect(ch chan<- prometheus.Metric, version *Version) {
+func (o *OSDCollector) Collect(ch chan<- prometheus.Metric, version *Version, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	// Reset daemon specifc metrics; daemons can leave the cluster
 	o.CrushWeight.Reset()
 	o.Depth.Reset()
@@ -1131,40 +1134,59 @@ func (o *OSDCollector) Collect(ch chan<- prometheus.Metric, version *Version) {
 	o.OSDUp.Reset()
 	o.buildOSDLabelCache()
 
-	o.logger.Debug("collecting OSD perf metrics")
-	if err := o.collectOSDPerf(); err != nil {
-		o.logger.WithError(err).Error("error collecting OSD perf metrics")
-	}
+	localWg := &sync.WaitGroup{}
+	localWg.Add(7)
 
-	o.logger.Debug("collecting OSD dump metrics")
-	if err := o.collectOSDDump(); err != nil {
-		o.logger.WithError(err).Error("error collecting OSD dump metrics")
-	}
+	go func() {
+		defer localWg.Done()
+		if err := o.collectOSDPerf(); err != nil {
+			o.logger.WithError(err).Error("error collecting OSD perf metrics")
+		}
+	}()
 
-	o.logger.Debug("collecting OSD df metrics")
-	if err := o.collectOSDDF(); err != nil {
-		o.logger.WithError(err).Error("error collecting OSD df metrics")
-	}
+	go func() {
+		defer localWg.Done()
+		if err := o.collectOSDDump(); err != nil {
+			o.logger.WithError(err).Error("error collecting OSD dump metrics")
+		}
+	}()
 
-	o.logger.Debug("collecting OSD tree down metrics")
-	if err := o.collectOSDTreeDown(ch); err != nil {
-		o.logger.WithError(err).Error("error collecting OSD tree down metrics")
-	}
+	go func() {
+		defer localWg.Done()
+		if err := o.collectOSDDF(); err != nil {
+			o.logger.WithError(err).Error("error collecting OSD df metrics")
+		}
+	}()
 
-	o.logger.Debug("collecting PG dump metrics")
-	if err := o.performPGDumpBrief(); err != nil {
-		o.logger.WithError(err).Error("error collecting PG dump metrics")
-	}
+	go func() {
+		defer localWg.Done()
+		if err := o.collectOSDTreeDown(ch); err != nil {
+			o.logger.WithError(err).Error("error collecting OSD tree down metrics")
+		}
+	}()
 
-	o.logger.Debug("collecting OSD scrub metrics")
-	if err := o.collectOSDScrubState(ch); err != nil {
-		o.logger.WithError(err).Error("error collecting OSD scrub metrics")
-	}
+	go func() {
+		defer localWg.Done()
+		if err := o.performPGDumpBrief(); err != nil {
+			o.logger.WithError(err).Error("error collecting PG dump metrics")
+		}
+	}()
 
-	o.logger.Debug("collecting PG states")
-	if err := o.collectPGStates(ch); err != nil {
-		o.logger.WithError(err).Error("error collecting PG state metrics")
-	}
+	go func() {
+		defer localWg.Done()
+		if err := o.collectOSDScrubState(ch); err != nil {
+			o.logger.WithError(err).Error("error collecting OSD scrub metrics")
+		}
+	}()
+
+	go func() {
+		defer localWg.Done()
+		if err := o.collectPGStates(ch); err != nil {
+			o.logger.WithError(err).Error("error collecting PG state metrics")
+		}
+	}()
+
+	localWg.Wait()
 
 	for _, metric := range o.collectorList() {
 		metric.Collect(ch)
