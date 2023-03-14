@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -1131,37 +1132,54 @@ func (o *OSDCollector) Collect(ch chan<- prometheus.Metric, version *Version) {
 	o.OSDUp.Reset()
 	o.buildOSDLabelCache()
 
-	o.logger.Debug("collecting OSD perf metrics")
-	if err := o.collectOSDPerf(); err != nil {
-		o.logger.WithError(err).Error("error collecting OSD perf metrics")
-	}
+	localWg := &sync.WaitGroup{}
 
-	o.logger.Debug("collecting OSD dump metrics")
-	if err := o.collectOSDDump(); err != nil {
-		o.logger.WithError(err).Error("error collecting OSD dump metrics")
-	}
+	localWg.Add(1)
+	go func() {
+		defer localWg.Done()
+		if err := o.collectOSDPerf(); err != nil {
+			o.logger.WithError(err).Error("error collecting OSD perf metrics")
+		}
+	}()
 
-	o.logger.Debug("collecting OSD df metrics")
-	if err := o.collectOSDDF(); err != nil {
-		o.logger.WithError(err).Error("error collecting OSD df metrics")
-	}
+	localWg.Add(1)
+	go func() {
+		defer localWg.Done()
+		if err := o.collectOSDDump(); err != nil {
+			o.logger.WithError(err).Error("error collecting OSD dump metrics")
+		}
+	}()
 
-	o.logger.Debug("collecting OSD tree down metrics")
-	if err := o.collectOSDTreeDown(ch); err != nil {
-		o.logger.WithError(err).Error("error collecting OSD tree down metrics")
-	}
+	localWg.Add(1)
+	go func() {
+		defer localWg.Done()
+		if err := o.collectOSDDF(); err != nil {
+			o.logger.WithError(err).Error("error collecting OSD df metrics")
+		}
+	}()
 
-	o.logger.Debug("collecting PG dump metrics")
-	if err := o.performPGDumpBrief(); err != nil {
-		o.logger.WithError(err).Error("error collecting PG dump metrics")
-	}
+	localWg.Add(1)
+	go func() {
+		defer localWg.Done()
+		if err := o.collectOSDTreeDown(ch); err != nil {
+			o.logger.WithError(err).Error("error collecting OSD tree down metrics")
+		}
+	}()
 
-	o.logger.Debug("collecting OSD scrub metrics")
+	localWg.Add(1)
+	go func() {
+		defer localWg.Done()
+		if err := o.performPGDumpBrief(); err != nil {
+			o.logger.WithError(err).Error("error collecting PG dump metrics")
+		}
+	}()
+
+	localWg.Wait()
+
+	// These don't run any mon/mgr commands, and are dependent on the goroutines completing
 	if err := o.collectOSDScrubState(ch); err != nil {
 		o.logger.WithError(err).Error("error collecting OSD scrub metrics")
 	}
-
-	o.logger.Debug("collecting PG states")
 	if err := o.collectPGStates(ch); err != nil {
 		o.logger.WithError(err).Error("error collecting PG state metrics")
 	}

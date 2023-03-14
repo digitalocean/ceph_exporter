@@ -19,6 +19,7 @@ import (
 	"errors"
 	"math"
 	"strconv"
+	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
@@ -192,17 +193,34 @@ type cephPoolInfo struct {
 }
 
 func (p *PoolInfoCollector) collect() error {
-	cmd := p.cephInfoCommand()
-	buf, _, err := p.conn.MonCommand(cmd)
-	if err != nil {
-		p.logger.WithError(err).WithField(
-			"args", string(cmd),
-		).Error("error executing mon command")
+	var buf []byte
+	var err error
+	var ruleToRootMappings map[int64]string
+	wg := &sync.WaitGroup{}
 
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		cmd := p.cephInfoCommand()
+		buf, _, err = p.conn.MonCommand(cmd)
+		if err != nil {
+			p.logger.WithError(err).WithField(
+				"args", string(cmd),
+			).Error("error executing mon command")
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		ruleToRootMappings = p.getCrushRuleToRootMappings()
+	}()
+
+	wg.Wait()
+	if err != nil {
 		return err
 	}
-
-	ruleToRootMappings := p.getCrushRuleToRootMappings()
 
 	stats := &cephPoolInfo{}
 	if err := json.Unmarshal(buf, &stats.Pools); err != nil {

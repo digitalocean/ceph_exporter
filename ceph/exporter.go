@@ -254,7 +254,13 @@ func (exporter *Exporter) Collect(ch chan<- prometheus.Metric) {
 		return
 	}
 
+	wg := &sync.WaitGroup{}
 	for _, cc := range exporter.cc {
-		cc.Collect(ch, exporter.Version)
+		wg.Add(1)
+		go func(cc versionedCollector, wg *sync.WaitGroup) {
+			cc.Collect(ch, exporter.Version)
+			wg.Done()
+		}(cc, wg)
 	}
+	wg.Wait()
 }

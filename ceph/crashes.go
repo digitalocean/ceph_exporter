@@ -17,7 +17,6 @@ package ceph
 import (
 	"encoding/json"
 	"fmt"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
 )

@@ -21,6 +21,8 @@ import (
 	"github.com/Jeffail/gabs"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"
+
+	"golang.org/x/sync/errgroup"
 )
 
 // versionRegexp will parse a Nautilus (at least) `ceph versions` key output
@@ -290,62 +292,71 @@ type cephFeatureGroup struct {
 }
 
 func (m *MonitorCollector) collect() error {
-	// Ceph usage
-	cmd := m.cephUsageCommand()
-	buf, _, err := m.conn.MonCommand(cmd)
-	if err != nil {
-		m.logger.WithError(err).WithField(
-			"args", string(cmd),
-		).Error("error executing mon command")
-
-		return err
-	}
+	eg := errgroup.Group{}
 
 	stats := &cephMonitorStats{}
-	if err := json.Unmarshal(buf, stats); err != nil {
-		return err
-	}
+	eg.Go(func() error {
+		// Ceph usage
+		cmd := m.cephUsageCommand()
+		buf, _, err := m.conn.MonCommand(cmd)
+		if err != nil {
+			m.logger.WithError(err).WithField(
+				"args", string(cmd),
+			).Error("error executing mon command")
 
-	// Ceph time sync status
-	cmd = m.cephTimeSyncStatusCommand()
-	buf, _, err = m.conn.MonCommand(cmd)
-	if err != nil {
-		m.logger.WithError(err).WithField(
-			"args", string(cmd),
-		).Error("error executing mon command")
+			return err
+		}
 
-		return err
-	}
+		return json.Unmarshal(buf, stats)
+	})
 
 	timeStats := &cephTimeSyncStatus{}
-	if err := json.Unmarshal(buf, timeStats); err != nil {
+	eg.Go(func() error {
+		// Ceph time sync status
+		cmd := m.cephTimeSyncStatusCommand()
+		buf, _, err := m.conn.MonCommand(cmd)
+		if err != nil {
+			m.logger.WithError(err).WithField(
+				"args", string(cmd),
+			).Error("error executing mon command")
+
+			return err
+		}
+
+		return json.Unmarshal(buf, timeStats)
+	})
+
+	var versions map[string]map[string]float64
+	eg.Go(func() error {
+		// Ceph versions
+		cmd, _ := CephVersionsCmd()
+		buf, _, err := m.conn.MonCommand(cmd)
+		if err != nil {
+			m.logger.WithError(err).WithField(
+				"args", string(cmd),
+			).Error("error executing mon command")
+
+			return err
+		}
+
+		versions, err = ParseCephVersions(buf)
 		return err
-	}
+	})
 
-	// Ceph versions
-	cmd, _ = CephVersionsCmd()
-	buf, _, err = m.conn.MonCommand(cmd)
-	if err != nil {
-		m.logger.WithError(err).WithField(
-			"args", string(cmd),
-		).Error("error executing mon command")
+	var buf []byte
+	eg.Go(func() (err error) {
+		// Ceph features
+		cmd := m.cephFeaturesCommand()
+		buf, _, err = m.conn.MonCommand(cmd)
+		if err != nil {
+			m.logger.WithError(err).WithField(
+				"args", string(cmd),
+			).Error("error executing mon command")
+		}
+		return
+	})
 
-		return err
-	}
-
-	versions, err := ParseCephVersions(buf)
-	if err != nil {
-		m.logger.WithError(err).Error("error parsing ceph versions command")
-	}
-
-	// Ceph features
-	cmd = m.cephFeaturesCommand()
-	buf, _, err = m.conn.MonCommand(cmd)
-	if err != nil {
-		m.logger.WithError(err).WithField(
-			"args", string(cmd),
-		).Error("error executing mon command")
-
+	if err := eg.Wait(); err != nil {
 		return err
 	}
 
