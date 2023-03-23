@@ -120,11 +120,16 @@ func main() {
 	}
 
 	for _, cluster := range clusterConfigs {
-		conn := rados.NewRadosConn(
+		conn, err := rados.NewRadosConn(
 			cluster.User,
 			cluster.ConfigFile,
 			*cephRadosOpTimeout,
 			logger)
+
+		if err != nil {
+			logger.WithError(err).WithField("cluster", cluster.ClusterLabel).Error("unable to create rados connection for cluster")
+			continue
+		}
 
 		prometheus.MustRegister(ceph.NewExporter(
 			conn,
