@@ -1,4 +1,4 @@
-# Copyright 2022 DigitalOcean
+# Copyright 2023 DigitalOcean
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
 
 name: Tests
 
-on: 
+on:
   push:
     branches: [main]
   pull_request:
@@ -30,7 +30,7 @@ jobs:
 
     - uses: actions/setup-go@v2
       with:
-        go-version: 1.18
+        go-version: '1.20'
 
     # We only test the Ceph package since main depends on go-ceph
     - name: Go test

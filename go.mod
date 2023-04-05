@@ -1,6 +1,6 @@
 module github.com/digitalocean/ceph_exporter
 
-go 1.18
+go 1.20
 
 require (
 	github.com/Jeffail/gabs v1.4.0
@@ -25,7 +25,7 @@ require (
 	github.com/prometheus/common v0.32.1 // indirect
 	github.com/prometheus/procfs v0.7.3 // indirect
 	github.com/stretchr/objx v0.1.1 // indirect
-	golang.org/x/sys v0.0.0-20220114195835-da31bd327af9 // indirect
+	golang.org/x/sys v0.0.0-20220412211240-33da011f77ad // indirect
 	google.golang.org/protobuf v1.26.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c // indirect
 )
