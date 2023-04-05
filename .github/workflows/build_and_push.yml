@@ -1,4 +1,4 @@
-# Copyright 2022 DigitalOcean
+# Copyright 2023 DigitalOcean
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,23 +18,39 @@ on:
   push:
     branches:
       - 'main'
+    tags:
+      - '*'
 
 jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
-      -
-        name: Set up Docker buildx
+      - name: Set up Docker buildx
         uses: docker/setup-buildx-action@v1
-      -
-        name: Login to DockerHub
+
+      - name: Login to DockerHub
         uses: docker/login-action@v1
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
-      -
-        name: Build and push
+
+      - name: Build and push latest
+        if: github.ref == 'refs/heads/main'
         uses: docker/build-push-action@v2
         with:
           push: true
           tags: digitalocean/ceph_exporter:latest
+
+      - name: Get tag
+        id: get_tag
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          echo ::set-output name=TAG_NAME::$(echo $GITHUB_REF | cut -d/ -f3)
+
+      - name: Build and push tag
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: digitalocean/ceph_exporter:${{ steps.get_tag.outputs.TAG_NAME }}
