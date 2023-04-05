@@ -1,4 +1,4 @@
-#   Copyright 2022 DigitalOcean
+#   Copyright 2023 DigitalOcean
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
 #   limitations under the License.
 
 FROM ubuntu:20.04 as builder
-MAINTAINER Vaibhav Bhembre <vaibhav@digitalocean.com>
 
 ARG TEST
 
@@ -33,7 +32,7 @@ RUN apt-get update && \
 
 RUN \
   mkdir -p /goroot && \
-  curl https://storage.googleapis.com/golang/go1.18.linux-amd64.tar.gz | tar xvzf - -C /goroot --strip-components=1
+  curl https://storage.googleapis.com/golang/go1.20.linux-amd64.tar.gz | tar xvzf - -C /goroot --strip-components=1
 
 ADD . $APPLOC
 WORKDIR $APPLOC
@@ -44,7 +43,6 @@ RUN if [ -n "${TEST}" ]; then go test -tags nautilus -v -race -count=1 ./...; fi
 RUN go build -tags nautilus -o /bin/ceph_exporter
 
 FROM ubuntu:20.04
-MAINTAINER Vaibhav Bhembre <vaibhav@digitalocean.com>
 
 RUN apt-get update && \
     apt-get install -y apt-transport-https curl wget gnupg
