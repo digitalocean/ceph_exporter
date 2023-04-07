@@ -6,8 +6,8 @@ on:
     branches:
       - ecx-*
   pull_request:
-    - ecx-*
-
+    branches:
+      - ecx-*
 env:
   VERSION: 4.1.3
 
