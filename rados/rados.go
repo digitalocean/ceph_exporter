@@ -42,6 +42,7 @@ var _ ceph.Conn = &RadosConn{}
 // is no need to manage the connection before/after talking to the rados; it
 // is the responsibility of this *RadosConn to manage the connection.
 func NewRadosConn(user, configFile string, timeout time.Duration, logger *logrus.Logger) *RadosConn {
+	logger.Infof("NewRadosConn  debug user:%s,configFile:%s", user, configFile)
 	return &RadosConn{
 		user:       user,
 		configFile: configFile,
