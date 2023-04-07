@@ -1,4 +1,4 @@
-name: docker-image
+name: ceph_exporter
 
 on:
   workflow_dispatch:
