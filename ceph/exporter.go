@@ -44,6 +44,7 @@ type Exporter struct {
 // NewExporter returns an initialized *Exporter
 // We can choose to enable a collector to extract stats out of by adding it to the list of collectors.
 func NewExporter(conn Conn, cluster string, config string, user string, rgwMode int, logger *logrus.Logger) *Exporter {
+	logger.Infof("cluster:%s,config:%s,user:%s,rgwMode:%d", cluster, config, user, rgwMode)
 	return &Exporter{
 		Conn:    conn,
 		Cluster: cluster,
@@ -175,6 +176,7 @@ func (exporter *Exporter) setRbdMirror() error {
 func (exporter *Exporter) setCephVersion() error {
 	buf, _, err := exporter.Conn.MonCommand(exporter.cephVersionCmd())
 	if err != nil {
+		exporter.Logger.WithError(err).Error("Failed set CephVersion")
 		return err
 	}
 

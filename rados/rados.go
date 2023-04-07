@@ -55,8 +55,10 @@ func NewRadosConn(user, configFile string, timeout time.Duration, logger *logrus
 // rados_osd_op_timeout and rados_mon_op_timeout are specified by the timeout
 // value, where 0 means no limit.
 func (c *RadosConn) newRadosConn() (*rados.Conn, error) {
+	c.logger.Infof("newRadosConn info: user:%s,configFile:%s", c.user, c.configFile)
 	conn, err := rados.NewConnWithUser(c.user)
 	if err != nil {
+		c.logger.Errorf("rados.NewConnWithUser:%s", err)
 		return nil, fmt.Errorf("error creating rados connection: %s", err)
 	}
 
@@ -91,7 +93,7 @@ func (c *RadosConn) newRadosConn() (*rados.Conn, error) {
 // MonCommand executes a monitor command to rados.
 func (c *RadosConn) MonCommand(args []byte) (buffer []byte, info string, err error) {
 	ll := c.logger.WithField("args", string(args))
-
+	c.logger.Infof("MonCommand args:%v", string(args))
 	ll.Trace("creating rados connection to execute mon command")
 
 	conn, err := c.newRadosConn()

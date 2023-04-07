@@ -109,6 +109,7 @@ func main() {
 			).Fatal("error parsing ceph_exporter config file")
 		}
 		clusterConfigs = cfg.Cluster
+		logger.Infof("more file config :%v", cfg.Cluster)
 	} else {
 		clusterConfigs = []*ClusterConfig{
 			{
@@ -117,6 +118,7 @@ func main() {
 				ConfigFile:   *cephConfig,
 			},
 		}
+		logger.Infof("one file config:%v", clusterConfigs)
 	}
 
 	for _, cluster := range clusterConfigs {
