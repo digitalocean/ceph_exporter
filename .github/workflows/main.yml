@@ -1,4 +1,4 @@
-name: ceph_exporter
+name: Build x86 and arm Image
 
 on:
   workflow_dispatch:
