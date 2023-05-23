@@ -870,8 +870,8 @@ func (o *OSDCollector) collectOSDTreeDown(ch chan<- prometheus.Metric) error {
 			osdName,
 			lb.DeviceClass,
 			lb.Host,
-			lb.Root,
-			lb.Rack)
+			lb.Rack,
+			lb.Root)
 	}
 
 	return nil
@@ -1007,7 +1007,7 @@ func (o *OSDCollector) collectOSDScrubState(ch chan<- prometheus.Metric) error {
 			fmt.Sprintf(osdLabelFormat, i),
 			lb.DeviceClass,
 			lb.Host,
-			lb.Root,
+			lb.Rack,
 			lb.Root)
 	}
 

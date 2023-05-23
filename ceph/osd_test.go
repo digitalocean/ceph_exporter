@@ -435,14 +435,14 @@ func TestOSDCollector(t *testing.T) {
 		regexp.MustCompile(`ceph_osd_backfill_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 1`),
 		regexp.MustCompile(`ceph_osd_backfill_full{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 1`),
 
-		regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.10",rack="default",root="default"} 1`),
-		regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.11",rack="default",root="default"} 1`),
-		regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.12",rack="default",root="default"} 1`),
-		regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.13",rack="default",root="default"} 1`),
-		regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.20",rack="default",root="default"} 2`),
-		regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.21",rack="default",root="default"} 2`),
-		regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.22",rack="default",root="default"} 2`),
-		regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.23",rack="default",root="default"} 2`),
+		regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.10",rack="A8R1",root="default"} 1`),
+		regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.11",rack="A8R1",root="default"} 1`),
+		regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.12",rack="A8R1",root="default"} 1`),
+		regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.13",rack="A8R1",root="default"} 1`),
+		regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.20",rack="A8R1",root="default"} 2`),
+		regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.21",rack="A8R1",root="default"} 2`),
+		regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.22",rack="A8R1",root="default"} 2`),
+		regexp.MustCompile(`ceph_osd_scrub_state{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.23",rack="A8R1",root="default"} 2`),
 	}
 
 	for _, tt := range []struct {
@@ -454,29 +454,29 @@ func TestOSDCollector(t *testing.T) {
 			test:    "1",
 			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
-				regexp.MustCompile(`ceph_osd_down{cluster="ceph",device_class="ssd",host="prod-data02-block01",osd="osd.524",rack="default",root="A8R2",status="destroyed"} 1`),
+				regexp.MustCompile(`ceph_osd_down{cluster="ceph",device_class="ssd",host="prod-data02-block01",osd="osd.524",rack="A8R2",root="default",status="destroyed"} 1`),
 			},
 		},
 		{
 			test:    "2",
 			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
-				regexp.MustCompile(`ceph_osd_down{cluster="ceph",device_class="ssd",host="prod-data02-block01",osd="osd.524",rack="default",root="A8R2",status="down"} 1`),
+				regexp.MustCompile(`ceph_osd_down{cluster="ceph",device_class="ssd",host="prod-data02-block01",osd="osd.524",rack="A8R2",root="default",status="down"} 1`),
 			},
 		},
 		{
 			test:    "3",
 			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
-				regexp.MustCompile(`ceph_osd_down{cluster="ceph",device_class="ssd",host="prod-data02-block01",osd="osd.524",rack="default",root="A8R2",status="destroyed"} 1`),
+				regexp.MustCompile(`ceph_osd_down{cluster="ceph",device_class="ssd",host="prod-data02-block01",osd="osd.524",rack="A8R2",root="default",status="destroyed"} 1`),
 			},
 		},
 		{
 			test:    "4",
 			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
-				regexp.MustCompile(`ceph_osd_down{cluster="ceph",device_class="ssd",host="prod-data02-block01",osd="osd.524",rack="default",root="A8R2",status="destroyed"} 1`),
-				regexp.MustCompile(`ceph_osd_down{cluster="ceph",device_class="ssd",host="prod-data02-block01",osd="osd.525",rack="default",root="A8R2",status="down"} 1`),
+				regexp.MustCompile(`ceph_osd_down{cluster="ceph",device_class="ssd",host="prod-data02-block01",osd="osd.524",rack="A8R2",root="default",status="destroyed"} 1`),
+				regexp.MustCompile(`ceph_osd_down{cluster="ceph",device_class="ssd",host="prod-data02-block01",osd="osd.525",rack="A8R2",root="default",status="down"} 1`),
 			},
 		},
 		{
