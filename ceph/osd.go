@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -99,6 +100,9 @@ type OSDCollector struct {
 	// OSDUp displays the Up state of the OSD
 	OSDUp *prometheus.GaugeVec
 
+	// OSDMetaData displays metadata of an OSD
+	OSDMetadata *prometheus.GaugeVec
+
 	// OSDFullRatio displays current full_ratio of OSD
 	OSDFullRatio prometheus.Gauge
 
@@ -155,6 +159,7 @@ func NewOSDCollector(exporter *Exporter) *OSDCollector {
 	labels := make(prometheus.Labels)
 	labels["cluster"] = exporter.Cluster
 	osdLabels := []string{"osd", "device_class", "host", "rack", "root"}
+	osdMetadataLabels := []string{"osd", "objectstore", "ceph_version_when_created", "created_at"}
 
 	o := &OSDCollector{
 		conn:   exporter.Conn,
@@ -395,6 +400,16 @@ func NewOSDCollector(exporter *Exporter) *OSDCollector {
 			osdLabels,
 		),
 
+		OSDMetadata: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "osd_metadata",
+				Help:        "OSD Metadata",
+				ConstLabels: labels,
+			},
+			osdMetadataLabels,
+		),
+
 		OSDDownDesc: prometheus.NewDesc(
 			fmt.Sprintf("%s_osd_down", cephNamespace),
 			"Number of OSDs down in the cluster",
@@ -460,6 +475,7 @@ func (o *OSDCollector) collectorList() []prometheus.Collector {
 		o.ApplyLatency,
 		o.OSDIn,
 		o.OSDUp,
+		o.OSDMetadata,
 		o.OSDFullRatio,
 		o.OSDNearFullRatio,
 		o.OSDBackfillFullRatio,
@@ -582,6 +598,13 @@ type cephOSDLabel struct {
 	parent      int64   // parent id when building tables
 }
 
+type cephOSDMetadata struct {
+	ID                     int    `json:"id"`
+	CephVersionWhenCreated string `json:"ceph_version_when_created"`
+	CreatedAt              string `json:"created_at"`
+	OsdObjectstore         string `json:"osd_objectstore"`
+}
+
 func (o *OSDCollector) collectOSDDF() error {
 	args := o.cephOSDDFCommand()
 	buf, _, err := o.conn.MgrCommand(args)
@@ -699,6 +722,29 @@ func (o *OSDCollector) collectOSDDF() error {
 
 	return nil
 
+}
+
+func (o *OSDCollector) collectOSDMetadata() error {
+	cmd := o.cephOSDMetadataCommand()
+	buf, _, err := o.conn.MonCommand(cmd)
+	if err != nil {
+		o.logger.WithError(err).WithField(
+			"args", string(cmd),
+		).Error("error executing mon command")
+
+		return err
+	}
+
+	var osdMetadata []cephOSDMetadata
+	if err := json.Unmarshal(buf, &osdMetadata); err != nil {
+		return err
+	}
+
+	for _, osd := range osdMetadata {
+		o.OSDMetadata.WithLabelValues(strconv.Itoa(osd.ID), osd.OsdObjectstore, osd.CephVersionWhenCreated, osd.CreatedAt).Set(1)
+	}
+
+	return nil
 }
 
 func (o *OSDCollector) collectOSDPerf() error {
@@ -1047,6 +1093,17 @@ func (o *OSDCollector) cephOSDPerfCommand() [][]byte {
 	return [][]byte{cmd}
 }
 
+func (o *OSDCollector) cephOSDMetadataCommand() []byte {
+	cmd, err := json.Marshal(map[string]interface{}{
+		"prefix": "osd metadata",
+		"format": jsonFormat,
+	})
+	if err != nil {
+		o.logger.WithError(err).Panic("error marshalling ceph osd metadata")
+	}
+	return cmd
+}
+
 func (o *OSDCollector) cephOSDTreeCommand(states ...string) []byte {
 	req := map[string]interface{}{
 		"prefix": "osd tree",
@@ -1131,7 +1188,7 @@ func (o *OSDCollector) Describe(ch chan<- *prometheus.Desc) {
 // Collect sends all the collected metrics to the provided Prometheus channel.
 // It requires the caller to handle synchronization.
 func (o *OSDCollector) Collect(ch chan<- prometheus.Metric, version *Version) {
-	// Reset daemon specifc metrics; daemons can leave the cluster
+	// Reset daemon specific metrics; daemons can leave the cluster
 	o.CrushWeight.Reset()
 	o.Depth.Reset()
 	o.Reweight.Reset()
@@ -1145,6 +1202,7 @@ func (o *OSDCollector) Collect(ch chan<- prometheus.Metric, version *Version) {
 	o.ApplyLatency.Reset()
 	o.OSDIn.Reset()
 	o.OSDUp.Reset()
+	o.OSDMetadata.Reset()
 	o.buildOSDLabelCache()
 
 	localWg := &sync.WaitGroup{}
@@ -1154,6 +1212,14 @@ func (o *OSDCollector) Collect(ch chan<- prometheus.Metric, version *Version) {
 		defer localWg.Done()
 		if err := o.collectOSDPerf(); err != nil {
 			o.logger.WithError(err).Error("error collecting OSD perf metrics")
+		}
+	}()
+
+	localWg.Add(1)
+	go func() {
+		defer localWg.Done()
+		if err := o.collectOSDMetadata(); err != nil {
+			o.logger.WithError(err).Error("error collecting OSD metadata metrics")
 		}
 	}()
 

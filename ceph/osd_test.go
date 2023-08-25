@@ -414,6 +414,11 @@ func TestOSDCollector(t *testing.T) {
 		regexp.MustCompile(`ceph_osd_in{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 1`),
 		regexp.MustCompile(`ceph_osd_in{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.3",rack="A8R1",root="default"} 1`),
 		regexp.MustCompile(`ceph_osd_in{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.4",rack="A8R1",root="default"} 0`),
+		regexp.MustCompile(`ceph_osd_metadata{ceph_version_when_created="ceph version 16.2.11-119-g6e981ce \(6e981ceb1084ad7628ea32a6a0a23ce09bc5cf8b\) pacific \(stable\)",cluster="ceph",created_at="2023-03-24T20:25:57.763728Z",objectstore="bluestore",osd="0"} 1`),
+		regexp.MustCompile(`ceph_osd_metadata{ceph_version_when_created="",cluster="ceph",created_at="",objectstore="filestore",osd="1"} 1`),
+		regexp.MustCompile(`ceph_osd_metadata{ceph_version_when_created="ceph version 16.2.11-119-g6e981ce \(6e981ceb1084ad7628ea32a6a0a23ce09bc5cf8b\) pacific \(stable\)",cluster="ceph",created_at="2023-03-24T20:25:57.763728Z",objectstore="bluestore",osd="2"} 1`),
+		regexp.MustCompile(`ceph_osd_metadata{ceph_version_when_created="",cluster="ceph",created_at="",objectstore="filestore",osd="3"} 1`),
+		regexp.MustCompile(`ceph_osd_metadata{ceph_version_when_created="",cluster="ceph",created_at="",objectstore="filestore",osd="4"} 1`),
 		regexp.MustCompile(`ceph_osd_up{cluster="ceph",device_class="hdd",host="prod-data01-block01",osd="osd.0",rack="A8R1",root="default"} 1`),
 		regexp.MustCompile(`ceph_osd_up{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.1",rack="A8R1",root="default"} 1`),
 		regexp.MustCompile(`ceph_osd_up{cluster="ceph",device_class="ssd",host="prod-data01-block01",osd="osd.2",rack="A8R1",root="default"} 1`),
@@ -809,6 +814,50 @@ func TestOSDCollector(t *testing.T) {
 		}
 	]
 }`), "", nil)
+
+			conn.On("MonCommand", mock.MatchedBy(func(in interface{}) bool {
+				v := map[string]interface{}{}
+
+				err := json.Unmarshal(in.([]byte), &v)
+				require.NoError(t, err)
+
+				return cmp.Equal(v, map[string]interface{}{
+					"prefix": "osd metadata",
+					"format": "json",
+				})
+			})).Return([]byte(`
+[
+	{
+		"id": 0,
+		"osd_objectstore": "bluestore",
+		"ceph_version_when_created": "ceph version 16.2.11-119-g6e981ce (6e981ceb1084ad7628ea32a6a0a23ce09bc5cf8b) pacific (stable)",
+		"created_at": "2023-03-24T20:25:57.763728Z"
+	},
+	{
+		"id": 1,
+		"osd_objectstore": "filestore",
+		"ceph_version_when_created": "",
+		"created_at": ""
+	},
+	{
+		"id": 2,
+		"osd_objectstore": "bluestore",
+		"ceph_version_when_created": "ceph version 16.2.11-119-g6e981ce (6e981ceb1084ad7628ea32a6a0a23ce09bc5cf8b) pacific (stable)",
+		"created_at": "2023-03-24T20:25:57.763728Z"
+	},
+	{
+		"id": 3,
+		"osd_objectstore": "filestore",
+		"ceph_version_when_created": "",
+		"created_at": ""
+	},
+	{
+		"id": 4,
+		"osd_objectstore": "filestore",
+		"ceph_version_when_created": "",
+		"created_at": ""
+	}
+]`), "", nil)
 
 			conn.On("MgrCommand", mock.MatchedBy(func(in interface{}) bool {
 				v := map[string]interface{}{}
