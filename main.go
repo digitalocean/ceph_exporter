@@ -127,8 +127,7 @@ func main() {
 			logger)
 
 		if err != nil {
-			logger.WithError(err).WithField("cluster", cluster.ClusterLabel).Error("unable to create rados connection for cluster")
-			continue
+			logger.WithError(err).WithField("cluster", cluster.ClusterLabel).Fatal("unable to create rados connection for cluster")
 		}
 
 		prometheus.MustRegister(ceph.NewExporter(
