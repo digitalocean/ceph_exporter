@@ -37,23 +37,6 @@ type MonitorCollector struct {
 	conn   Conn
 	logger *logrus.Logger
 
-	// TotalKBs display the total storage a given monitor node has.
-	TotalKBs *prometheus.GaugeVec
-
-	// UsedKBs depict how much of the total storage our monitor process
-	// has utilized.
-	UsedKBs *prometheus.GaugeVec
-
-	// AvailKBs shows the space left unused.
-	AvailKBs *prometheus.GaugeVec
-
-	// PercentAvail shows the amount of unused space as a percentage of total
-	// space.
-	PercentAvail *prometheus.GaugeVec
-
-	// Store exposes information about internal backing store.
-	Store Store
-
 	// ClockSkew shows how far the monitor clocks have skewed from each other. This
 	// is an important metric because the functioning of Ceph's paxos depends on
 	// the clocks being aligned as close to each other as possible.
@@ -73,23 +56,6 @@ type MonitorCollector struct {
 	CephFeatures *prometheus.GaugeVec
 }
 
-// Store displays information about Monitor's FileStore. It is responsible for
-// storing all the meta information about the cluster, including monmaps, osdmaps,
-// pgmaps, etc. along with logs and other data.
-type Store struct {
-	// TotalBytes displays the current size of the FileStore.
-	TotalBytes *prometheus.GaugeVec
-
-	// SSTBytes shows the amount used by LevelDB's sorted-string tables.
-	SSTBytes *prometheus.GaugeVec
-
-	// LogBytes shows the amount used by logs.
-	LogBytes *prometheus.GaugeVec
-
-	// MiscBytes shows the amount used by miscellaneous information.
-	MiscBytes *prometheus.GaugeVec
-}
-
 // NewMonitorCollector creates an instance of the MonitorCollector and instantiates
 // the individual metrics that show information about the monitor processes.
 func NewMonitorCollector(exporter *Exporter) *MonitorCollector {
@@ -100,80 +66,6 @@ func NewMonitorCollector(exporter *Exporter) *MonitorCollector {
 		conn:   exporter.Conn,
 		logger: exporter.Logger,
 
-		TotalKBs: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Namespace:   cephNamespace,
-				Name:        "monitor_capacity_bytes",
-				Help:        "Total storage capacity of the monitor node",
-				ConstLabels: labels,
-			},
-			[]string{"monitor"},
-		),
-		UsedKBs: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Namespace:   cephNamespace,
-				Name:        "monitor_used_bytes",
-				Help:        "Storage of the monitor node that is currently allocated for use",
-				ConstLabels: labels,
-			},
-			[]string{"monitor"},
-		),
-		AvailKBs: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Namespace:   cephNamespace,
-				Name:        "monitor_avail_bytes",
-				Help:        "Total unused storage capacity that the monitor node has left",
-				ConstLabels: labels,
-			},
-			[]string{"monitor"},
-		),
-		PercentAvail: prometheus.NewGaugeVec(
-			prometheus.GaugeOpts{
-				Namespace:   cephNamespace,
-				Name:        "monitor_avail_percent",
-				Help:        "Percentage of total unused storage capacity that the monitor node has left",
-				ConstLabels: labels,
-			},
-			[]string{"monitor"},
-		),
-		Store: Store{
-			TotalBytes: prometheus.NewGaugeVec(
-				prometheus.GaugeOpts{
-					Namespace:   cephNamespace,
-					Name:        "monitor_store_capacity_bytes",
-					Help:        "Total capacity of the FileStore backing the monitor daemon",
-					ConstLabels: labels,
-				},
-				[]string{"monitor"},
-			),
-			SSTBytes: prometheus.NewGaugeVec(
-				prometheus.GaugeOpts{
-					Namespace:   cephNamespace,
-					Name:        "monitor_store_sst_bytes",
-					Help:        "Capacity of the FileStore used only for raw SSTs",
-					ConstLabels: labels,
-				},
-				[]string{"monitor"},
-			),
-			LogBytes: prometheus.NewGaugeVec(
-				prometheus.GaugeOpts{
-					Namespace:   cephNamespace,
-					Name:        "monitor_store_log_bytes",
-					Help:        "Capacity of the FileStore used only for logging",
-					ConstLabels: labels,
-				},
-				[]string{"monitor"},
-			),
-			MiscBytes: prometheus.NewGaugeVec(
-				prometheus.GaugeOpts{
-					Namespace:   cephNamespace,
-					Name:        "monitor_store_misc_bytes",
-					Help:        "Capacity of the FileStore used only for storing miscellaneous information",
-					ConstLabels: labels,
-				},
-				[]string{"monitor"},
-			),
-		},
 		ClockSkew: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace:   cephNamespace,
@@ -223,16 +115,6 @@ func NewMonitorCollector(exporter *Exporter) *MonitorCollector {
 
 func (m *MonitorCollector) collectorList() []prometheus.Collector {
 	return []prometheus.Collector{
-		m.TotalKBs,
-		m.UsedKBs,
-		m.AvailKBs,
-		m.PercentAvail,
-
-		m.Store.TotalBytes,
-		m.Store.SSTBytes,
-		m.Store.LogBytes,
-		m.Store.MiscBytes,
-
 		m.ClockSkew,
 		m.Latency,
 		m.CephVersions,
@@ -255,32 +137,6 @@ type cephTimeSyncStatus struct {
 }
 
 type cephMonitorStats struct {
-	Health struct {
-		Health struct {
-			HealthServices []struct {
-				Mons []struct {
-					Name         string      `json:"name"`
-					KBTotal      json.Number `json:"kb_total"`
-					KBUsed       json.Number `json:"kb_used"`
-					KBAvail      json.Number `json:"kb_avail"`
-					AvailPercent json.Number `json:"avail_percent"`
-					StoreStats   struct {
-						BytesTotal json.Number `json:"bytes_total"`
-						BytesSST   json.Number `json:"bytes_sst"`
-						BytesLog   json.Number `json:"bytes_log"`
-						BytesMisc  json.Number `json:"bytes_misc"`
-					} `json:"store_stats"`
-				} `json:"mons"`
-			} `json:"health_services"`
-		} `json:"health"`
-		TimeChecks struct {
-			Mons []struct {
-				Name    string      `json:"name"`
-				Skew    json.Number `json:"skew"`
-				Latency json.Number `json:"latency"`
-			} `json:"mons"`
-		} `json:"timechecks"`
-	} `json:"health"`
 	Quorum []int `json:"quorum"`
 }
 
@@ -397,80 +253,10 @@ func (m *MonitorCollector) collect() error {
 	}
 
 	// Reset daemon specifc metrics; daemons can leave the cluster
-	m.TotalKBs.Reset()
-	m.UsedKBs.Reset()
-	m.AvailKBs.Reset()
-	m.PercentAvail.Reset()
 	m.Latency.Reset()
 	m.ClockSkew.Reset()
 	m.CephVersions.Reset()
 	m.CephFeatures.Reset()
-
-	for _, healthService := range stats.Health.Health.HealthServices {
-		for _, monstat := range healthService.Mons {
-			kbTotal, err := monstat.KBTotal.Float64()
-			if err != nil {
-				return err
-			}
-			m.TotalKBs.WithLabelValues(monstat.Name).Set(kbTotal * 1024)
-
-			kbUsed, err := monstat.KBUsed.Float64()
-			if err != nil {
-				return err
-			}
-			m.UsedKBs.WithLabelValues(monstat.Name).Set(kbUsed * 1024)
-
-			kbAvail, err := monstat.KBAvail.Float64()
-			if err != nil {
-				return err
-			}
-			m.AvailKBs.WithLabelValues(monstat.Name).Set(kbAvail * 1024)
-
-			percentAvail, err := monstat.AvailPercent.Float64()
-			if err != nil {
-				return err
-			}
-			m.PercentAvail.WithLabelValues(monstat.Name).Set(percentAvail)
-
-			storeBytes, err := monstat.StoreStats.BytesTotal.Float64()
-			if err != nil {
-				return err
-			}
-			m.Store.TotalBytes.WithLabelValues(monstat.Name).Set(storeBytes)
-
-			sstBytes, err := monstat.StoreStats.BytesSST.Float64()
-			if err != nil {
-				return err
-			}
-			m.Store.SSTBytes.WithLabelValues(monstat.Name).Set(sstBytes)
-
-			logBytes, err := monstat.StoreStats.BytesLog.Float64()
-			if err != nil {
-				return err
-			}
-			m.Store.LogBytes.WithLabelValues(monstat.Name).Set(logBytes)
-
-			miscBytes, err := monstat.StoreStats.BytesMisc.Float64()
-			if err != nil {
-				return err
-			}
-			m.Store.MiscBytes.WithLabelValues(monstat.Name).Set(miscBytes)
-		}
-	}
-
-	for _, monstat := range stats.Health.TimeChecks.Mons {
-		skew, err := monstat.Skew.Float64()
-		if err != nil {
-			return err
-		}
-		m.ClockSkew.WithLabelValues(monstat.Name).Set(skew)
-
-		latency, err := monstat.Latency.Float64()
-		if err != nil {
-			return err
-		}
-		m.Latency.WithLabelValues(monstat.Name).Set(latency)
-	}
 
 	for monNode, tstat := range timeStats.TimeChecks {
 		skew, err := tstat.Skew.Float64()
