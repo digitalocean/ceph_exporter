@@ -117,9 +117,7 @@ type RGWCollector struct {
 	// ActiveBucketReshard reports the state of reshard operation for a particular bucket.
 	ActiveBucketReshard *prometheus.Desc
 
-	getRGWGCTaskList func(string, string) ([]byte, error)
-
-	bucketList        map[string]struct{}
+	getRGWGCTaskList  func(string, string) ([]byte, error)
 	getRGWReshardList func(string, string) ([]byte, error)
 }
 
@@ -135,7 +133,6 @@ func NewRGWCollector(exporter *Exporter, background bool) *RGWCollector {
 		logger:            exporter.Logger,
 		getRGWGCTaskList:  rgwGetGCTaskList,
 		getRGWReshardList: rgwGetReshardList,
-		bucketList:        map[string]struct{}{},
 
 		GCActiveTasks: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -274,9 +271,6 @@ func (r *RGWCollector) collect(ch chan<- prometheus.Metric) error {
 	}
 
 	for _, op := range ops {
-		if _, ok := r.bucketList[op.BucketName]; ok {
-			continue
-		}
 		ch <- prometheus.MustNewConstMetric(
 			r.ActiveBucketReshard,
 			prometheus.GaugeValue,

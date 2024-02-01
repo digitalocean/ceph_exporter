@@ -35,14 +35,17 @@ var (
 	// ErrInvalidVersion indicates that the given version string was invalid
 	ErrInvalidVersion = errors.New("invalid version")
 
-	// Nautilus is the *Version at which Ceph nautilus was released
+	// Nautilus is the *Version at which Ceph Nautilus was released.
 	Nautilus = &Version{Major: 14, Minor: 2, Patch: 0, Revision: 0, Commit: ""}
 
-	// Octopus is the *Version at which Ceph octopus was released
+	// Octopus is the *Version at which Ceph Octopus was released.
 	Octopus = &Version{Major: 15, Minor: 2, Patch: 0, Revision: 0, Commit: ""}
 
-	// Pacific is the *Version at which Ceph pacific was released
+	// Pacific is the *Version at which Ceph Pacific was released.
 	Pacific = &Version{Major: 16, Minor: 2, Patch: 0, Revision: 0, Commit: ""}
+
+	// Quincy is the *Version at which Ceph Quincy was released.
+	Quincy = &Version{Major: 17, Minor: 2, Patch: 0, Revision: 0, Commit: ""}
 )
 
 // IsAtLeast returns true if the version is at least as new as the given constraint

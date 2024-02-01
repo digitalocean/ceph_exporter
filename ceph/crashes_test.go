@@ -15,7 +15,7 @@
 package ceph
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -209,7 +209,7 @@ func TestCrashesCollector(t *testing.T) {
 				require.NoError(t, err)
 				defer resp.Body.Close()
 
-				buf, err := ioutil.ReadAll(resp.Body)
+				buf, err := io.ReadAll(resp.Body)
 				require.NoError(t, err)
 
 				for _, re := range tt.reMatch {

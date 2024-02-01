@@ -16,7 +16,7 @@ package ceph
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -1036,7 +1036,7 @@ func TestOSDCollector(t *testing.T) {
 			require.NoError(t, err)
 			defer resp.Body.Close()
 
-			buf, err := ioutil.ReadAll(resp.Body)
+			buf, err := io.ReadAll(resp.Body)
 			require.NoError(t, err)
 
 			for _, re := range append(reMatch, tt.reMatch...) {

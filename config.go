@@ -15,7 +15,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"os"
 
 	"gopkg.in/yaml.v2"
@@ -39,7 +38,7 @@ func fileExists(path string) bool {
 }
 
 func ParseConfig(p string) (*Config, error) {
-	cfgData, err := ioutil.ReadFile(p)
+	cfgData, err := os.ReadFile(p)
 	if err != nil {
 		return nil, err
 	}
