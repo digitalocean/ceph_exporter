@@ -16,6 +16,7 @@ package ceph
 
 import (
 	"errors"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -28,7 +29,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestRGWCollector(t *testing.T) {
+func TestRGWGC(t *testing.T) {
 	for _, tt := range []struct {
 		input     []byte
 		version   string
@@ -166,6 +167,85 @@ func TestRGWCollector(t *testing.T) {
 
 			for _, re := range tt.reMatch {
 				require.True(t, re.Match(buf))
+			}
+
+			for _, re := range tt.reUnmatch {
+				require.False(t, re.Match(buf))
+			}
+		}()
+	}
+}
+
+func TestRGWReshardStats(t *testing.T) {
+	for _, tt := range []struct {
+		input     []byte
+		version   string
+		reMatch   []*regexp.Regexp
+		reUnmatch []*regexp.Regexp
+	}{
+		{
+			input: []byte(`
+[
+	{
+		"time": "2024-02-01 09:42:10.905080Z",
+		"tenant": "",
+		"bucket_name": "bucket-1",
+		"bucket_id": "97c1cfac-009f-4f7d-8d9d-9097c322c606.51988974.133",
+		"new_instance_id": "",
+		"old_num_shards": 3,
+		"new_num_shards": 12
+	}
+]
+`),
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
+			reMatch: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_rgw_active_reshards{cluster="ceph"} 1`),
+				regexp.MustCompile(`ceph_rgw_bucket_reshard{bucket="bucket-1",cluster="ceph"} 1`),
+			},
+		},
+		{
+			input:   []byte(`[]`),
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
+			reMatch: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_rgw_active_reshards{cluster="ceph"} 0`),
+			},
+		},
+	} {
+		func() {
+			conn := setupVersionMocks(tt.version, "{}")
+
+			e := &Exporter{Conn: conn, Cluster: "ceph", Logger: logrus.New()}
+			e.cc = map[string]versionedCollector{
+				"rgw": NewRGWCollector(e, false),
+			}
+
+			e.cc["rgw"].(*RGWCollector).getRGWGCTaskList = func(cluster, user string) ([]byte, error) {
+				return []byte(`[]`), nil
+			}
+
+			e.cc["rgw"].(*RGWCollector).getRGWReshardList = func(cluster, user string) ([]byte, error) {
+				if tt.input != nil {
+					return tt.input, nil
+				}
+				return nil, errors.New("fake error")
+			}
+
+			err := prometheus.Register(e)
+			require.NoError(t, err)
+			defer prometheus.Unregister(e)
+
+			server := httptest.NewServer(promhttp.Handler())
+			defer server.Close()
+
+			resp, err := http.Get(server.URL)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+
+			buf, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+
+			for _, re := range tt.reMatch {
+				require.True(t, re.Match(buf), string(buf))
 			}
 
 			for _, re := range tt.reUnmatch {

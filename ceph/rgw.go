@@ -16,6 +16,7 @@ package ceph
 
 import (
 	"encoding/json"
+	"fmt"
 	"os/exec"
 	"strings"
 	"time"
@@ -45,6 +46,16 @@ type rgwTaskGC struct {
 	} `json:"objs"`
 }
 
+type rgwReshardOp struct {
+	Time          string `json:"time"`
+	Tenant        string `json:"tenant"`
+	BucketName    string `json:"bucket_name"`
+	BucketID      string `json:"bucket_id"`
+	NewInstanceID string `json:"new_instance_id"`
+	OldNumShards  int    `json:"old_num_shards"`
+	NewNumShards  int    `json:"new_num_shards"`
+}
+
 // Expires returns the timestamp that this task will expire and become active
 func (gc rgwTaskGC) ExpiresAt() time.Time {
 	tmp := strings.SplitN(gc.Time, ".", 2)
@@ -70,6 +81,20 @@ func rgwGetGCTaskList(config string, user string) ([]byte, error) {
 	return out, nil
 }
 
+// rgwGetReshardList retrieves the list of buckets that are currently being sharded.
+func rgwGetReshardList(config string, user string) ([]byte, error) {
+	var (
+		out []byte
+		err error
+	)
+
+	if out, err = exec.Command(radosgwAdminPath, "-c", config, "--user", user, "reshard", "list").Output(); err != nil {
+		return nil, err
+	}
+
+	return out, nil
+}
+
 // RGWCollector collects metrics from the RGW service
 type RGWCollector struct {
 	config     string
@@ -77,17 +102,25 @@ type RGWCollector struct {
 	background bool
 	logger     *logrus.Logger
 
-	// ActiveTasks reports the number of (expired) RGW GC tasks
-	ActiveTasks *prometheus.GaugeVec
-	// ActiveObjects reports the total number of RGW GC objects contained in active tasks
-	ActiveObjects *prometheus.GaugeVec
+	// GCActiveTasks reports the number of (expired) RGW GC tasks.
+	GCActiveTasks *prometheus.GaugeVec
+	// GCActiveObjects reports the total number of RGW GC objects contained in active tasks.
+	GCActiveObjects *prometheus.GaugeVec
 
-	// PendingTasks reports the number of RGW GC tasks queued but not yet expired
-	PendingTasks *prometheus.GaugeVec
-	// PendingObjects reports the total number of RGW GC objects contained in pending tasks
-	PendingObjects *prometheus.GaugeVec
+	// GCPendingTasks reports the number of RGW GC tasks queued but not yet expired.
+	GCPendingTasks *prometheus.GaugeVec
+	// GCPendingObjects reports the total number of RGW GC objects contained in pending tasks.
+	GCPendingObjects *prometheus.GaugeVec
+
+	// ActiveReshards reports the number of active RGW bucket reshard operations.
+	ActiveReshards *prometheus.GaugeVec
+	// ActiveBucketReshard reports the state of reshard operation for a particular bucket.
+	ActiveBucketReshard *prometheus.Desc
 
 	getRGWGCTaskList func(string, string) ([]byte, error)
+
+	bucketList        map[string]struct{}
+	getRGWReshardList func(string, string) ([]byte, error)
 }
 
 // NewRGWCollector creates an instance of the RGWCollector and instantiates
@@ -97,12 +130,14 @@ func NewRGWCollector(exporter *Exporter, background bool) *RGWCollector {
 	labels["cluster"] = exporter.Cluster
 
 	rgw := &RGWCollector{
-		config:           exporter.Config,
-		background:       background,
-		logger:           exporter.Logger,
-		getRGWGCTaskList: rgwGetGCTaskList,
+		config:            exporter.Config,
+		background:        background,
+		logger:            exporter.Logger,
+		getRGWGCTaskList:  rgwGetGCTaskList,
+		getRGWReshardList: rgwGetReshardList,
+		bucketList:        map[string]struct{}{},
 
-		ActiveTasks: prometheus.NewGaugeVec(
+		GCActiveTasks: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace:   cephNamespace,
 				Name:        "rgw_gc_active_tasks",
@@ -111,7 +146,7 @@ func NewRGWCollector(exporter *Exporter, background bool) *RGWCollector {
 			},
 			[]string{},
 		),
-		ActiveObjects: prometheus.NewGaugeVec(
+		GCActiveObjects: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace:   cephNamespace,
 				Name:        "rgw_gc_active_objects",
@@ -120,7 +155,7 @@ func NewRGWCollector(exporter *Exporter, background bool) *RGWCollector {
 			},
 			[]string{},
 		),
-		PendingTasks: prometheus.NewGaugeVec(
+		GCPendingTasks: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace:   cephNamespace,
 				Name:        "rgw_gc_pending_tasks",
@@ -129,7 +164,7 @@ func NewRGWCollector(exporter *Exporter, background bool) *RGWCollector {
 			},
 			[]string{},
 		),
-		PendingObjects: prometheus.NewGaugeVec(
+		GCPendingObjects: prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Namespace:   cephNamespace,
 				Name:        "rgw_gc_pending_objects",
@@ -138,12 +173,22 @@ func NewRGWCollector(exporter *Exporter, background bool) *RGWCollector {
 			},
 			[]string{},
 		),
-	}
 
-	if rgw.background {
-		// rgw stats need to be collected in the background as this can take a while
-		// if we have a large backlog
-		go rgw.backgroundCollect()
+		ActiveReshards: prometheus.NewGaugeVec(
+			prometheus.GaugeOpts{
+				Namespace:   cephNamespace,
+				Name:        "rgw_active_reshards",
+				Help:        "RGW active bucket reshard operations",
+				ConstLabels: labels,
+			},
+			[]string{},
+		),
+		ActiveBucketReshard: prometheus.NewDesc(
+			fmt.Sprintf("%s_%s", cephNamespace, "rgw_bucket_reshard"),
+			"RGW bucket reshard operation",
+			[]string{"bucket"},
+			labels,
+		),
 	}
 
 	return rgw
@@ -151,25 +196,32 @@ func NewRGWCollector(exporter *Exporter, background bool) *RGWCollector {
 
 func (r *RGWCollector) collectorList() []prometheus.Collector {
 	return []prometheus.Collector{
-		r.ActiveTasks,
-		r.ActiveObjects,
-		r.PendingTasks,
-		r.PendingObjects,
+		r.GCActiveTasks,
+		r.GCActiveObjects,
+		r.GCPendingTasks,
+		r.GCPendingObjects,
+		r.ActiveReshards,
 	}
 }
 
-func (r *RGWCollector) backgroundCollect() error {
+func (r *RGWCollector) descriptorList() []*prometheus.Desc {
+	return []*prometheus.Desc{
+		r.ActiveBucketReshard,
+	}
+}
+
+func (r *RGWCollector) backgroundCollect(ch chan<- prometheus.Metric) error {
 	for {
-		r.logger.WithField("background", r.background).Debug("collecting RGW GC stats")
-		err := r.collect()
+		r.logger.WithField("background", r.background).Debug("collecting RGW stats")
+		err := r.collect(ch)
 		if err != nil {
-			r.logger.WithField("background", r.background).WithError(err).Error("error collecting RGW GC stats")
+			r.logger.WithField("background", r.background).WithError(err).Error("error collecting RGW stats")
 		}
 		time.Sleep(backgroundCollectInterval)
 	}
 }
 
-func (r *RGWCollector) collect() error {
+func (r *RGWCollector) collect(ch chan<- prometheus.Metric) error {
 	data, err := r.getRGWGCTaskList(r.config, r.user)
 	if err != nil {
 		return err
@@ -181,29 +233,60 @@ func (r *RGWCollector) collect() error {
 		return err
 	}
 
-	activeTaskCount := int(0)
-	activeObjectCount := int(0)
-	pendingTaskCount := int(0)
-	pendingObjectCount := int(0)
+	var (
+		gcActiveTaskCount    = int(0)
+		gcActiveObjectCount  = int(0)
+		gcPendingTaskCount   = int(0)
+		gcPendingObjectCount = int(0)
+	)
 
 	now := time.Now()
 	for _, task := range tasks {
 		if now.Sub(task.ExpiresAt()) > 0 {
 			// timer expired these are active
-			activeTaskCount += 1
-			activeObjectCount += len(task.Objects)
+			gcActiveTaskCount += 1
+			gcActiveObjectCount += len(task.Objects)
 		} else {
-			pendingTaskCount += 1
-			pendingObjectCount += len(task.Objects)
+			gcPendingTaskCount += 1
+			gcPendingObjectCount += len(task.Objects)
 		}
 	}
 
-	r.ActiveTasks.WithLabelValues().Set(float64(activeTaskCount))
-	r.PendingTasks.WithLabelValues().Set(float64(pendingTaskCount))
+	r.GCActiveTasks.WithLabelValues().Set(float64(gcActiveTaskCount))
+	r.GCPendingTasks.WithLabelValues().Set(float64(gcPendingTaskCount))
 
-	r.ActiveObjects.WithLabelValues().Set(float64(activeObjectCount))
-	r.PendingObjects.WithLabelValues().Set(float64(pendingObjectCount))
+	r.GCActiveObjects.WithLabelValues().Set(float64(gcActiveObjectCount))
+	r.GCPendingObjects.WithLabelValues().Set(float64(gcPendingObjectCount))
 
+	var (
+		activeReshardOps int
+	)
+
+	data, err = r.getRGWReshardList(r.config, r.user)
+	if err != nil {
+		return err
+	}
+
+	ops := make([]rgwReshardOp, 0)
+	err = json.Unmarshal(data, &ops)
+	if err != nil {
+		return err
+	}
+
+	for _, op := range ops {
+		if _, ok := r.bucketList[op.BucketName]; ok {
+			continue
+		}
+		ch <- prometheus.MustNewConstMetric(
+			r.ActiveBucketReshard,
+			prometheus.GaugeValue,
+			float64(1),
+			op.BucketName,
+		)
+	}
+
+	activeReshardOps = len(ops)
+	r.ActiveReshards.WithLabelValues().Set(float64(activeReshardOps))
 	return nil
 }
 
@@ -213,17 +296,25 @@ func (r *RGWCollector) Describe(ch chan<- *prometheus.Desc) {
 	for _, metric := range r.collectorList() {
 		metric.Describe(ch)
 	}
+
+	for _, metric := range r.descriptorList() {
+		ch <- metric
+	}
 }
 
 // Collect sends all the collected metrics to the provided prometheus channel.
 // It requires the caller to handle synchronization.
 func (r *RGWCollector) Collect(ch chan<- prometheus.Metric, version *Version) {
 	if !r.background {
-		r.logger.WithField("background", r.background).Debug("collecting RGW GC stats")
-		err := r.collect()
+		r.logger.WithField("background", r.background).Debug("collecting RGW stats")
+		err := r.collect(ch)
 		if err != nil {
-			r.logger.WithField("background", r.background).WithError(err).Error("error collecting RGW GC stats")
+			r.logger.WithField("background", r.background).WithError(err).Error("error collecting RGW stats")
 		}
+	}
+
+	if r.background {
+		go r.backgroundCollect(ch)
 	}
 
 	for _, metric := range r.collectorList() {

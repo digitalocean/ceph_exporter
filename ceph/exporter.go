@@ -181,9 +181,7 @@ func (exporter *Exporter) setRbdMirror() error {
 		}
 	} else {
 		// remove the rbdMirror collector if present
-		if _, ok := exporter.cc["rbdMirror"]; ok {
-			delete(exporter.cc, "rbdMirror")
-		}
+		delete(exporter.cc, "rbdMirror")
 	}
 
 	return nil
