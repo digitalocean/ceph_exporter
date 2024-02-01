@@ -15,7 +15,7 @@
 package ceph
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -108,7 +108,7 @@ func TestMonitorCollector(t *testing.T) {
 			require.NoError(t, err)
 			defer resp.Body.Close()
 
-			buf, err := ioutil.ReadAll(resp.Body)
+			buf, err := io.ReadAll(resp.Body)
 			require.NoError(t, err)
 
 			for _, re := range tt.regexes {
@@ -239,7 +239,7 @@ func TestMonitorTimeSyncStats(t *testing.T) {
 			require.NoError(t, err)
 			defer resp.Body.Close()
 
-			buf, err := ioutil.ReadAll(resp.Body)
+			buf, err := io.ReadAll(resp.Body)
 			require.NoError(t, err)
 
 			for _, re := range tt.reMatch {
@@ -306,7 +306,7 @@ func TestMonitorCephVersions(t *testing.T) {
 			require.NoError(t, err)
 			defer resp.Body.Close()
 
-			buf, err := ioutil.ReadAll(resp.Body)
+			buf, err := io.ReadAll(resp.Body)
 			require.NoError(t, err)
 
 			for _, re := range tt.reMatch {
@@ -392,7 +392,7 @@ func TestMonitorCephFeatures(t *testing.T) {
 			require.NoError(t, err)
 			defer resp.Body.Close()
 
-			buf, err := ioutil.ReadAll(resp.Body)
+			buf, err := io.ReadAll(resp.Body)
 			require.NoError(t, err)
 
 			for _, re := range tt.reMatch {

@@ -23,7 +23,7 @@ import (
 	"github.com/ceph/go-ceph/rados"
 	"github.com/sirupsen/logrus"
 
-	"github.com/digitalocean/ceph_exporter/ceph"
+	"github.com/coreweave/ceph_exporter/ceph"
 )
 
 // RadosConn implements the Conn interface with the underlying *rados.Conn

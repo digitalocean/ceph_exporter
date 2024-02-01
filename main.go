@@ -28,8 +28,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 
-	"github.com/digitalocean/ceph_exporter/ceph"
-	"github.com/digitalocean/ceph_exporter/rados"
+	"github.com/coreweave/ceph_exporter/ceph"
+	"github.com/coreweave/ceph_exporter/rados"
 )
 
 const (
