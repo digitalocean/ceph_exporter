@@ -221,13 +221,13 @@ func (r *RGWCollector) backgroundCollect(ch chan<- prometheus.Metric) error {
 func (r *RGWCollector) collect(ch chan<- prometheus.Metric) error {
 	data, err := r.getRGWGCTaskList(r.config, r.user)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed getting gc task list: %w", err)
 	}
 
 	tasks := make([]rgwTaskGC, 0)
 	err = json.Unmarshal(data, &tasks)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed unmarshalling gc task data: %w", err)
 	}
 
 	var (
@@ -261,13 +261,13 @@ func (r *RGWCollector) collect(ch chan<- prometheus.Metric) error {
 
 	data, err = r.getRGWReshardList(r.config, r.user)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed getting bucket reshard list: %w", err)
 	}
 
 	ops := make([]rgwReshardOp, 0)
 	err = json.Unmarshal(data, &ops)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed unmarshalling bucket reshard list: %w", err)
 	}
 
 	for _, op := range ops {
