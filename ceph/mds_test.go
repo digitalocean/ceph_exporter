@@ -1,6 +1,7 @@
 package ceph
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -103,7 +104,7 @@ func TestMDSStats(t *testing.T) {
 				"mds": NewMDSCollector(e, false),
 			}
 
-			e.cc["mds"].(*MDSCollector).runMDSStatFn = func(cluster, user string) ([]byte, error) {
+			e.cc["mds"].(*MDSCollector).runMDSStatFn = func(_ context.Context, cluster, user string) ([]byte, error) {
 				if tt.input != nil {
 					return tt.input, nil
 				}
