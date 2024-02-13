@@ -41,6 +41,7 @@ type Exporter struct {
 	Config    string
 	User      string
 	RgwMode   int
+	MDSMode   int
 	RbdMirror bool
 	Logger    *logrus.Logger
 	Version   *Version
@@ -49,13 +50,14 @@ type Exporter struct {
 
 // NewExporter returns an initialized *Exporter
 // We can choose to enable a collector to extract stats out of by adding it to the list of collectors.
-func NewExporter(conn Conn, cluster string, config string, user string, rgwMode int, logger *logrus.Logger) *Exporter {
+func NewExporter(conn Conn, cluster, config, user string, rgwMode, mdsMode int, logger *logrus.Logger) *Exporter {
 	e := &Exporter{
 		Conn:    conn,
 		Cluster: cluster,
 		Config:  config,
 		User:    user,
 		RgwMode: rgwMode,
+		MDSMode: mdsMode,
 		Logger:  logger,
 	}
 	err := e.setCephVersion()
@@ -88,6 +90,17 @@ func (exporter *Exporter) initCollectors() map[string]versionedCollector {
 		// nothing to do
 	default:
 		exporter.Logger.WithField("RgwMode", exporter.RgwMode).Warn("RGW collector disabled due to invalid mode")
+	}
+
+	switch exporter.MDSMode {
+	case MDSModeForeground:
+		standardCollectors["mds"] = NewMDSCollector(exporter, false)
+	case MDSModeBackground:
+		standardCollectors["mds"] = NewMDSCollector(exporter, true)
+	case MDSModeDisabled:
+		// nothing to do
+	default:
+		exporter.Logger.WithField("MDSMode", exporter.MDSMode).Warn("MDS collector disabled due to invalid mode")
 	}
 
 	return standardCollectors
