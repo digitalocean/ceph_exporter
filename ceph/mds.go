@@ -279,7 +279,7 @@ func (m *MDSCollector) collectMDSSlowOps() {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
-	data, err := runCephHealthDetail(ctx, m.config, m.user)
+	data, err := m.runCephHealthDetailFn(ctx, m.config, m.user)
 	if err != nil {
 		m.logger.WithError(err).Error("failed getting health detail")
 		return
@@ -315,7 +315,7 @@ func (m *MDSCollector) collectMDSSlowOps() {
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 		defer cancel()
 
-		data, err := runMDSStatus(ctx, m.config, m.user, mdsName)
+		data, err := m.runMDSStatusFn(ctx, m.config, m.user, mdsName)
 		if err != nil {
 			m.logger.WithField("mds", mdsName).WithError(err).Error("failed getting status from mds")
 			return
@@ -332,7 +332,7 @@ func (m *MDSCollector) collectMDSSlowOps() {
 		ctx, cancel = context.WithTimeout(context.Background(), 1*time.Minute)
 		defer cancel()
 
-		data, err = runBlockedOpsCheck(ctx, m.config, m.user, mdsName)
+		data, err = m.runBlockedOpsCheckFn(ctx, m.config, m.user, mdsName)
 		if err != nil {
 			m.logger.WithField("mds", mdsName).WithError(err).Error("failed getting blocked ops from mds")
 			return
@@ -414,10 +414,11 @@ func extractOpFromDescription(desc string) (*opDesc, error) {
 	}
 
 	fsoptype, inode := parts[1], parts[2]
-	inode = strings.TrimLeft(inode, "#0x")
 	inode = strings.Split(inode, "/")[0]
+	inode = strings.TrimLeft(inode, "#")
+	inodeCheck := strings.TrimLeft(inode, "0x")
 
-	_, err := strconv.ParseUint(inode, 16, 14)
+	_, err := strconv.ParseUint(inodeCheck, 16, 64)
 	if err != nil {
 		return nil, fmt.Errorf("invalid inode, expected hex instead got %q: %w", inode, err)
 	}
@@ -427,14 +428,14 @@ func extractOpFromDescription(desc string) (*opDesc, error) {
 		return nil, fmt.Errorf("invalid client request format: %q", parts[0])
 	}
 
-	clientIDParts = strings.Split(clientIDParts[1], ":")
-	if len(clientIDParts) != 2 {
+	cidParts := strings.Split(clientIDParts[1], ":")
+	if len(cidParts) != 2 {
 		return nil, fmt.Errorf("invalid client id format: %q", clientIDParts[1])
 	}
 
-	clientIDParts = strings.Split(clientIDParts[0], ".")
+	clientIDParts = strings.Split(cidParts[0], ".")
 	if len(clientIDParts) != 2 {
-		return nil, fmt.Errorf("invalid client id string: %q", clientIDParts[0])
+		return nil, fmt.Errorf("invalid client id string: %q", cidParts[0])
 	}
 
 	return &opDesc{
