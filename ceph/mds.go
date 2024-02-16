@@ -53,12 +53,12 @@ func runCephHealthDetail(ctx context.Context, config, user string) ([]byte, erro
 
 // runMDSStatus will run status command on the MDS to get it's info.
 func runMDSStatus(ctx context.Context, config, user, mds string) ([]byte, error) {
-	return exec.CommandContext(ctx, cephCmd, "-c", config, "-n", "tell", mds, "status").Output()
+	return exec.CommandContext(ctx, cephCmd, "-c", config, "-n", fmt.Sprintf("client.%s", user), "tell", mds, "status").Output()
 }
 
 // runBlockedOpsCheck will run blocked ops on MDSs and get any ops that are blocked for that MDS.
 func runBlockedOpsCheck(ctx context.Context, config, user, mds string) ([]byte, error) {
-	return exec.CommandContext(ctx, cephCmd, "-c", config, "-n", "tell", mds, "dump_blocked_ops").Output()
+	return exec.CommandContext(ctx, cephCmd, "-c", config, "-n", fmt.Sprintf("client.%s", user), "tell", mds, "dump_blocked_ops").Output()
 }
 
 // MDSCollector collects metrics from the MDS daemons.
