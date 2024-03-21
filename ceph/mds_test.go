@@ -326,7 +326,7 @@ func TestMDSBlockedOps(t *testing.T) {
 `),
 			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
-				regexp.MustCompile(`ceph_mds_blocked_ops{cluster="ceph",flag_point="cleaned up request",fs="fsA",fs_optype="rmdir",name="mds.nodeA",optype="client_request",state="up:active"} 1`),
+				regexp.MustCompile(`ceph_mds_blocked_ops{cluster="ceph",flag_point="cleaned up request",fs="fsA",fs_optype="rmdir",inode="0x10000000030",name="mds.nodeA",optype="client_request",state="up:active"} 1`),
 			},
 		},
 	} {

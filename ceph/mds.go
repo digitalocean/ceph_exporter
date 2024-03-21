@@ -107,7 +107,7 @@ func NewMDSCollector(exporter *Exporter, background bool) *MDSCollector {
 		MDSBlockedOps: prometheus.NewDesc(
 			fmt.Sprintf("%s_%s", cephNamespace, "mds_blocked_ops"),
 			"MDS Blocked Ops",
-			[]string{"fs", "name", "state", "optype", "fs_optype", "flag_point"},
+			[]string{"fs", "name", "state", "optype", "fs_optype", "flag_point", "inode"},
 			labels,
 		),
 	}
@@ -365,6 +365,7 @@ func (m *MDSCollector) collectMDSSlowOps() {
 					op.TypeData.OpType,
 					opd.fsOpType,
 					op.TypeData.FlagPoint,
+					opd.inode,
 				):
 				default:
 				}
@@ -383,6 +384,7 @@ func (m *MDSCollector) collectMDSSlowOps() {
 				op.TypeData.OpType,
 				"",
 				op.TypeData.FlagPoint,
+				"",
 			):
 			default:
 			}
