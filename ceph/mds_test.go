@@ -390,6 +390,7 @@ func TestMDSBlockedOps(t *testing.T) {
 }
 
 func TestExtractOpFromDescription(t *testing.T) {
+	commonErr := "invalid op description, unable to parse"
 	for _, tt := range []struct {
 		input  string
 		errMsg string
@@ -405,28 +406,46 @@ func TestExtractOpFromDescription(t *testing.T) {
 			},
 		},
 		{
+			input:  "client_request(client.20001974182:344151 create #0x10000000030/72a26231-ac24-4f69-9350-8ebc5444c9ea 2024-03-26T02:11:21.800677+0000 caller_uid=0, caller_gid=0{})",
+			errMsg: "",
+			opd: &opDesc{
+				fsOpType: "create",
+				inode:    "0x10000000030",
+				clientID: "20001974182",
+			},
+		},
+		{
+			input:  "client_request(client.20001974182:344151 getattr AsXsFs #0x10000000030 2024-03-26T02:01:57.036219+0000 caller_uid=0, caller_gid=0{})",
+			errMsg: "",
+			opd: &opDesc{
+				fsOpType: "getattr",
+				inode:    "0x10000000030",
+				clientID: "20001974182",
+			},
+		},
+		{
 			input:  "client_request(client.20001974182:344151rmdir#0x10000000030ZZZZ/72a26231-ac24-4f69-9350-8ebc5444c9ea2024-02-13T22:11:00.196767+0000caller_uid=0, caller_gid=0{})",
-			errMsg: `invalid fs description`,
+			errMsg: commonErr,
 			opd:    nil,
 		},
 		{
 			input:  "client_request(client.20001974182:344151 rmdir #0x10000000030ZZZZ/72a26231-ac24-4f69-9350-8ebc5444c9ea 2024-02-13T22:11:00.196767+0000 caller_uid=0, caller_gid=0{})",
-			errMsg: `invalid inode, expected hex instead got "0x10000000030ZZZZ": strconv.ParseUint: parsing "10000000030ZZZZ": invalid syntax`,
+			errMsg: commonErr,
 			opd:    nil,
 		},
 		{
 			input:  "client_request[client.20001974182:344151 rmdir #0x10000000030/72a26231-ac24-4f69-9350-8ebc5444c9ea 2024-02-13T22:11:00.196767+0000 caller_uid=0, caller_gid=0{})",
-			errMsg: `invalid client request format`,
+			errMsg: commonErr,
 			opd:    nil,
 		},
 		{
 			input:  "client_request(client.20001974182/344151 rmdir #0x10000000030/72a26231-ac24-4f69-9350-8ebc5444c9ea 2024-02-13T22:11:00.196767+0000 caller_uid=0, caller_gid=0{})",
-			errMsg: `invalid client id format`,
+			errMsg: commonErr,
 			opd:    nil,
 		},
 		{
 			input:  "client_request(client|20001974182:344151 rmdir #0x10000000030/72a26231-ac24-4f69-9350-8ebc5444c9ea 2024-02-13T22:11:00.196767+0000 caller_uid=0, caller_gid=0{})",
-			errMsg: `nvalid client id string`,
+			errMsg: commonErr,
 			opd:    nil,
 		},
 	} {
