@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -399,6 +400,11 @@ type opDesc struct {
 	clientID string
 }
 
+var (
+	descRegex                   = regexp.MustCompile(`client_request\(client\.(?P<clientid>[0-9].+?):(?P<cid>[0-9].+?)\s(?P<fsoptype>\w+)\s.*#(?P<inode>0x[0-9a-fA-F]+|[0-9]+)[^a-zA-Z\d:].*`)
+	errInvalidDescriptionFormat = "invalid op description, unable to parse %q"
+)
+
 // extractOpFromDescription is designed to extract the fs optype from a given slow/blocked
 // ops description.
 //
@@ -410,39 +416,43 @@ type opDesc struct {
 //
 //	"rmdir"
 func extractOpFromDescription(desc string) (*opDesc, error) {
-	parts := strings.Fields(desc)
-	if len(parts) < 4 {
-		return nil, fmt.Errorf("invalid fs description: %q", desc)
+	matches := descRegex.FindStringSubmatch(desc)
+	if len(matches) == 0 {
+		return nil, fmt.Errorf(errInvalidDescriptionFormat, desc)
 	}
 
-	fsoptype, inode := parts[1], parts[2]
-	inode = strings.Split(inode, "/")[0]
-	inode = strings.TrimLeft(inode, "#")
-	inodeCheck := strings.TrimLeft(inode, "0x")
+	groups := getGroups(*descRegex, desc)
 
-	_, err := strconv.ParseUint(inodeCheck, 16, 64)
-	if err != nil {
-		return nil, fmt.Errorf("invalid inode, expected hex instead got %q: %w", inode, err)
+	clientID, ok := groups["clientid"]
+	if !ok {
+		return nil, fmt.Errorf(errInvalidDescriptionFormat, desc)
 	}
 
-	clientIDParts := strings.Split(parts[0], "(")
-	if len(clientIDParts) != 2 {
-		return nil, fmt.Errorf("invalid client request format: %q", parts[0])
+	fsoptype, ok := groups["fsoptype"]
+	if !ok {
+		return nil, fmt.Errorf(errInvalidDescriptionFormat, desc)
 	}
 
-	cidParts := strings.Split(clientIDParts[1], ":")
-	if len(cidParts) != 2 {
-		return nil, fmt.Errorf("invalid client id format: %q", clientIDParts[1])
-	}
-
-	clientIDParts = strings.Split(cidParts[0], ".")
-	if len(clientIDParts) != 2 {
-		return nil, fmt.Errorf("invalid client id string: %q", cidParts[0])
+	inode, ok := groups["inode"]
+	if !ok {
+		return nil, fmt.Errorf(errInvalidDescriptionFormat, desc)
 	}
 
 	return &opDesc{
 		fsOpType: fsoptype,
 		inode:    inode,
-		clientID: clientIDParts[1],
+		clientID: clientID,
 	}, nil
+}
+
+func getGroups(regEx regexp.Regexp, in string) map[string]string {
+	match := regEx.FindStringSubmatch(in)
+
+	groupsMap := make(map[string]string)
+	for i, name := range regEx.SubexpNames() {
+		if i > 0 && i <= len(match) {
+			groupsMap[name] = match[i]
+		}
+	}
+	return groupsMap
 }
