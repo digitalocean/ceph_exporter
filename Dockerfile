@@ -37,10 +37,8 @@ RUN \
 ADD . $APPLOC
 WORKDIR $APPLOC
 RUN go get -d
-# The `-tags nautilus` instructs go-ceph to enable additional support nautilus release.
-# See https://github.com/ceph/go-ceph#installation
-RUN if [ -n "${TEST}" ]; then go test -tags nautilus -v -race -count=1 ./...; fi
-RUN go build -tags nautilus -o /bin/ceph_exporter
+RUN if [ -n "${TEST}" ]; then go test -v -race -count=1 ./...; fi
+RUN go build -o /bin/ceph_exporter
 
 FROM ubuntu:20.04
 
