@@ -1,4 +1,4 @@
-# Copyright 2023 DigitalOcean
+# Copyright 2024 DigitalOcean
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,26 +12,26 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Tests
+name: Create releases
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: ['**']
+    branches:
+      - "main"
 
 jobs:
+  create-releases:
+    runs-on: ubuntu-latest
 
-  run-go-tests:
-    runs-on: ubuntu-20.04
-
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: write
+      
     steps:
-    - uses: actions/checkout@v2
-
-    - uses: actions/setup-go@v2
-      with:
-        go-version: '1.20'
-
-    # We only test the Ceph package since main depends on go-ceph
-    - name: Go test
-      run: go test -v ./ceph
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Semantic Release
+        uses: cycjimmy/semantic-release-action@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
