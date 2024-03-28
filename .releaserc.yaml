@@ -20,7 +20,7 @@ plugins:
   - "@semantic-release/release-notes-generator"
   - "@semantic-release/changelog"
   - "@semantic-release/github"
-repositoryUrl: "git@github.com/coreweave/ceph_exporter.git"
+repositoryUrl: "https://github.com/coreweave/ceph_exporter.git"
 analyzeCommits:
   - path: "@semantic-release/commit-analyzer"
     releaseRules:
