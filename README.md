@@ -70,7 +70,7 @@ We build the client with support for nautilus specifically but the binary will w
 ### Docker Hub
 
 The official docker image is available at
-[digitalocean/ceph_exporter](https://hub.docker.com/r/digitalocean/ceph_exporter/).
+[ghcr.io/coreweave/ceph_exporter](https://github.com/coreweave/ceph_exporter/pkgs/container/ceph_exporter).
 
 ### Build From Source
 
@@ -85,20 +85,20 @@ under the default `/etc/ceph` location that Ceph checks for.
 A sample build command would look like:
 
 ```bash
-$ docker build -t digitalocean/ceph_exporter .
+$ docker build -t ghcr.io/coreweave/ceph_exporter .
 ```
 
 A `--build-args TEST=true` flag can be added to the build command above to
 also run Golang's unit tests during build:
 
 ```bash
-docker build -t digitalocean/ceph_exporter . --build-arg TEST=true --no-cache
+docker build -t ghcr.io/coreweave/ceph_exporter . --build-arg TEST=true --no-cache
 ```
 
 You can start running your `ceph_exporter` container now.
 
 ```bash
-$ docker run -v /etc/ceph:/etc/ceph -p=9128:9128 -it digitalocean/ceph_exporter
+$ docker run -v /etc/ceph:/etc/ceph -p=9128:9128 -it ghcr.io/coreweave/ceph_exporter
 ```
 
 You would have to ensure your image can talk over to the monitors. If it needs
