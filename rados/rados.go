@@ -120,6 +120,9 @@ func (c *RadosConn) MonCommand(args []byte) (buffer []byte, info string, err err
 	ll.Trace("start executing mon command")
 
 	buffer, info, err = c.conn.MonCommand(args)
+	if err == nil {
+		buffer = handleCephInf(buffer)
+	}
 
 	ll.WithError(err).Trace("complete executing mon command")
 
@@ -132,6 +135,9 @@ func (c *RadosConn) MgrCommand(args [][]byte) (buffer []byte, info string, err e
 	ll.Trace("start executing mgr command")
 
 	buffer, info, err = c.conn.MgrCommand(args)
+	if err == nil {
+		buffer = handleCephInf(buffer)
+	}
 
 	ll.WithError(err).Trace("complete executing mgr command")
 
@@ -162,4 +168,14 @@ func (c *RadosConn) GetPoolStats(pool string) (*ceph.PoolStat, error) {
 	ll.WithError(err).Trace("complete getting pool stats")
 
 	return poolSt, nil
+}
+
+// Some Ceph commands can return "inf" as a float value; this is not allowed by
+// the json spec or the golang parser (though it is apparently allowed by the
+// Python parser), so we convert such cases to "null".
+func handleCephInf(buf []byte) []byte {
+	buf = bytes.ReplaceAll(buf, []byte("\": inf"), []byte("\": null"))
+	buf = bytes.ReplaceAll(buf, []byte("\":inf"), []byte("\":null"))
+
+	return buf
 }
