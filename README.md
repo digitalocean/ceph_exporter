@@ -32,8 +32,8 @@ variables:
 We use Ceph's [official Golang client](https://github.com/ceph/go-ceph) to run
 commands on the cluster.
 
-This `ceph_exporter` branch currently supports the Nautilus, Octopus (untested), and Pacific releases. It might
-not work as expected with older or non-LTS versions of Ceph.
+`ceph_exporter` is currently in use and tested against Nautilus, Pacific, and Reef.
+It might not work as expected with older or non-LTS versions of Ceph.
 
 ## Environment Variables
 
