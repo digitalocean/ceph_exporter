@@ -15,7 +15,7 @@ cluster. Like any other Ceph client, it needs the following files to run
 correctly.
 
 * `ceph.conf` containing your Ceph configuration.
-* `ceph.<user>.keyring` in order to authenticate to your Ceph cluster.
+* `ceph.client.<user>.keyring` in order to authenticate to your Ceph cluster.
 
 The `ceph_exporter` will automatically pick those up if they are present in
 any of the [default
