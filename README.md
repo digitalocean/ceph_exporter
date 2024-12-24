@@ -15,7 +15,7 @@ cluster. Like any other Ceph client, it needs the following files to run
 correctly.
 
 * `ceph.conf` containing your Ceph configuration.
-* `ceph.<user>.keyring` in order to authenticate to your Ceph cluster.
+* `ceph.client.<user>.keyring` in order to authenticate to your Ceph cluster.
 
 The `ceph_exporter` will automatically pick those up if they are present in
 any of the [default
@@ -32,8 +32,8 @@ variables:
 We use Ceph's [official Golang client](https://github.com/ceph/go-ceph) to run
 commands on the cluster.
 
-This `ceph_exporter` branch currently supports the Nautilus, Octopus (untested), and Pacific releases. It might
-not work as expected with older or non-LTS versions of Ceph.
+`ceph_exporter` is currently in use and tested against Nautilus, Pacific, and Reef.
+It might not work as expected with older or non-LTS versions of Ceph.
 
 ## Environment Variables
 
