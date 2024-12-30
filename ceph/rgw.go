@@ -98,6 +98,7 @@ func NewRGWCollector(exporter *Exporter, background bool) *RGWCollector {
 
 	rgw := &RGWCollector{
 		config:           exporter.Config,
+		user:		  exporter.User,
 		background:       background,
 		logger:           exporter.Logger,
 		getRGWGCTaskList: rgwGetGCTaskList,
