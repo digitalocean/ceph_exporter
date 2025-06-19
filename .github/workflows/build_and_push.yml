@@ -54,3 +54,4 @@ jobs:
         with:
           push: true
           tags: digitalocean/ceph_exporter:${{ steps.get_tag.outputs.TAG_NAME }}
+          batman
