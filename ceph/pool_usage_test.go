@@ -186,6 +186,18 @@ func TestPoolUsageCollector(t *testing.T) {
 				regexp.MustCompile(`ceph_pool_write_total{cluster="ceph",pool="cinder_ssd"} 26721`),
 			},
 		},
+		{
+			input: `
+{"pools": [
+	{"name": "rgw.buckets.data", "id": 2, "stats": {"stored": 11916489841967104, "objects": 25791131854, "bytes_used": 18023834183319550, "compress_bytes_used": 190377979625472, "compress_under_bytes": 380755959250944, "rd": 4, "wr": 6}}
+]}`,
+			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
+			reMatch: []*regexp.Regexp{
+				regexp.MustCompile(`ceph_pool_compress_bytes_used{cluster="ceph",pool="rgw.buckets.data"} 1.90377979625472e\+14`),
+				regexp.MustCompile(`ceph_pool_compress_under_bytes{cluster="ceph",pool="rgw.buckets.data"} 3.80755959250944e\+14`),
+			},
+			reUnmatch: []*regexp.Regexp{},
+		},
 	} {
 		func() {
 			conn := setupVersionMocks(tt.version, "{}")

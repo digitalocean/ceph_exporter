@@ -34,6 +34,8 @@ Metrics:
  - `ceph_pool_read_bytes_total`: Total read throughput for the pool
  - `ceph_pool_write_total`: Total write I/O calls for the pool
  - `ceph_pool_write_bytes_total`: Total write throughput for the pool
+ - `ceph_pool_compress_bytes_used`: Bytes used after compression for the pool
+ - `ceph_pool_compress_under_bytes`: Bytes that would have been used before compression for the pool
 
 ## Pool info
 

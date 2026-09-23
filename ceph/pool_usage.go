@@ -65,6 +65,12 @@ type PoolUsageCollector struct {
 
 	// WriteBytes tracks the write throughput made for the images within each pool.
 	WriteBytes *prometheus.Desc
+
+	// CompressedBytesUsed tracks the bytes actually used on disk for compressed data in the pool.
+	CompressedBytesUsed *prometheus.Desc
+
+	// CompressedBytesUncompressed tracks the equivalent uncompressed size for data that was compressed in the pool.
+	CompressedBytesUncompressed *prometheus.Desc
 }
 
 // NewPoolUsageCollector creates a new instance of PoolUsageCollector and returns
@@ -115,6 +121,12 @@ func NewPoolUsageCollector(exporter *Exporter) *PoolUsageCollector {
 		WriteBytes: prometheus.NewDesc(fmt.Sprintf("%s_%s_write_bytes_total", cephNamespace, subSystem), "Total write throughput for the pool",
 			poolLabel, labels,
 		),
+		CompressedBytesUsed: prometheus.NewDesc(fmt.Sprintf("%s_%s_compress_bytes_used", cephNamespace, subSystem), "Bytes used after compression for the pool",
+			poolLabel, labels,
+		),
+		CompressedBytesUncompressed: prometheus.NewDesc(fmt.Sprintf("%s_%s_compress_under_bytes", cephNamespace, subSystem), "Bytes that would have been used before compression for the pool",
+			poolLabel, labels,
+		),
 	}
 }
 
@@ -123,17 +135,19 @@ type cephPoolStats struct {
 		Name  string `json:"name"`
 		ID    int    `json:"id"`
 		Stats struct {
-			BytesUsed    float64 `json:"bytes_used"`
-			StoredRaw    float64 `json:"stored_raw"`
-			Stored       float64 `json:"stored"`
-			MaxAvail     float64 `json:"max_avail"`
-			PercentUsed  float64 `json:"percent_used"`
-			Objects      float64 `json:"objects"`
-			DirtyObjects float64 `json:"dirty"`
-			ReadIO       float64 `json:"rd"`
-			ReadBytes    float64 `json:"rd_bytes"`
-			WriteIO      float64 `json:"wr"`
-			WriteBytes   float64 `json:"wr_bytes"`
+			BytesUsed          float64 `json:"bytes_used"`
+			StoredRaw          float64 `json:"stored_raw"`
+			Stored             float64 `json:"stored"`
+			MaxAvail           float64 `json:"max_avail"`
+			PercentUsed        float64 `json:"percent_used"`
+			Objects            float64 `json:"objects"`
+			DirtyObjects       float64 `json:"dirty"`
+			ReadIO             float64 `json:"rd"`
+			ReadBytes          float64 `json:"rd_bytes"`
+			WriteIO            float64 `json:"wr"`
+			WriteBytes         float64 `json:"wr_bytes"`
+			CompressBytesUsed  float64 `json:"compress_bytes_used"`
+			CompressUnderBytes float64 `json:"compress_under_bytes"`
 		} `json:"stats"`
 	} `json:"pools"`
 }
@@ -165,6 +179,8 @@ func (p *PoolUsageCollector) collect(ch chan<- prometheus.Metric) error {
 		ch <- prometheus.MustNewConstMetric(p.ReadBytes, prometheus.GaugeValue, pool.Stats.ReadBytes, pool.Name)
 		ch <- prometheus.MustNewConstMetric(p.WriteIO, prometheus.GaugeValue, pool.Stats.WriteIO, pool.Name)
 		ch <- prometheus.MustNewConstMetric(p.WriteBytes, prometheus.GaugeValue, pool.Stats.WriteBytes, pool.Name)
+		ch <- prometheus.MustNewConstMetric(p.CompressedBytesUsed, prometheus.GaugeValue, pool.Stats.CompressBytesUsed, pool.Name)
+		ch <- prometheus.MustNewConstMetric(p.CompressedBytesUncompressed, prometheus.GaugeValue, pool.Stats.CompressUnderBytes, pool.Name)
 
 		st, err := p.conn.GetPoolStats(pool.Name)
 		if err != nil {
@@ -207,6 +223,8 @@ func (p *PoolUsageCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- p.ReadBytes
 	ch <- p.WriteIO
 	ch <- p.WriteBytes
+	ch <- p.CompressedBytesUsed
+	ch <- p.CompressedBytesUncompressed
 }
 
 // Collect extracts the current values of all the metrics and sends them to the
