@@ -18,7 +18,9 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"sort"
 	"strconv"
+	"strings"
 	"sync"
 
 	"github.com/prometheus/client_golang/prometheus"
@@ -68,7 +70,7 @@ type PoolInfoCollector struct {
 func NewPoolInfoCollector(exporter *Exporter) *PoolInfoCollector {
 	var (
 		subSystem  = "pool"
-		poolLabels = []string{"pool", "profile", "root"}
+		poolLabels = []string{"pool", "profile", "root", "application"}
 	)
 
 	labels := make(prometheus.Labels)
@@ -175,17 +177,18 @@ func (p *PoolInfoCollector) collectorList() []prometheus.Collector {
 }
 
 type poolInfo struct {
-	Name            string  `json:"pool_name"`
-	ActualSize      float64 `json:"size"`
-	MinSize         float64 `json:"min_size"`
-	PGNum           float64 `json:"pg_num"`
-	PlacementPGNum  float64 `json:"pg_placement_num"`
-	QuotaMaxBytes   float64 `json:"quota_max_bytes"`
-	QuotaMaxObjects float64 `json:"quota_max_objects"`
-	Profile         string  `json:"erasure_code_profile"`
-	Type            int64   `json:"type"`
-	StripeWidth     float64 `json:"stripe_width"`
-	CrushRule       int64   `json:"crush_rule"`
+	Name                string                 `json:"pool_name"`
+	ActualSize          float64                `json:"size"`
+	MinSize             float64                `json:"min_size"`
+	PGNum               float64                `json:"pg_num"`
+	PlacementPGNum      float64                `json:"pg_placement_num"`
+	QuotaMaxBytes       float64                `json:"quota_max_bytes"`
+	QuotaMaxObjects     float64                `json:"quota_max_objects"`
+	Profile             string                 `json:"erasure_code_profile"`
+	Type                int64                  `json:"type"`
+	StripeWidth         float64                `json:"stripe_width"`
+	CrushRule           int64                  `json:"crush_rule"`
+	ApplicationMetadata map[string]interface{} `json:"application_metadata"`
 }
 
 type cephPoolInfo struct {
@@ -241,7 +244,7 @@ func (p *PoolInfoCollector) collect() error {
 		if pool.Type == poolReplicated {
 			pool.Profile = "replicated"
 		}
-		labelValues := []string{pool.Name, pool.Profile, ruleToRootMappings[pool.CrushRule]}
+		labelValues := []string{pool.Name, pool.Profile, ruleToRootMappings[pool.CrushRule], applicationLabel(pool.ApplicationMetadata)}
 		p.PGNum.WithLabelValues(labelValues...).Set(pool.PGNum)
 		p.PlacementPGNum.WithLabelValues(labelValues...).Set(pool.PlacementPGNum)
 		p.MinSize.WithLabelValues(labelValues...).Set(pool.MinSize)
@@ -287,6 +290,22 @@ func (p *PoolInfoCollector) Collect(ch chan<- prometheus.Metric, version *Versio
 	for _, metric := range p.collectorList() {
 		metric.Collect(ch)
 	}
+}
+
+// applicationLabel derives a comma-separated "application" label value
+// (e.g. "rbd", "rgw", "cephfs") from a pool's application_metadata.
+func applicationLabel(applicationMetadata map[string]interface{}) string {
+	if len(applicationMetadata) == 0 {
+		return ""
+	}
+
+	apps := make([]string, 0, len(applicationMetadata))
+	for app := range applicationMetadata {
+		apps = append(apps, app)
+	}
+	sort.Strings(apps)
+
+	return strings.Join(apps, ",")
 }
 
 func (p *PoolInfoCollector) getExpansionFactor(pool poolInfo) float64 {
