@@ -1,4 +1,4 @@
-# Ceph Exporter  [![GoDoc](https://godoc.org/github.com/digitalocean/ceph_exporter?status.svg)](https://godoc.org/github.com/digitalocean/ceph_exporter) ![build](https://github.com/digitalocean/ceph_exporter/actions/workflows/run_build.yml/badge.svg) ![tests](https://github.com/digitalocean/ceph_exporter/actions/workflows/run_tests.yml/badge.svg)  [![Go Report Card](https://goreportcard.com/badge/digitalocean/ceph_exporter)](https://goreportcard.com/report/digitalocean/ceph_exporter)
+# Ceph Exporter  [![GoDoc](https://godoc.org/github.com/digitalocean/ceph_exporter?status.svg)](https://godoc.org/github.com/digitalocean/ceph_exporter) ![CI](https://github.com/digitalocean/ceph_exporter/actions/workflows/ci.yml/badge.svg)
 
 A Prometheus exporter that scrapes meta information about a running Ceph
 cluster. All the information gathered from the cluster is done by interacting
