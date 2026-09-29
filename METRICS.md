@@ -46,6 +46,7 @@ Labels:
 - `pool`: pool name
 - `root`: CRUSH root of the pool
 - `profile`: `replicated` or EC profile being used
+- `application`: comma-separated list of applications enabled on the pool (e.g. `rbd`, `rgw`, `cephfs`), empty if none are enabled
 
 Metrics:
 - `ceph_pool_pg_num`: The total count of PGs alotted to a pool

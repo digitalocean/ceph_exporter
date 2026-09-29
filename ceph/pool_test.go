@@ -39,23 +39,23 @@ func TestPoolInfoCollector(t *testing.T) {
 		{
 			version: `{"version":"ceph version 16.2.11-22-wasd (1984a8c33225d70559cdf27dbab81e3ce153f6ac) pacific (stable)"}`,
 			reMatch: []*regexp.Regexp{
-				regexp.MustCompile(`pool_size{cluster="ceph",pool="rbd",profile="ec-4-2",root="non-default-root"} 6`),
-				regexp.MustCompile(`pool_min_size{cluster="ceph",pool="rbd",profile="ec-4-2",root="non-default-root"} 4`),
-				regexp.MustCompile(`pool_pg_num{cluster="ceph",pool="rbd",profile="ec-4-2",root="non-default-root"} 8192`),
-				regexp.MustCompile(`pool_pgp_num{cluster="ceph",pool="rbd",profile="ec-4-2",root="non-default-root"} 8192`),
-				regexp.MustCompile(`pool_quota_max_bytes{cluster="ceph",pool="rbd",profile="ec-4-2",root="non-default-root"} 1024`),
-				regexp.MustCompile(`pool_quota_max_objects{cluster="ceph",pool="rbd",profile="ec-4-2",root="non-default-root"} 2048`),
-				regexp.MustCompile(`pool_stripe_width{cluster="ceph",pool="rbd",profile="ec-4-2",root="non-default-root"} 4096`),
-				regexp.MustCompile(`pool_expansion_factor{cluster="ceph",pool="rbd",profile="ec-4-2",root="non-default-root"} 1.5`),
+				regexp.MustCompile(`pool_size{application="rbd",cluster="ceph",pool="rbd",profile="ec-4-2",root="non-default-root"} 6`),
+				regexp.MustCompile(`pool_min_size{application="rbd",cluster="ceph",pool="rbd",profile="ec-4-2",root="non-default-root"} 4`),
+				regexp.MustCompile(`pool_pg_num{application="rbd",cluster="ceph",pool="rbd",profile="ec-4-2",root="non-default-root"} 8192`),
+				regexp.MustCompile(`pool_pgp_num{application="rbd",cluster="ceph",pool="rbd",profile="ec-4-2",root="non-default-root"} 8192`),
+				regexp.MustCompile(`pool_quota_max_bytes{application="rbd",cluster="ceph",pool="rbd",profile="ec-4-2",root="non-default-root"} 1024`),
+				regexp.MustCompile(`pool_quota_max_objects{application="rbd",cluster="ceph",pool="rbd",profile="ec-4-2",root="non-default-root"} 2048`),
+				regexp.MustCompile(`pool_stripe_width{application="rbd",cluster="ceph",pool="rbd",profile="ec-4-2",root="non-default-root"} 4096`),
+				regexp.MustCompile(`pool_expansion_factor{application="rbd",cluster="ceph",pool="rbd",profile="ec-4-2",root="non-default-root"} 1.5`),
 
-				regexp.MustCompile(`pool_size{cluster="ceph",pool="rbd",profile="replicated-ruleset",root="default"} 3`),
-				regexp.MustCompile(`pool_min_size{cluster="ceph",pool="rbd",profile="replicated-ruleset",root="default"} 2`),
-				regexp.MustCompile(`pool_pg_num{cluster="ceph",pool="rbd",profile="replicated-ruleset",root="default"} 16384`),
-				regexp.MustCompile(`pool_pgp_num{cluster="ceph",pool="rbd",profile="replicated-ruleset",root="default"} 16384`),
-				regexp.MustCompile(`pool_quota_max_bytes{cluster="ceph",pool="rbd",profile="replicated-ruleset",root="default"} 512`),
-				regexp.MustCompile(`pool_quota_max_objects{cluster="ceph",pool="rbd",profile="replicated-ruleset",root="default"} 1024`),
-				regexp.MustCompile(`pool_stripe_width{cluster="ceph",pool="rbd",profile="replicated-ruleset",root="default"} 4096`),
-				regexp.MustCompile(`pool_expansion_factor{cluster="ceph",pool="rbd",profile="replicated-ruleset",root="default"} 3`),
+				regexp.MustCompile(`pool_size{application="",cluster="ceph",pool="rbd",profile="replicated-ruleset",root="default"} 3`),
+				regexp.MustCompile(`pool_min_size{application="",cluster="ceph",pool="rbd",profile="replicated-ruleset",root="default"} 2`),
+				regexp.MustCompile(`pool_pg_num{application="",cluster="ceph",pool="rbd",profile="replicated-ruleset",root="default"} 16384`),
+				regexp.MustCompile(`pool_pgp_num{application="",cluster="ceph",pool="rbd",profile="replicated-ruleset",root="default"} 16384`),
+				regexp.MustCompile(`pool_quota_max_bytes{application="",cluster="ceph",pool="rbd",profile="replicated-ruleset",root="default"} 512`),
+				regexp.MustCompile(`pool_quota_max_objects{application="",cluster="ceph",pool="rbd",profile="replicated-ruleset",root="default"} 1024`),
+				regexp.MustCompile(`pool_stripe_width{application="",cluster="ceph",pool="rbd",profile="replicated-ruleset",root="default"} 4096`),
+				regexp.MustCompile(`pool_expansion_factor{application="",cluster="ceph",pool="rbd",profile="replicated-ruleset",root="default"} 3`),
 			},
 			reUnmatch: []*regexp.Regexp{},
 		},
@@ -75,8 +75,8 @@ func TestPoolInfoCollector(t *testing.T) {
 				})
 			})).Return([]byte(`
 [
-	{"pool_name": "rbd", "crush_rule": 1, "size": 6, "min_size": 4, "pg_num": 8192, "pg_placement_num": 8192, "quota_max_bytes": 1024, "quota_max_objects": 2048, "erasure_code_profile": "ec-4-2", "stripe_width": 4096},
-	{"pool_name": "rbd", "crush_rule": 0, "size": 3, "min_size": 2, "pg_num": 16384, "pg_placement_num": 16384, "quota_max_bytes": 512, "quota_max_objects": 1024, "erasure_code_profile": "replicated-ruleset", "stripe_width": 4096}
+	{"pool_name": "rbd", "crush_rule": 1, "size": 6, "min_size": 4, "pg_num": 8192, "pg_placement_num": 8192, "quota_max_bytes": 1024, "quota_max_objects": 2048, "erasure_code_profile": "ec-4-2", "stripe_width": 4096, "application_metadata": {"rbd": {}}},
+	{"pool_name": "rbd", "crush_rule": 0, "size": 3, "min_size": 2, "pg_num": 16384, "pg_placement_num": 16384, "quota_max_bytes": 512, "quota_max_objects": 1024, "erasure_code_profile": "replicated-ruleset", "stripe_width": 4096, "application_metadata": {}}
 ]`,
 			), "", nil)
 
