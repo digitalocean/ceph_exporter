@@ -1,4 +1,4 @@
-# Copyright 2023 DigitalOcean
+# Copyright 2026 DigitalOcean
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-name: Tests
+name: CI
 
 on:
   push:
@@ -22,16 +22,24 @@ on:
 
 jobs:
 
-  run-go-tests:
-    runs-on: ubuntu-20.04
+  build:
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v2
 
-    - uses: actions/setup-go@v2
-      with:
-        go-version: '1.20'
+    # Builds the `builder` stage of the Dockerfile, which already contains
+    # the Go toolchain and Ceph dev libraries needed to compile ceph_exporter.
+    - name: Build in Docker
+      run: docker build --target builder -t ceph_exporter:build .
 
-    # We only test the Ceph package since main depends on go-ceph
-    - name: Go test
-      run: go test -v ./ceph
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    # Reuses the `builder` stage, but sets TEST so the Dockerfile runs
+    # `go test -tags nautilus -v -race -count=1 ./...` before compiling.
+    - name: Test in Docker
+      run: docker build --target builder --build-arg TEST=1 -t ceph_exporter:test .
